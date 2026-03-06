@@ -1,0 +1,11 @@
+[project]
+name = "inductone_tools"
+version = "0.0.1"
+description = "InductOne configuration tooling"
+authors = [
+    {name = "Plus One Robotics"}
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
