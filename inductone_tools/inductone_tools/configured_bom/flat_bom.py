@@ -53,14 +53,47 @@ def build_and_attach_flat_bom_for_config_order(config_order_name: str):
             is_private=1
         )
 
-        # Persist link + status
-        frappe.db.set_value("InductOne Configuration Order", co.name, {
-            "flat_bom_csv": saved.file_url,
-            "flat_bom_generated_at": now_datetime(),
-            "flat_bom_status": "Complete",
-            "flat_bom_error": ""
-        })
+        # Reload full doc so we can safely update child tables
+        co = frappe.get_doc("InductOne Configuration Order", co.name)
 
+        doc_title = f"{co.name} Flat BOM CSV"
+        existing_row = None
+
+        for row in (co.documents or []):
+            if (
+                (row.doc_title or "") == doc_title
+                or (row.file_url or "") == (saved.file_url or "")
+            ):
+                existing_row = row
+                break
+
+        if existing_row:
+            existing_row.source_type = "MANUAL"
+            existing_row.source_name = co.name
+            existing_row.doc_type = "OTHER"
+            existing_row.doc_title = doc_title
+            existing_row.file = saved.file_url
+            existing_row.file_url = saved.file_url
+            existing_row.required = "YES"
+            existing_row.sort_order = 900
+            existing_row.small_text_vtsj = "Auto-generated rolled-up flat BOM CSV."
+        else:
+            co.append("documents", {
+                "source_type": "MANUAL",
+                "source_name": co.name,
+                "doc_type": "OTHER",
+                "doc_title": doc_title,
+                "file": saved.file_url,
+                "file_url": saved.file_url,
+                "required": "YES",
+                "sort_order": 900,
+                "small_text_vtsj": "Auto-generated rolled-up flat BOM CSV."
+            })
+
+        co.flat_bom_status = "Complete"
+        co.flat_bom_error = ""
+
+        co.save(ignore_permissions=True)
         frappe.db.commit()
 
     except Exception:
@@ -142,7 +175,6 @@ def _build_flat_bom_rows_from_snapshot(snapshot_doc):
 
     # Convert qty to string/float for CSV
     for r in out:
-        # keep high precision stable string (ERP usually wants readable float)
         r["qty"] = _decimal_to_str(r["qty"])
 
     return out
@@ -191,7 +223,6 @@ def _to_decimal(x) -> Decimal:
 
 
 def _decimal_to_str(d: Decimal) -> str:
-    # Remove exponent/scientific form; strip trailing zeros nicely
     s = format(d, "f")
     if "." in s:
         s = s.rstrip("0").rstrip(".")
