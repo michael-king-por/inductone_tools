@@ -150,6 +150,7 @@ def sync_package_into_configuration_order(package_name: str):
         existing_row.source_name = pkg.bom or getattr(co, "top_bom", "") or ""
         existing_row.doc_type = "OTHER"
         existing_row.doc_title = row_title
+        existing_row.file = pkg.output_zip or ""
         existing_row.file_url = pkg.output_zip or ""
         existing_row.required = "YES"
         existing_row.sort_order = 300
@@ -160,6 +161,7 @@ def sync_package_into_configuration_order(package_name: str):
             "source_name": pkg.bom or getattr(co, "top_bom", "") or "",
             "doc_type": "OTHER",
             "doc_title": row_title,
+            "file": pkg.output_zip or "",
             "file_url": pkg.output_zip or "",
             "required": "YES",
             "sort_order": 300,
