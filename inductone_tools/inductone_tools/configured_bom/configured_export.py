@@ -264,6 +264,7 @@ def _append_generated_zip_to_document_index_if_missing(config_order_name: str, f
         "source_name": co.name,
         "doc_type": "OTHER",
         "doc_title": "Configured Export Package",
+        "file": file_url,
         "file_url": file_url,
         "required": "NO",
         "sort_order": max_sort + 100 if max_sort else 9999,

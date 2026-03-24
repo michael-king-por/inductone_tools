@@ -44,13 +44,16 @@ def generate_now(package_name: str):
     _clear_results_table(doc)
 
     try:
-        # 1) Explode BOM into rows
-        rows = explode_bom_tree(
-            root_bom=doc.bom,
-            explosion_mode=doc.explosion_mode or "Follow Explicit Child BOM Links",
-            max_depth=doc.max_depth,
-            include_qty=bool(getattr(doc, "include_qty", 1)),
-        )
+        # 1) Resolve rows
+        if (doc.source_mode or "BOM") == "Configured Build":
+            rows = build_configured_rows(doc)
+        else:
+            rows = explode_bom_tree(
+                root_bom=doc.bom,
+                explosion_mode=doc.explosion_mode or "Follow Explicit Child BOM Links",
+                max_depth=doc.max_depth,
+                include_qty=bool(getattr(doc, "include_qty", 1)),
+            )
 
         # 2) Collect attachments
         exts = _requested_exts(doc)
@@ -85,8 +88,10 @@ def generate_now(package_name: str):
         frappe.db.set_value("BOM Export Package", package_name, "output_zip", saved.file_url)
         _append_log(package_name, f"[{now()}] Complete. ZIP attached: {saved.file_url}")
         _set_status(package_name, "Complete")
-        frappe.db.commit()
 
+        sync_package_into_configuration_order(package_name)
+
+        frappe.db.commit()
         return {"ok": True, "file_url": saved.file_url}
 
     except Exception:
@@ -110,14 +115,83 @@ def _append_log(package_name: str, line: str):
 
 
 # -----------------------------
+# Configuration Order Sync
+# -----------------------------
+
+def sync_package_into_configuration_order(package_name: str):
+    """
+    Ensure the linked InductOne Configuration Order points to this package,
+    and ensure a matching Document Index row exists / is updated with the ZIP URL.
+    """
+    pkg = frappe.get_doc("BOM Export Package", package_name)
+
+    config_order_name = getattr(pkg, "configuration_order", None)
+    if not config_order_name:
+        return
+
+    co = frappe.get_doc("InductOne Configuration Order", config_order_name)
+
+    if hasattr(co, "bom_export_package"):
+        co.bom_export_package = pkg.name
+
+    existing_row = None
+    for row in (co.documents or []):
+        title = (getattr(row, "doc_title", "") or "").strip()
+        notes = (getattr(row, "small_text_vtsj", "") or "").strip()
+        if pkg.name in title or pkg.name in notes:
+            existing_row = row
+            break
+
+    row_title = f"Configured BOM Export Package - {pkg.name}"
+    row_note = f"BOM Export Package: {pkg.name} | Status: {pkg.status or 'Draft'}"
+
+    if existing_row:
+        existing_row.source_type = "BOM"
+        existing_row.source_name = pkg.bom or getattr(co, "top_bom", "") or ""
+        existing_row.doc_type = "OTHER"
+        existing_row.doc_title = row_title
+        existing_row.file_url = pkg.output_zip or ""
+        existing_row.required = "YES"
+        existing_row.sort_order = 300
+        existing_row.small_text_vtsj = row_note
+    else:
+        co.append("documents", {
+            "source_type": "BOM",
+            "source_name": pkg.bom or getattr(co, "top_bom", "") or "",
+            "doc_type": "OTHER",
+            "doc_title": row_title,
+            "file_url": pkg.output_zip or "",
+            "required": "YES",
+            "sort_order": 300,
+            "small_text_vtsj": row_note
+        })
+
+    co.save(ignore_permissions=True)
+
+
+# -----------------------------
 # Validation
 # -----------------------------
 
 def _validate_package(doc):
-    if not doc.bom:
-        frappe.throw("BOM is required.")
     if not (doc.include_pdf or doc.include_stl or doc.include_dxf or getattr(doc, "include_step", 0)):
         frappe.throw("Select at least one file type (PDF/STL/DXF/STEP).")
+
+    source_mode = doc.source_mode or "BOM"
+
+    if source_mode == "Configured Build":
+        if not doc.inductone_build:
+            frappe.throw("Configured Build mode requires InductOne Build.")
+        if not doc.configuration_order:
+            frappe.throw("Configured Build mode requires Configuration Order.")
+        if not doc.configured_snapshot:
+            frappe.throw("Configured Build mode requires Configured Snapshot.")
+        if not doc.bom:
+            frappe.throw("Configured Build mode requires BOM/top BOM.")
+    else:
+        if not doc.bom:
+            frappe.throw("BOM is required.")
+
 
 def _requested_exts(doc):
     exts = []
@@ -183,6 +257,302 @@ def explode_bom_tree(root_bom: str, explosion_mode: str, max_depth=None, include
                 _walk(child_bom, level + 1)
 
     _walk(root_bom, level=0)
+    return out
+
+def build_configured_rows(package_doc):
+    """
+    Build structured export rows for a configured InductOne build.
+
+    Strategy:
+      1) Start from the top BOM tree (preserves assemblies/subassemblies)
+      2) Use configured snapshot included leaf lines as final truth for included leaves
+      3) Keep baseline assembly rows only if they still lead to included leaves
+      4) Inject additive subtrees from selected option mappings that are not present in baseline
+    """
+    if not package_doc.inductone_build:
+        frappe.throw("Configured Build mode requires InductOne Build.")
+    if not package_doc.configured_snapshot:
+        frappe.throw("Configured Build mode requires Configured Snapshot.")
+
+    build = frappe.get_doc("InductOne Build", package_doc.inductone_build)
+    snap = frappe.get_doc("Configured BOM Snapshot", package_doc.configured_snapshot)
+
+    top_bom = package_doc.bom or build.top_bom
+    if not top_bom:
+        frappe.throw("Configured Build mode requires BOM / top BOM.")
+
+    baseline_rows = explode_bom_tree_structured(
+        root_bom=top_bom,
+        explosion_mode=package_doc.explosion_mode or "Follow Explicit Child BOM Links",
+        max_depth=package_doc.max_depth,
+        include_qty=bool(getattr(package_doc, "include_qty", 1)),
+    )
+
+    included_leaf_codes = {
+        ln.item_code
+        for ln in (snap.lines or [])
+        if int(getattr(ln, "included", 0) or 0) == 1 and getattr(ln, "item_code", None)
+    }
+
+    # Keep baseline leafs that are truly included
+    # Keep baseline assemblies if they have at least one included leaf descendant
+    filtered = []
+    for row in baseline_rows:
+        if row.get("is_leaf"):
+            if row["item_code"] in included_leaf_codes:
+                filtered.append(row)
+        else:
+            descendant_leafs = set(row.get("descendant_leaf_item_codes") or [])
+            if descendant_leafs.intersection(included_leaf_codes):
+                filtered.append(row)
+
+    # Additive subtrees from selected options
+    selected = [r for r in (build.selections or []) if int(getattr(r, "selected", 0) or 0) == 1]
+    addition_rows = build_added_structure_rows_from_selected_options(
+        selected_rows=selected,
+        baseline_rows=baseline_rows,
+        explosion_mode=package_doc.explosion_mode or "Follow Explicit Child BOM Links",
+        max_depth=package_doc.max_depth,
+        include_qty=bool(getattr(package_doc, "include_qty", 1)),
+    )
+
+    # Combine + dedupe
+    seen = set()
+    out = []
+
+    for row in filtered + addition_rows:
+        key = (
+            row.get("item_code") or "",
+            row.get("bom_used") or "",
+            row.get("node_type") or "",
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(row)
+
+    # Stable ordering
+    out.sort(key=lambda r: (
+        int(r.get("bom_level") or 0),
+        r.get("item_code") or "",
+        r.get("bom_used") or "",
+        r.get("node_type") or "",
+    ))
+    return out
+
+
+def explode_bom_tree_structured(root_bom: str, explosion_mode: str, max_depth=None, include_qty=True):
+    """
+    Structured tree explosion.
+    Keeps assemblies and leafs.
+    Adds metadata needed for configured filtering.
+    """
+    visited = set()
+    out = []
+
+    if max_depth in (None, "", 0, "0"):
+        max_depth = None
+    else:
+        max_depth = int(max_depth)
+
+    def _walk(bom_name: str, level: int, ancestor_items=None, ancestor_boms=None):
+        ancestor_items = list(ancestor_items or [])
+        ancestor_boms = list(ancestor_boms or [])
+
+        if max_depth is not None and level >= max_depth:
+            return []
+
+        visit_key = (bom_name, tuple(ancestor_items), tuple(ancestor_boms), level)
+        if visit_key in visited:
+            return []
+        visited.add(visit_key)
+
+        bom = frappe.get_doc("BOM", bom_name)
+        subtree_leafs = []
+
+        for bi in bom.items:
+            child_bom = getattr(bi, "bom_no", None)
+
+            if not child_bom and explosion_mode == "Fallback to Default Active BOM":
+                child_bom = frappe.db.get_value(
+                    "BOM",
+                    {"item": bi.item_code, "is_default": 1, "is_active": 1, "docstatus": 1},
+                    "name"
+                )
+
+            row = {
+                "bom_level": level + 1,
+                "item_code": bi.item_code,
+                "item_name": bi.item_name,
+                "qty": float(bi.qty) if include_qty else 1.0,
+                "uom": bi.uom,
+                "description": bi.description,
+                "bom_used": child_bom,
+                "node_type": "Assembly" if child_bom else "Leaf",
+                "is_leaf": 0 if child_bom else 1,
+                "ancestor_item_codes": list(ancestor_items),
+                "ancestor_boms": list(ancestor_boms),
+                "descendant_leaf_item_codes": [],
+            }
+
+            if child_bom:
+                child_leafs = _walk(
+                    child_bom,
+                    level + 1,
+                    ancestor_items=ancestor_items + [bi.item_code],
+                    ancestor_boms=ancestor_boms + [child_bom],
+                )
+                row["descendant_leaf_item_codes"] = sorted(set(child_leafs))
+                subtree_leafs.extend(child_leafs)
+            else:
+                row["descendant_leaf_item_codes"] = [bi.item_code]
+                subtree_leafs.append(bi.item_code)
+
+            out.append(row)
+
+        return subtree_leafs
+
+    _walk(root_bom, level=0)
+    return out
+
+
+def build_added_structure_rows_from_selected_options(selected_rows, baseline_rows, explosion_mode, max_depth, include_qty):
+    """
+    Build extra structure rows for ADD / REPLACE / QTY_OVERRIDE mappings
+    that are not already present in baseline structure.
+    """
+    baseline_item_codes = {r.get("item_code") for r in baseline_rows if r.get("item_code")}
+    out = []
+
+    for sel in selected_rows:
+        option_name = sel.option
+        mappings = fetch_option_actions_server(option_name)
+
+        for mr in mappings:
+            action = (mr.get("action") or "ADD").strip()
+
+            if action not in ("ADD", "REPLACE", "QTY_OVERRIDE"):
+                continue
+
+            target_item = mr.get("target_item")
+            expand_mode = (mr.get("expand_mode") or "AS_ITEM_ONLY").strip()
+            target_bom = mr.get("target_bom")
+
+            if not target_item:
+                continue
+
+            # If already present in baseline, don't inject duplicate structure
+            if target_item in baseline_item_codes:
+                continue
+
+            if expand_mode == "AS_ITEM_ONLY":
+                meta = frappe.db.get_value(
+                    "Item",
+                    target_item,
+                    ["item_name", "description", "stock_uom"],
+                    as_dict=True,
+                ) or {}
+
+                out.append({
+                    "bom_level": 1,
+                    "item_code": target_item,
+                    "item_name": meta.get("item_name") or "",
+                    "qty": 1.0 if include_qty else 1.0,
+                    "uom": meta.get("stock_uom") or "",
+                    "description": meta.get("description") or "",
+                    "bom_used": None,
+                    "node_type": "Leaf",
+                    "is_leaf": 1,
+                    "ancestor_item_codes": [],
+                    "ancestor_boms": [],
+                    "descendant_leaf_item_codes": [target_item],
+                })
+
+            elif expand_mode == "EXPLODE_DEFAULT_BOM":
+                default_bom = frappe.db.get_value(
+                    "BOM",
+                    {"item": target_item, "is_default": 1, "is_active": 1, "docstatus": 1},
+                    "name"
+                )
+                if not default_bom:
+                    continue
+
+                meta = frappe.db.get_value(
+                    "Item",
+                    target_item,
+                    ["item_name", "description", "stock_uom"],
+                    as_dict=True,
+                ) or {}
+
+                out.append({
+                    "bom_level": 1,
+                    "item_code": target_item,
+                    "item_name": meta.get("item_name") or "",
+                    "qty": 1.0 if include_qty else 1.0,
+                    "uom": meta.get("stock_uom") or "",
+                    "description": meta.get("description") or "",
+                    "bom_used": default_bom,
+                    "node_type": "Assembly",
+                    "is_leaf": 0,
+                    "ancestor_item_codes": [],
+                    "ancestor_boms": [],
+                    "descendant_leaf_item_codes": [],
+                })
+
+                subtree = explode_bom_tree_structured(
+                    root_bom=default_bom,
+                    explosion_mode=explosion_mode,
+                    max_depth=max_depth,
+                    include_qty=include_qty,
+                )
+                out.extend(subtree)
+
+            elif expand_mode == "USE_TARGET_BOM" and target_bom:
+                meta = frappe.db.get_value(
+                    "Item",
+                    target_item,
+                    ["item_name", "description", "stock_uom"],
+                    as_dict=True,
+                ) or {}
+
+                out.append({
+                    "bom_level": 1,
+                    "item_code": target_item,
+                    "item_name": meta.get("item_name") or "",
+                    "qty": 1.0 if include_qty else 1.0,
+                    "uom": meta.get("stock_uom") or "",
+                    "description": meta.get("description") or "",
+                    "bom_used": target_bom,
+                    "node_type": "Assembly",
+                    "is_leaf": 0,
+                    "ancestor_item_codes": [],
+                    "ancestor_boms": [],
+                    "descendant_leaf_item_codes": [],
+                })
+
+                subtree = explode_bom_tree_structured(
+                    root_bom=target_bom,
+                    explosion_mode=explosion_mode,
+                    max_depth=max_depth,
+                    include_qty=include_qty,
+                )
+                out.extend(subtree)
+
+    return out
+
+
+def fetch_option_actions_server(option_name):
+    doc = frappe.get_doc("InductOne Configuration Option", option_name)
+    out = []
+    for row in (doc.mappings_table or []):
+        out.append({
+            "action": getattr(row, "action", None),
+            "target_item": getattr(row, "target_item", None),
+            "target_bom": getattr(row, "target_bom", None),
+            "expand_mode": getattr(row, "expand_mode", None),
+            "qty_source": getattr(row, "qty_source", None),
+            "qty_fixed": getattr(row, "qty_fixed", None),
+        })
     return out
 
 
@@ -331,6 +701,7 @@ def update_results_and_missing_summary(package_name, package_doc, rows, attachme
                     "item_name": r.get("item_name"),
                     "bom_used": r.get("bom_used"),
                     "bom_level": r.get("bom_level"),
+                    "node_type": r.get("node_type"),
                     "ext": ext
                 })
 
@@ -488,24 +859,33 @@ def _make_watermark_page_pdf(page_width: float, page_height: float, text: str) -
 def _results_csv_bytes(rows, attachment_index, exts):
     out = io.StringIO()
     w = csv.writer(out)
-    headers = ["bom_level", "item_code", "item_name"]
-    headers += ["qty", "uom"]
+
+    headers = ["bom_level", "node_type", "item_code", "item_name", "qty", "uom", "bom_used"]
     headers += [f"has_{ext.lstrip('.')}" for ext in exts]
-    headers += ["bom_used"]
     w.writerow(headers)
 
     for r in rows:
-        # availability might be precomputed or recomputed
+        item_key = ("Item", r["item_code"])
+        bom_key = ("BOM", r["bom_used"]) if r.get("bom_used") else None
+
+        per_item = attachment_index.get(item_key, {})
+        per_bom = attachment_index.get(bom_key, {}) if bom_key else {}
+
+        avail = []
+        for ext in exts:
+            avail.append(1 if (per_item.get(ext) or per_bom.get(ext)) else 0)
+
         w.writerow([
             r.get("bom_level"),
+            r.get("node_type"),
             r.get("item_code"),
             r.get("item_name"),
             r.get("qty"),
             r.get("uom"),
-            # the has_* values: you can compute using attachment_index in the loop, or store on row
-            "", "", "",  # placeholder
-            r.get("bom_used")
+            r.get("bom_used"),
+            *avail
         ])
+
     return out.getvalue().encode("utf-8")
 
 
