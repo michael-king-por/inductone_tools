@@ -15,10 +15,9 @@ fixtures = [
     {
         "dt": "DocType",
         "filters": [
-            ["name", "in", [
-                "InductOne Configuration Order",
-                "InductOne Configuration Order Delta Line",
-                "InductOne Configuration Order Document Index"
+            ["module", "in", [
+                "Operations - POR",
+                "InductOne Tools"
             ]]
         ]
     },
@@ -26,6 +25,20 @@ fixtures = [
         "dt": "Custom DocPerm",
         "filters": [
             ["parent", "in", [
+                "InductOne Build",
+                "BOM Export Package",
+                "POR Physical Location",
+                "BOM Export Package Item",
+                "Configured BOM Snapshot",
+                "Configured BOM Snapshot Item",
+                "InductOne Build Execution Log",
+                "InductOne Configuration Option",
+                "InductOne Build Option Selection",
+                "InductOne Configuration Option Mapping",
+                "InductOne Build Completion",
+                "InductOne Build Completion Serial",
+                "InductOne As-Built Record",
+                "InductOne As-Built Serial",
                 "InductOne Configuration Order",
                 "InductOne Configuration Order Delta Line",
                 "InductOne Configuration Order Document Index"
@@ -36,6 +49,13 @@ fixtures = [
         "dt": "Custom Field",
         "filters": [
             ["dt", "in", [
+                "InductOne Build",
+                "BOM Export Package",
+                "Configured BOM Snapshot",
+                "InductOne Build Completion",
+                "InductOne Build Completion Serial",
+                "InductOne As-Built Record",
+                "InductOne As-Built Serial",
                 "InductOne Configuration Order",
                 "InductOne Configuration Order Delta Line",
                 "InductOne Configuration Order Document Index"
@@ -46,10 +66,20 @@ fixtures = [
         "dt": "Property Setter",
         "filters": [
             ["doc_type", "in", [
+                "InductOne Build",
+                "BOM Export Package",
+                "Configured BOM Snapshot",
+                "InductOne Build Completion",
+                "InductOne Build Completion Serial",
+                "InductOne As-Built Record",
+                "InductOne As-Built Serial",
                 "InductOne Configuration Order",
                 "InductOne Configuration Order Delta Line",
                 "InductOne Configuration Order Document Index"
             ]]
         ]
+    },
+    {
+        "dt": "Client Script"
     }
 ]
