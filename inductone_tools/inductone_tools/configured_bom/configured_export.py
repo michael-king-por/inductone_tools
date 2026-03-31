@@ -13,6 +13,17 @@ from frappe.utils.file_manager import save_file
 @frappe.whitelist()
 def generate_configured_export_now(config_order_name: str):
     """
+    DEPRECATED:
+    This direct Configuration Order export path is deprecated and should no longer
+    be used by any UI workflow.
+
+    Supported configured export generation must flow through BOM Export Package.
+
+    This function is intentionally retained for now to avoid breaking any hidden
+    dependencies while the deprecated workflow is being removed from the system.
+    It should be considered an orphaned legacy path pending full retirement.
+
+    Legacy behavior:
     Build a configuration-specific export ZIP from:
       - InductOne Configuration Order
       - linked Configured BOM Snapshot
@@ -21,6 +32,12 @@ def generate_configured_export_now(config_order_name: str):
 
     Output ZIP is attached back to the Configuration Order.
     """
+
+    frappe.logger().warning(
+        "DEPRECATED: generate_configured_export_now called for InductOne Configuration Order %s. "
+        "This workflow is deprecated; use BOM Export Package instead.",
+        config_order_name,
+    )
 
     if not config_order_name:
         frappe.throw("config_order_name is required.")
