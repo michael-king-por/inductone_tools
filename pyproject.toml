@@ -1,11 +1,15 @@
 [project]
 name = "inductone_tools"
-version = "0.0.1"
+version = "3.0.0"
 description = "InductOne configuration tooling"
 authors = [
     {name = "Plus One Robotics"}
 ]
+dependencies = [
+    "pypdf",
+    "reportlab"
+]
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
