@@ -253,6 +253,8 @@ def explode_bom_tree(root_bom: str, explosion_mode: str, max_depth=None, include
                 "uom": bi.uom,
                 "description": bi.description,
                 "bom_used": child_bom,
+                "node_type": "Assembly" if child_bom else "Leaf",
+                "is_leaf": 0 if child_bom else 1,
             })
 
             if child_bom:
@@ -261,15 +263,15 @@ def explode_bom_tree(root_bom: str, explosion_mode: str, max_depth=None, include
     _walk(root_bom, level=0)
     return out
 
+
 def build_configured_rows(package_doc):
     """
     Build structured export rows for a configured InductOne build.
 
-    Strategy:
-      1) Start from the top BOM tree (preserves assemblies/subassemblies)
-      2) Use configured snapshot included leaf lines as final truth for included leaves
-      3) Keep baseline assembly rows only if they still lead to included leaves
-      4) Inject additive subtrees from selected option mappings that are not present in baseline
+    Inclusion rules:
+      1) Include leaves that are included in the configured snapshot
+      2) Include assemblies only if they support at least one included descendant leaf
+      3) Exclude assemblies/items that are explicitly removed by selected option mappings
     """
     if not package_doc.inductone_build:
         frappe.throw("Configured Build mode requires InductOne Build.")
@@ -296,20 +298,42 @@ def build_configured_rows(package_doc):
         if int(getattr(ln, "included", 0) or 0) == 1 and getattr(ln, "item_code", None)
     }
 
+    selected = [r for r in (build.selections or []) if int(getattr(r, "selected", 0) or 0) == 1]
+
+    explicit_removed_items = get_explicitly_removed_target_items(selected)
+    explicit_removed_boms = get_explicitly_removed_target_boms(selected)
+
     # Keep baseline leafs that are truly included
     # Keep baseline assemblies if they have at least one included leaf descendant
+    # But exclude anything explicitly removed by selected option mappings
     filtered = []
     for row in baseline_rows:
+        row_item = row.get("item_code")
+        row_bom = row.get("bom_used")
+        row_ancestors = set(row.get("ancestor_item_codes") or [])
+
+        # Rule 3: explicitly removed target items are excluded
+        # Also exclude anything under a removed target item subtree
+        if row_item in explicit_removed_items:
+            continue
+        if row_ancestors.intersection(explicit_removed_items):
+            continue
+
+        # If the row's BOM is itself explicitly removed, exclude it
+        if row_bom and row_bom in explicit_removed_boms:
+            continue
+
         if row.get("is_leaf"):
-            if row["item_code"] in included_leaf_codes:
+            # Rule 1
+            if row_item in included_leaf_codes:
                 filtered.append(row)
         else:
+            # Rule 2
             descendant_leafs = set(row.get("descendant_leaf_item_codes") or [])
             if descendant_leafs.intersection(included_leaf_codes):
                 filtered.append(row)
 
     # Additive subtrees from selected options
-    selected = [r for r in (build.selections or []) if int(getattr(r, "selected", 0) or 0) == 1]
     addition_rows = build_added_structure_rows_from_selected_options(
         selected_rows=selected,
         baseline_rows=baseline_rows,
@@ -318,15 +342,32 @@ def build_configured_rows(package_doc):
         include_qty=bool(getattr(package_doc, "include_qty", 1)),
     )
 
+    # Remove any accidental additions that conflict with explicit removals
+    pruned_additions = []
+    for row in addition_rows:
+        row_item = row.get("item_code")
+        row_bom = row.get("bom_used")
+        row_ancestors = set(row.get("ancestor_item_codes") or [])
+
+        if row_item in explicit_removed_items:
+            continue
+        if row_ancestors.intersection(explicit_removed_items):
+            continue
+        if row_bom and row_bom in explicit_removed_boms:
+            continue
+
+        pruned_additions.append(row)
+
     # Combine + dedupe
     seen = set()
     out = []
 
-    for row in filtered + addition_rows:
+    for row in filtered + pruned_additions:
         key = (
             row.get("item_code") or "",
             row.get("bom_used") or "",
             row.get("node_type") or "",
+            tuple(row.get("ancestor_item_codes") or []),
         )
         if key in seen:
             continue
@@ -341,6 +382,53 @@ def build_configured_rows(package_doc):
         r.get("node_type") or "",
     ))
     return out
+
+
+def get_explicitly_removed_target_items(selected_rows):
+    """
+    Collect target items that are explicitly removed by selected option mappings.
+
+    Long-term defensible rule:
+    If an assembly/item is explicitly removed from the configured build,
+    the assembly/item itself must not appear in the configured export package.
+    """
+    removed = set()
+
+    for sel in selected_rows:
+        option_name = sel.option
+        mappings = fetch_option_actions_server(option_name)
+
+        for mr in mappings:
+            action = (mr.get("action") or "").strip()
+            target_item = mr.get("target_item")
+
+            if action == "REMOVE" and target_item:
+                removed.add(target_item)
+
+    return removed
+
+
+def get_explicitly_removed_target_boms(selected_rows):
+    """
+    Collect target BOMs that are explicitly referenced by REMOVE mappings.
+
+    This is secondary to target-item exclusion, but helps suppress rows whose
+    assembly BOM itself was directly targeted.
+    """
+    removed_boms = set()
+
+    for sel in selected_rows:
+        option_name = sel.option
+        mappings = fetch_option_actions_server(option_name)
+
+        for mr in mappings:
+            action = (mr.get("action") or "").strip()
+            target_bom = mr.get("target_bom")
+
+            if action == "REMOVE" and target_bom:
+                removed_boms.add(target_bom)
+
+    return removed_boms
 
 
 def explode_bom_tree_structured(root_bom: str, explosion_mode: str, max_depth=None, include_qty=True):
@@ -673,6 +761,7 @@ def _clear_results_table(package_doc):
         "parentfield": "results",
     })
 
+
 def update_results_and_missing_summary(package_name, package_doc, rows, attachment_index, exts):
     """
     Inserts child rows directly (no parent save) and sets missing summary via db.set_value.
@@ -753,6 +842,8 @@ def build_zip_bytes(package_name, package_doc, rows, attachment_index, exts, mis
     buf = io.BytesIO()
 
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        written_zip_paths = set()
+
         for r in rows:
             item_code = r["item_code"]
             item_key = ("Item", item_code)
@@ -776,6 +867,11 @@ def build_zip_bytes(package_name, package_doc, rows, attachment_index, exts, mis
                 original_name = f.get("file_name") or os.path.basename(abs_path)
                 folder = "STEP" if ext.lower() in (".step", ".stp") else ext.lstrip('.').upper()
                 zip_path = f"{folder}/{item_code}/{original_name}"
+
+                # Deduplicate writes by final archive path
+                if zip_path in written_zip_paths:
+                    continue
+                written_zip_paths.add(zip_path)
 
                 # Watermark PDFs in-memory before zipping (do not modify source files)
                 if ext.lower() == ".pdf":
