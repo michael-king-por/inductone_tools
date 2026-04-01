@@ -268,10 +268,11 @@ def build_configured_rows(package_doc):
     """
     Build structured export rows for a configured InductOne build.
 
-    Inclusion rules:
-      1) Include leaves that are included in the configured snapshot
-      2) Include assemblies only if they support at least one included descendant leaf
-      3) Exclude assemblies/items that are explicitly removed by selected option mappings
+    Current canonical rules:
+      1) Snapshot structural_effects are the primary structural truth
+      2) Snapshot included leaf lines are the primary material truth
+      3) Explicit structural suppressions prune target rows and their descendant branches
+      4) Replacement/addition branches are injected from resolved structural effects
     """
     if not package_doc.inductone_build:
         frappe.throw("Configured Build mode requires InductOne Build.")
@@ -298,71 +299,91 @@ def build_configured_rows(package_doc):
         if int(getattr(ln, "included", 0) or 0) == 1 and getattr(ln, "item_code", None)
     }
 
-    selected = [r for r in (build.selections or []) if int(getattr(r, "selected", 0) or 0) == 1]
+    structural_sets = load_snapshot_structural_effect_sets(snap)
 
-    explicit_removed_items = get_explicitly_removed_target_items(selected)
-    explicit_removed_boms = get_explicitly_removed_target_boms(selected)
+    suppressed_item_set = set()
+    suppressed_item_set.update(structural_sets.get("suppressed_node_items", set()))
+    suppressed_item_set.update(structural_sets.get("suppressed_branch_items", set()))
 
-    # Keep baseline leafs that are truly included
-    # Keep baseline assemblies if they have at least one included leaf descendant
-    # But exclude anything explicitly removed by selected option mappings
+    suppressed_bom_set = set()
+    suppressed_bom_set.update(structural_sets.get("suppressed_node_boms", set()))
+    suppressed_bom_set.update(structural_sets.get("suppressed_branch_boms", set()))
+
     filtered = []
     for row in baseline_rows:
         row_item = row.get("item_code")
         row_bom = row.get("bom_used")
-        row_ancestors = set(row.get("ancestor_item_codes") or [])
+        row_ancestor_items = set(row.get("ancestor_item_codes") or [])
+        row_ancestor_boms = set(row.get("ancestor_boms") or [])
 
-        # Rule 3: explicitly removed target items are excluded
-        # Also exclude anything under a removed target item subtree
-        if row_item in explicit_removed_items:
+        # Primary structural suppression rules
+        if row_item and row_item in suppressed_item_set:
             continue
-        if row_ancestors.intersection(explicit_removed_items):
+        if row_bom and row_bom in suppressed_bom_set:
             continue
-
-        # If the row's BOM is itself explicitly removed, exclude it
-        if row_bom and row_bom in explicit_removed_boms:
+        if row_ancestor_items.intersection(suppressed_item_set):
+            continue
+        if row_ancestor_boms.intersection(suppressed_bom_set):
             continue
 
         if row.get("is_leaf"):
-            # Rule 1
+            # Primary material rule
             if row_item in included_leaf_codes:
                 filtered.append(row)
         else:
-            # Rule 2
+            # Assemblies are retained when structurally allowed and they still
+            # support included material somewhere in the branch.
             descendant_leafs = set(row.get("descendant_leaf_item_codes") or [])
             if descendant_leafs.intersection(included_leaf_codes):
                 filtered.append(row)
 
-    # Additive subtrees from selected options
-    addition_rows = build_added_structure_rows_from_selected_options(
-        selected_rows=selected,
-        baseline_rows=baseline_rows,
+    # Explicit structural additions / replacements from resolved snapshot effects
+    explicit_structure_rows = build_structure_rows_from_structural_effects(
+        structural_sets=structural_sets,
         explosion_mode=package_doc.explosion_mode or "Follow Explicit Child BOM Links",
         max_depth=package_doc.max_depth,
         include_qty=bool(getattr(package_doc, "include_qty", 1)),
+        baseline_rows=baseline_rows,
     )
 
-    # Remove any accidental additions that conflict with explicit removals
-    pruned_additions = []
-    for row in addition_rows:
-        row_item = row.get("item_code")
-        row_bom = row.get("bom_used")
-        row_ancestors = set(row.get("ancestor_item_codes") or [])
+    # Backward-compatible additive fallback from selected options when snapshot structural
+    # effects are absent or incomplete. This preserves current functionality during rollout.
+    selected = [r for r in (build.selections or []) if int(getattr(r, "selected", 0) or 0) == 1]
+    fallback_additions = []
+    if not (getattr(snap, "structural_effects", None) or []):
+        explicit_removed_items = get_explicitly_removed_target_items(selected)
+        explicit_removed_boms = get_explicitly_removed_target_boms(selected)
 
-        if row_item in explicit_removed_items:
-            continue
-        if row_ancestors.intersection(explicit_removed_items):
-            continue
-        if row_bom and row_bom in explicit_removed_boms:
-            continue
+        addition_rows = build_added_structure_rows_from_selected_options(
+            selected_rows=selected,
+            baseline_rows=baseline_rows,
+            explosion_mode=package_doc.explosion_mode or "Follow Explicit Child BOM Links",
+            max_depth=package_doc.max_depth,
+            include_qty=bool(getattr(package_doc, "include_qty", 1)),
+        )
 
-        pruned_additions.append(row)
+        for row in addition_rows:
+            row_item = row.get("item_code")
+            row_bom = row.get("bom_used")
+            row_ancestors = set(row.get("ancestor_item_codes") or [])
+            row_ancestor_boms = set(row.get("ancestor_boms") or [])
+
+            if row_item in explicit_removed_items:
+                continue
+            if row_ancestors.intersection(explicit_removed_items):
+                continue
+            if row_bom and row_bom in explicit_removed_boms:
+                continue
+            if row_ancestor_boms.intersection(explicit_removed_boms):
+                continue
+
+            fallback_additions.append(row)
 
     # Combine + dedupe
     seen = set()
     out = []
 
-    for row in filtered + pruned_additions:
+    for row in filtered + explicit_structure_rows + fallback_additions:
         key = (
             row.get("item_code") or "",
             row.get("bom_used") or "",
@@ -639,10 +660,228 @@ def fetch_option_actions_server(option_name):
             "action": getattr(row, "action", None),
             "target_item": getattr(row, "target_item", None),
             "target_bom": getattr(row, "target_bom", None),
+            "replace_with_item": getattr(row, "replace_with_item", None),
+            "replace_with_bom": getattr(row, "replace_with_bom", None),
             "expand_mode": getattr(row, "expand_mode", None),
             "qty_source": getattr(row, "qty_source", None),
             "qty_fixed": getattr(row, "qty_fixed", None),
+            "row_order": getattr(row, "row_order", None),
+            "structural_effect_mode": getattr(row, "structural_effect_mode", None),
+            "preserve_target_item_identity": getattr(row, "preserve_target_item_identity", None),
+            "variant_artifact_key": getattr(row, "variant_artifact_key", None),
         })
+    return out
+
+
+def load_snapshot_structural_effect_sets(snapshot_doc):
+    """
+    Normalize snapshot.structural_effects into export-friendly sets/lists.
+    Snapshot structural effects are the primary structural truth for configured export.
+    """
+    removed_target_items = set()
+    removed_target_boms = set()
+    suppressed_node_items = set()
+    suppressed_node_boms = set()
+    suppressed_branch_items = set()
+    suppressed_branch_boms = set()
+    replacement_effects = []
+    additive_effects = []
+
+    for row in (getattr(snapshot_doc, "structural_effects", None) or []):
+        action = (getattr(row, "action", "") or "").strip()
+        effect_mode = (getattr(row, "effect_mode", "NO_STRUCTURAL_CHANGE") or "NO_STRUCTURAL_CHANGE").strip()
+
+        target_item = getattr(row, "target_item", None)
+        target_bom = getattr(row, "target_bom", None)
+        resolved_target_bom = getattr(row, "resolved_target_bom", None)
+        replace_with_item = getattr(row, "replace_with_item", None)
+        replace_with_bom = getattr(row, "replace_with_bom", None)
+        resolved_replace_with_bom = getattr(row, "resolved_replace_with_bom", None)
+        source_option = getattr(row, "source_option", None)
+        source_option_code = getattr(row, "source_option_code", None)
+        expand_mode = getattr(row, "expand_mode", None)
+        row_order = int(getattr(row, "row_order", 100) or 100)
+        reason = getattr(row, "reason", None)
+
+        effective_target_bom = resolved_target_bom or target_bom
+        effective_replace_with_bom = resolved_replace_with_bom or replace_with_bom
+
+        if action == "REMOVE":
+            if target_item:
+                removed_target_items.add(target_item)
+            if effective_target_bom:
+                removed_target_boms.add(effective_target_bom)
+
+            if effect_mode == "SUPPRESS_TARGET_NODE":
+                if target_item:
+                    suppressed_node_items.add(target_item)
+                if effective_target_bom:
+                    suppressed_node_boms.add(effective_target_bom)
+
+            elif effect_mode == "SUPPRESS_TARGET_BRANCH":
+                if target_item:
+                    suppressed_branch_items.add(target_item)
+                if effective_target_bom:
+                    suppressed_branch_boms.add(effective_target_bom)
+
+        elif action == "REPLACE":
+            replacement_effects.append({
+                "action": action,
+                "effect_mode": effect_mode,
+                "target_item": target_item,
+                "target_bom": target_bom,
+                "resolved_target_bom": effective_target_bom,
+                "replace_with_item": replace_with_item,
+                "replace_with_bom": replace_with_bom,
+                "resolved_replace_with_bom": effective_replace_with_bom,
+                "source_option": source_option,
+                "source_option_code": source_option_code,
+                "expand_mode": expand_mode,
+                "row_order": row_order,
+                "reason": reason,
+            })
+
+            if effect_mode == "REPLACE_TARGET_BRANCH":
+                if target_item:
+                    suppressed_branch_items.add(target_item)
+                if effective_target_bom:
+                    suppressed_branch_boms.add(effective_target_bom)
+
+        elif action == "ADD":
+            additive_effects.append({
+                "action": action,
+                "effect_mode": effect_mode,
+                "target_item": target_item,
+                "target_bom": target_bom,
+                "resolved_target_bom": effective_target_bom,
+                "replace_with_item": replace_with_item,
+                "replace_with_bom": replace_with_bom,
+                "resolved_replace_with_bom": effective_replace_with_bom,
+                "source_option": source_option,
+                "source_option_code": source_option_code,
+                "expand_mode": expand_mode,
+                "row_order": row_order,
+                "reason": reason,
+            })
+
+    return {
+        "removed_target_items": removed_target_items,
+        "removed_target_boms": removed_target_boms,
+        "suppressed_node_items": suppressed_node_items,
+        "suppressed_node_boms": suppressed_node_boms,
+        "suppressed_branch_items": suppressed_branch_items,
+        "suppressed_branch_boms": suppressed_branch_boms,
+        "replacement_effects": sorted(replacement_effects, key=lambda r: (int(r.get("row_order") or 100), r.get("target_item") or "")),
+        "additive_effects": sorted(additive_effects, key=lambda r: (int(r.get("row_order") or 100), r.get("target_item") or "")),
+    }
+
+
+def build_structure_rows_from_structural_effects(structural_sets, explosion_mode, max_depth, include_qty, baseline_rows):
+    """
+    Build explicit structure rows for resolved structural ADD / REPLACE effects.
+    This uses snapshot structural effects rather than raw selected options as the
+    primary structural source of truth.
+    """
+    baseline_keys = set()
+    baseline_item_codes = set()
+    for r in baseline_rows:
+        baseline_item_codes.add(r.get("item_code"))
+        baseline_keys.add((
+            r.get("item_code") or "",
+            r.get("bom_used") or "",
+            r.get("node_type") or "",
+            tuple(r.get("ancestor_item_codes") or []),
+        ))
+
+    out = []
+
+    def _append_row_if_new(row):
+        key = (
+            row.get("item_code") or "",
+            row.get("bom_used") or "",
+            row.get("node_type") or "",
+            tuple(row.get("ancestor_item_codes") or []),
+        )
+        if key in baseline_keys:
+            return
+        baseline_keys.add(key)
+        out.append(row)
+
+    def _append_item_or_bom_branch(item_code, bom_name):
+        if not item_code:
+            return
+
+        if bom_name:
+            meta = frappe.db.get_value(
+                "Item",
+                item_code,
+                ["item_name", "description", "stock_uom"],
+                as_dict=True,
+            ) or {}
+
+            _append_row_if_new({
+                "bom_level": 1,
+                "item_code": item_code,
+                "item_name": meta.get("item_name") or "",
+                "qty": 1.0 if include_qty else 1.0,
+                "uom": meta.get("stock_uom") or "",
+                "description": meta.get("description") or "",
+                "bom_used": bom_name,
+                "node_type": "Assembly",
+                "is_leaf": 0,
+                "ancestor_item_codes": [],
+                "ancestor_boms": [],
+                "descendant_leaf_item_codes": [],
+            })
+
+            subtree = explode_bom_tree_structured(
+                root_bom=bom_name,
+                explosion_mode=explosion_mode,
+                max_depth=max_depth,
+                include_qty=include_qty,
+            )
+            for row in subtree:
+                _append_row_if_new(row)
+
+        else:
+            meta = frappe.db.get_value(
+                "Item",
+                item_code,
+                ["item_name", "description", "stock_uom"],
+                as_dict=True,
+            ) or {}
+
+            _append_row_if_new({
+                "bom_level": 1,
+                "item_code": item_code,
+                "item_name": meta.get("item_name") or "",
+                "qty": 1.0 if include_qty else 1.0,
+                "uom": meta.get("stock_uom") or "",
+                "description": meta.get("description") or "",
+                "bom_used": None,
+                "node_type": "Leaf",
+                "is_leaf": 1,
+                "ancestor_item_codes": [],
+                "ancestor_boms": [],
+                "descendant_leaf_item_codes": [item_code],
+            })
+
+    for eff in structural_sets.get("replacement_effects", []):
+        if (eff.get("effect_mode") or "") != "REPLACE_TARGET_BRANCH":
+            continue
+
+        replacement_item = eff.get("replace_with_item") or eff.get("target_item")
+        replacement_bom = eff.get("resolved_replace_with_bom") or eff.get("replace_with_bom")
+        _append_item_or_bom_branch(replacement_item, replacement_bom)
+
+    for eff in structural_sets.get("additive_effects", []):
+        if (eff.get("effect_mode") or "") == "NO_STRUCTURAL_CHANGE":
+            continue
+
+        add_item = eff.get("target_item")
+        add_bom = eff.get("resolved_target_bom") or eff.get("target_bom")
+        _append_item_or_bom_branch(add_item, add_bom)
+
     return out
 
 
