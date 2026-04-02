@@ -1,9 +1,13 @@
 import csv
 import io
+import os
+from tempfile import NamedTemporaryFile
 
 import frappe
 from frappe.utils import now
 from frappe.utils.file_manager import save_file
+
+from openpyxl import load_workbook
 
 from .bom_export import build_configured_rows
 
@@ -15,7 +19,7 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
     as the authoritative package index.
 
     IMPORTANT:
-    This no longer builds a giant nested ZIP. Instead it creates a lightweight
+    This does NOT build a giant nested ZIP. Instead it creates a lightweight
     manifest artifact and ensures the Configuration Order document list is aligned
     to the current release basis.
 
@@ -118,7 +122,7 @@ def release_to_builder_now(build_name: str, package_name: str = None, note: str 
     Minimal operational release action.
 
     - Ensures the builder handoff manifest exists
-    - Generates/refreshes required serial capture template
+    - Generates/refreshes the builder serial capture workbook from template
     - Stamps the user's actual release fields
     - Uses the Configuration Order document list as the builder package
     """
@@ -158,20 +162,27 @@ def release_to_builder_now(build_name: str, package_name: str = None, note: str 
 @frappe.whitelist()
 def generate_required_serial_capture_artifact(build_name: str):
     """
-    Generate a CSV template listing the configured rows that likely require serial capture.
-    This remains useful for later completion workflow.
+    Generate a build-specific Excel workbook copy from the static
+    OPS-BLD-F01 builder template.
+
+    The template itself is controlled in the repo. This function creates
+    a per-build workbook copy, pre-fills what is known, attaches it to the build,
+    and adds/updates the Configuration Order document list row.
     """
     build = frappe.get_doc("InductOne Build", build_name)
-    rows = _get_configured_rows_for_build(build)
-    required_rows = _derive_required_serial_capture_rows(rows)
+    co_name = _resolve_configuration_order_name(build)
 
-    _sync_required_serial_capture_table(build, required_rows)
+    if not co_name:
+        frappe.throw("Latest Configuration Order is required before generating the builder serial capture workbook.")
 
-    csv_bytes = _required_serial_capture_csv_bytes(required_rows)
-    fname = f"{build.name}_required_serial_capture_{frappe.utils.now_datetime().strftime('%Y%m%d_%H%M%S')}.csv"
+    configuration_order = frappe.get_doc("InductOne Configuration Order", co_name)
+
+    workbook_bytes = _build_builder_serial_workbook_bytes(build, configuration_order)
+    fname = f"{build.name}_Builder_Serial_Confirmation_{frappe.utils.now_datetime().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
     saved = save_file(
         fname=fname,
-        content=csv_bytes,
+        content=workbook_bytes,
         dt="InductOne Build",
         dn=build.name,
         is_private=1,
@@ -181,23 +192,21 @@ def generate_required_serial_capture_artifact(build_name: str):
     _set_if_present(build, ["required_serial_capture_generated_at", "serial_capture_template_generated_at"], now())
     build.save(ignore_permissions=True)
 
-    co_name = _resolve_configuration_order_name(build)
-    if co_name:
-        _append_or_update_document_index_row(
-            parent_doctype="InductOne Configuration Order",
-            parent_name=co_name,
-            title=f"Builder Serial Capture Template - {build.name}",
-            file_url=saved.file_url,
-            source_type="BUILD",
-            source_name=build.name,
-            sort_order=320,
-            note=f"Required serial capture template for build {build.name}",
-        )
+    _append_or_update_document_index_row(
+        parent_doctype="InductOne Configuration Order",
+        parent_name=co_name,
+        title=f"Builder Serial Capture Workbook - {build.name}",
+        file_url=saved.file_url,
+        source_type="BUILD",
+        source_name=build.name,
+        sort_order=320,
+        note=f"Build-specific workbook generated from OPS-BLD-F01 template for build {build.name}",
+    )
 
     return {
         "ok": True,
         "build": build.name,
-        "required_serial_rows": len(required_rows),
+        "required_serial_rows": None,
         "template_file_url": saved.file_url,
     }
 
@@ -254,8 +263,6 @@ def close_build_from_as_built(build_name: str, note: str = None):
 
 
 def _build_builder_release_manifest(build, configuration_order, package_doc, flat_bom_file_url, snapshot_name, top_bom):
-    serial_rows = _derive_required_serial_capture_rows(_get_configured_rows_for_build(build))
-
     manifest_json = {
         "build": build.name,
         "configuration_order": configuration_order.name,
@@ -265,13 +272,12 @@ def _build_builder_release_manifest(build, configuration_order, package_doc, fla
         "bom_export_zip": getattr(package_doc, "output_zip", None) if package_doc else None,
         "flat_bom_file_url": flat_bom_file_url,
         "generated": now(),
-        "serial_capture_rows": len(serial_rows),
         "package_model": "Configuration Order document list is the builder package",
         "handoff_components": [
             "Configured BOM Export Package ZIP",
             "Flat BOM CSV",
             "Builder Release Manifest",
-            "Builder Serial Capture Template"
+            "Builder Serial Capture Workbook"
         ],
     }
 
@@ -294,17 +300,90 @@ def _build_builder_release_manifest(build, configuration_order, package_doc, fla
         "- Configured BOM Export Package ZIP",
         "- Flat BOM CSV",
         "- Builder Release Manifest",
-        "- Builder Serial Capture Template",
+        "- Builder Serial Capture Workbook",
         "",
         "BUILDER COMPLETION EXPECTATIONS:",
         "- Build to the released package basis unless a deviation is explicitly approved.",
-        "- Return installed serials / vendor serials / POR serials as applicable.",
+        "- Complete the Builder Serial Capture Workbook.",
         "- Return completion evidence and note any deviations or substitutions.",
-        "",
-        f"Serial capture rows expected: {len(serial_rows)}",
     ]
 
     return "\n".join(lines), manifest_json
+
+
+def _build_builder_serial_workbook_bytes(build_doc, configuration_order_doc):
+    template_path = frappe.get_app_path(
+        "inductone_tools",
+        "builder_templates",
+        "OPS-BLD-F01_Template.xlsx"
+    )
+
+    if not os.path.exists(template_path):
+        frappe.throw(f"Builder serial workbook template not found at: {template_path}")
+
+    wb = load_workbook(template_path)
+
+    if "Builder Input" not in wb.sheetnames:
+        frappe.throw("Builder serial workbook template is missing required sheet: Builder Input")
+
+    ws = wb["Builder Input"]
+
+    field_map = _field_label_to_cell_map(ws)
+
+    build_date = getattr(build_doc, "released_at", None) or getattr(build_doc, "creation", None) or ""
+    builder_org = getattr(build_doc, "builder_supplier", None) or getattr(configuration_order_doc, "builder_supplier", None) or ""
+    builder_poc = getattr(build_doc, "builder_poc", None) or ""
+    builder_poc_email = getattr(build_doc, "builder_poc_email", None) or getattr(build_doc, "builder_contact_email", None) or ""
+
+    # Prefer a true machine serial if you add one later; otherwise leave blank.
+    inductone_serial = (
+        getattr(build_doc, "inductone_serial_number", None)
+        or getattr(build_doc, "machine_serial_number", None)
+        or ""
+    )
+
+    prefills = {
+        "InductOne Serial Number (IND-####)": inductone_serial,
+        "Build Date": build_date,
+        "Builder Organization": builder_org,
+        "Builder Point of Contact": builder_poc,
+        "Builder Point of Contact Email": builder_poc_email,
+    }
+
+    for label, value in prefills.items():
+        cell_ref = field_map.get(label)
+        if cell_ref:
+            ws[cell_ref] = value
+
+    # Optional: put some release metadata onto the Instructions sheet if present
+    if "Instructions" in wb.sheetnames:
+        ws2 = wb["Instructions"]
+        start_row = ws2.max_row + 2
+        ws2[f"A{start_row}"] = "Release Context"
+        ws2[f"A{start_row + 1}"] = f"Build: {build_doc.name}"
+        ws2[f"A{start_row + 2}"] = f"Configuration Order: {configuration_order_doc.name}"
+        ws2[f"A{start_row + 3}"] = f"Snapshot: {_resolve_snapshot_name(build_doc) or ''}"
+        ws2[f"A{start_row + 4}"] = f"Top BOM: {getattr(build_doc, 'top_bom', None) or ''}"
+
+    with NamedTemporaryFile(suffix=".xlsx") as tmp:
+        wb.save(tmp.name)
+        tmp.seek(0)
+        return tmp.read()
+
+
+def _field_label_to_cell_map(ws):
+    """
+    Map column A labels to the editable/value cell in column B.
+    Assumes the template schema uses:
+      Column A = field label
+      Column B = value cell
+    """
+    out = {}
+    for row in range(1, ws.max_row + 1):
+        label = ws[f"A{row}"].value
+        if label and isinstance(label, str):
+            out[label.strip()] = f"B{row}"
+    return out
 
 
 def _resolve_configuration_order_name(build_doc):
@@ -389,6 +468,10 @@ def _get_configured_rows_for_build(build_doc):
 
 
 def _derive_required_serial_capture_rows(configured_rows):
+    """
+    Retained only for later validation/comparison workflows.
+    The builder-facing submission artifact is now the workbook, not this generic row set.
+    """
     item_meta = {}
     out = []
 
