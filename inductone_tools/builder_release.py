@@ -1,22 +1,25 @@
-import os
 import csv
 import io
-import zipfile
 
 import frappe
 from frappe.utils import now
 from frappe.utils.file_manager import save_file
 
-from .bom_export import build_configured_rows, resolve_file_path
+from .bom_export import build_configured_rows
 
 
 @frappe.whitelist()
 def generate_builder_release_bundle(build_name: str, package_name: str = None):
     """
-    Build one builder-facing ZIP bundle from the current InductOne Build context.
+    Prepare the builder handoff package using the Configuration Order document list
+    as the authoritative package index.
 
-    This is intentionally light on gatekeeping for now. It assumes the user has
-    manually prepared / approved the release basis and wants a releasable package.
+    IMPORTANT:
+    This no longer builds a giant nested ZIP. Instead it creates a lightweight
+    manifest artifact and ensures the Configuration Order document list is aligned
+    to the current release basis.
+
+    The Configuration Order document list is the builder package.
     """
     build = frappe.get_doc("InductOne Build", build_name)
 
@@ -25,13 +28,13 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
     top_bom = getattr(build, "top_bom", None) or getattr(build, "bom", None)
 
     if not co_name:
-        frappe.throw("InductOne Build must have a linked Configuration Order to generate a builder release bundle.")
+        frappe.throw("InductOne Build must have a linked Configuration Order to prepare builder handoff.")
 
     if not snapshot_name:
-        frappe.throw("InductOne Build must have a selected/latest snapshot to generate a builder release bundle.")
+        frappe.throw("InductOne Build must have a selected/latest snapshot to prepare builder handoff.")
 
     if not top_bom:
-        frappe.throw("InductOne Build must have Top BOM to generate a builder release bundle.")
+        frappe.throw("InductOne Build must have Top BOM to prepare builder handoff.")
 
     co = frappe.get_doc("InductOne Configuration Order", co_name)
 
@@ -45,7 +48,15 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
 
     flat_bom_file_url = _resolve_flat_bom_file_url(build, co)
 
-    bundle_name, bundle_bytes, manifest = _build_builder_release_bundle_bytes(
+    if not package_doc:
+        frappe.throw("No BOM Export Package is linked/resolved for this build.")
+    if not getattr(package_doc, "output_zip", None):
+        frappe.throw(
+            f"BOM Export Package {package_doc.name} has not been generated yet. "
+            f"Open the BOM Export Package and run generation there before preparing builder handoff."
+        )
+
+    manifest_text, manifest_json = _build_builder_release_manifest(
         build=build,
         configuration_order=co,
         package_doc=package_doc,
@@ -54,24 +65,38 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
         top_bom=top_bom,
     )
 
+    manifest_fname = f"{build.name}_builder_release_manifest_{frappe.utils.now_datetime().strftime('%Y%m%d_%H%M%S')}.txt"
     saved = save_file(
-        fname=bundle_name,
-        content=bundle_bytes,
+        fname=manifest_fname,
+        content=manifest_text.encode("utf-8"),
         dt="InductOne Build",
         dn=build.name,
         is_private=1,
     )
 
     _set_if_present(build, ["builder_release_bundle", "builder_package", "released_builder_package"], saved.file_url)
-    _set_if_present(build, ["builder_release_manifest_json"], frappe.as_json(manifest))
+    _set_if_present(build, ["builder_release_manifest_json"], frappe.as_json(manifest_json, indent=2))
     _set_if_present(build, ["builder_release_generated_at", "builder_package_generated_at"], now())
     _set_if_present(build, ["builder_release_status"], "Prepared")
     build.save(ignore_permissions=True)
 
+    # Ensure the current package components are represented on the Configuration Order
+    _sync_bom_export_document_index(
+        configuration_order_name=co.name,
+        top_bom=top_bom,
+        package_doc=package_doc,
+    )
+
+    _sync_flat_bom_document_index(
+        configuration_order_name=co.name,
+        build_name=build.name,
+        flat_bom_file_url=flat_bom_file_url,
+    )
+
     _sync_builder_release_document_index(
         configuration_order_name=co.name,
         build_name=build.name,
-        bundle_url=saved.file_url,
+        manifest_url=saved.file_url,
         package_name=package_doc.name if package_doc else None,
         flat_bom_file_url=flat_bom_file_url,
     )
@@ -83,7 +108,7 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
         "bundle_file_url": saved.file_url,
         "package_name": package_doc.name if package_doc else None,
         "flat_bom_file_url": flat_bom_file_url,
-        "manifest": manifest,
+        "manifest": manifest_json,
     }
 
 
@@ -91,16 +116,14 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
 def release_to_builder_now(build_name: str, package_name: str = None, note: str = None):
     """
     Minimal operational release action.
-    - Generates the unified builder bundle
+
+    - Ensures the builder handoff manifest exists
     - Generates/refreshes required serial capture template
     - Stamps the user's actual release fields
-    - Updates Configuration Order document index with the builder release bundle
-
-    This does NOT add hard gatekeeping yet.
+    - Uses the Configuration Order document list as the builder package
     """
     result = generate_builder_release_bundle(build_name=build_name, package_name=package_name)
 
-    # Keep serial template generation in place so the release bundle remains useful later.
     try:
         serial_result = generate_required_serial_capture_artifact(build_name)
     except Exception:
@@ -108,7 +131,7 @@ def release_to_builder_now(build_name: str, package_name: str = None, note: str 
 
     build = frappe.get_doc("InductOne Build", build_name)
 
-    # Stamp the actual fields used by the current build doctype/client flow.
+    # Stamp actual fields used by the current build doctype/client flow
     _set_if_present(build, ["build_status"], "RELEASED_TO_BUILDER")
     _set_if_present(build, ["released_at"], frappe.utils.now_datetime())
     _set_if_present(build, ["released_by"], frappe.session.user)
@@ -136,7 +159,7 @@ def release_to_builder_now(build_name: str, package_name: str = None, note: str 
 def generate_required_serial_capture_artifact(build_name: str):
     """
     Generate a CSV template listing the configured rows that likely require serial capture.
-    This is retained for later completion workflow, but it is not required to expose a button now.
+    This remains useful for later completion workflow.
     """
     build = frappe.get_doc("InductOne Build", build_name)
     rows = _get_configured_rows_for_build(build)
@@ -230,97 +253,30 @@ def close_build_from_as_built(build_name: str, note: str = None):
     return {"ok": True, "build": build.name}
 
 
-def _build_builder_release_bundle_bytes(build, configuration_order, package_doc, flat_bom_file_url, snapshot_name, top_bom):
-    bundle_name = f"{build.name}_builder_release_{frappe.utils.now_datetime().strftime('%Y%m%d_%H%M%S')}.zip"
-    manifest = {
+def _build_builder_release_manifest(build, configuration_order, package_doc, flat_bom_file_url, snapshot_name, top_bom):
+    serial_rows = _derive_required_serial_capture_rows(_get_configured_rows_for_build(build))
+
+    manifest_json = {
         "build": build.name,
         "configuration_order": configuration_order.name,
         "configured_snapshot": snapshot_name,
         "top_bom": top_bom,
         "bom_export_package": package_doc.name if package_doc else None,
+        "bom_export_zip": getattr(package_doc, "output_zip", None) if package_doc else None,
         "flat_bom_file_url": flat_bom_file_url,
         "generated": now(),
-        "contents": [],
-        "missing": [],
+        "serial_capture_rows": len(serial_rows),
+        "package_model": "Configuration Order document list is the builder package",
+        "handoff_components": [
+            "Configured BOM Export Package ZIP",
+            "Flat BOM CSV",
+            "Builder Release Manifest",
+            "Builder Serial Capture Template"
+        ],
     }
 
-    serial_rows = _derive_required_serial_capture_rows(_get_configured_rows_for_build(build))
-
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        cover_text = _builder_release_cover_text(
-            build,
-            configuration_order,
-            package_doc,
-            flat_bom_file_url,
-            snapshot_name,
-            top_bom,
-            serial_rows,
-        )
-        zf.writestr("builder_release_cover.txt", cover_text)
-        manifest["contents"].append({"path": "builder_release_cover.txt", "kind": "cover"})
-
-        # Configuration Order PDF
-        try:
-            co_pdf = frappe.get_print("InductOne Configuration Order", configuration_order.name, as_pdf=True)
-            zf.writestr(f"configuration_order/{configuration_order.name}.pdf", co_pdf)
-            manifest["contents"].append({
-                "path": f"configuration_order/{configuration_order.name}.pdf",
-                "kind": "configuration_order_pdf"
-            })
-        except Exception:
-            manifest["missing"].append({
-                "kind": "configuration_order_pdf",
-                "reason": "print_failed",
-                "detail": frappe.get_traceback()
-            })
-
-        # Flat BOM CSV
-        if flat_bom_file_url:
-            _add_file_url_to_zip(
-                zf,
-                flat_bom_file_url,
-                f"builder_bom/{os.path.basename(resolve_file_path(flat_bom_file_url) or flat_bom_file_url)}",
-                manifest,
-                "flat_bom"
-            )
-        else:
-            manifest["missing"].append({"kind": "flat_bom", "reason": "not_found"})
-
-        # BOM Export Package ZIP
-        if package_doc and getattr(package_doc, "output_zip", None):
-            zip_dest = f"bom_export/{os.path.basename(resolve_file_path(package_doc.output_zip) or package_doc.output_zip)}"
-            _add_file_url_to_zip(zf, package_doc.output_zip, zip_dest, manifest, "bom_export_package")
-        else:
-            manifest["missing"].append({"kind": "bom_export_package", "reason": "not_found"})
-
-        # Current Configuration Order linked documents
-        for docrow in (getattr(configuration_order, "documents", None) or []):
-            f_url = getattr(docrow, "file_url", None) or getattr(docrow, "file", None)
-            if not f_url:
-                continue
-            title = (getattr(docrow, "doc_title", None) or "document").strip()
-            safe_title = frappe.scrub(title).replace("-", "_") or "document"
-            dest = f"configuration_order_documents/{safe_title}/{os.path.basename(resolve_file_path(f_url) or f_url)}"
-            _add_file_url_to_zip(zf, f_url, dest, manifest, "configuration_order_document", allow_missing=True)
-
-        # Serial capture template
-        zf.writestr("serial_capture/required_serial_capture.csv", _required_serial_capture_csv_bytes(serial_rows))
-        manifest["contents"].append({
-            "path": "serial_capture/required_serial_capture.csv",
-            "kind": "required_serial_capture"
-        })
-
-        # Final manifest
-        zf.writestr("builder_release_manifest.json", frappe.as_json(manifest, indent=2))
-
-    buf.seek(0)
-    return bundle_name, buf.read(), manifest
-
-
-def _builder_release_cover_text(build, configuration_order, package_doc, flat_bom_file_url, snapshot_name, top_bom, serial_rows):
     lines = [
-        "INDUCTONE BUILDER RELEASE PACKAGE",
+        "INDUCTONE BUILDER RELEASE MANIFEST",
         "",
         f"Build: {build.name}",
         f"Configuration Order: {configuration_order.name}",
@@ -331,40 +287,24 @@ def _builder_release_cover_text(build, configuration_order, package_doc, flat_bo
         f"Flat BOM CSV: {flat_bom_file_url or ''}",
         f"Generated: {now()}",
         "",
-        "Included package intent:",
-        "- Configuration Order PDF (best effort)",
-        "- Current Configuration Order linked documents",
-        "- Configured BOM export package ZIP",
-        "- Flat configured BOM CSV",
-        "- Required serial capture CSV template",
+        "PACKAGE MODEL:",
+        "The Configuration Order document list is the builder package.",
         "",
-        "Builder completion expectations:",
+        "EXPECTED DOCUMENTS ON THE CONFIGURATION ORDER:",
+        "- Configured BOM Export Package ZIP",
+        "- Flat BOM CSV",
+        "- Builder Release Manifest",
+        "- Builder Serial Capture Template",
+        "",
+        "BUILDER COMPLETION EXPECTATIONS:",
         "- Build to the released package basis unless a deviation is explicitly approved.",
         "- Return installed serials / vendor serials / POR serials as applicable.",
         "- Return completion evidence and note any deviations or substitutions.",
         "",
-        f"Serial capture rows in template: {len(serial_rows)}",
+        f"Serial capture rows expected: {len(serial_rows)}",
     ]
-    return "\n".join(lines)
 
-
-def _add_file_url_to_zip(zf, file_url, zip_path, manifest, kind, allow_missing=False):
-    abs_path = resolve_file_path(file_url)
-    if not abs_path or not os.path.exists(abs_path):
-        manifest["missing"].append({
-            "kind": kind,
-            "file_url": file_url,
-            "zip_path": zip_path,
-            "reason": "not_found_on_disk"
-        })
-        return
-
-    zf.write(abs_path, zip_path)
-    manifest["contents"].append({
-        "path": zip_path,
-        "kind": kind,
-        "file_url": file_url
-    })
+    return "\n".join(lines), manifest_json
 
 
 def _resolve_configuration_order_name(build_doc):
@@ -597,8 +537,54 @@ def _sync_as_built_serial_capture_table(build_doc, rows):
     build_doc.save(ignore_permissions=True)
 
 
-def _sync_builder_release_document_index(configuration_order_name, build_name, bundle_url, package_name=None, flat_bom_file_url=None):
-    note = f"Builder release bundle for build {build_name}"
+def _sync_bom_export_document_index(configuration_order_name, top_bom, package_doc):
+    if not package_doc:
+        return
+
+    row_title = f"Configured BOM Export Package - {package_doc.name}"
+    row_note = f"BOM Export Package: {package_doc.name} | Status: {package_doc.status or 'Draft'}"
+
+    _append_or_update_document_index_row(
+        parent_doctype="InductOne Configuration Order",
+        parent_name=configuration_order_name,
+        title=row_title,
+        file_url=package_doc.output_zip or "",
+        source_type="BOM",
+        source_name=top_bom or "",
+        sort_order=300,
+        note=row_note,
+    )
+
+
+def _sync_flat_bom_document_index(configuration_order_name, build_name, flat_bom_file_url):
+    if not flat_bom_file_url:
+        return
+
+    doc = frappe.get_doc("InductOne Configuration Order", configuration_order_name)
+    existing_title = None
+
+    for row in (getattr(doc, "documents", None) or []):
+        title = (getattr(row, "doc_title", "") or "")
+        if "flat bom" in title.lower() or "configured bom csv" in title.lower():
+            existing_title = title
+            break
+
+    title_to_use = existing_title or f"{configuration_order_name} Flat BOM CSV"
+
+    _append_or_update_document_index_row(
+        parent_doctype="InductOne Configuration Order",
+        parent_name=configuration_order_name,
+        title=title_to_use,
+        file_url=flat_bom_file_url,
+        source_type="MANUAL",
+        source_name=configuration_order_name,
+        sort_order=900,
+        note="Auto-generated rolled-up flat BOM CSV.",
+    )
+
+
+def _sync_builder_release_document_index(configuration_order_name, build_name, manifest_url, package_name=None, flat_bom_file_url=None):
+    note = f"Builder release manifest for build {build_name}"
     if package_name:
         note += f" | BOM Export Package: {package_name}"
     if flat_bom_file_url:
@@ -607,8 +593,8 @@ def _sync_builder_release_document_index(configuration_order_name, build_name, b
     _append_or_update_document_index_row(
         parent_doctype="InductOne Configuration Order",
         parent_name=configuration_order_name,
-        title=f"Builder Release Bundle - {build_name}",
-        file_url=bundle_url,
+        title=f"Builder Release Manifest - {build_name}",
+        file_url=manifest_url,
         source_type="BUILD",
         source_name=build_name,
         sort_order=310,
