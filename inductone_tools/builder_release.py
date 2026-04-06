@@ -128,10 +128,8 @@ def release_to_builder_now(build_name: str, package_name: str = None, note: str 
     """
     result = generate_builder_release_bundle(build_name=build_name, package_name=package_name)
 
-    try:
-        serial_result = generate_required_serial_capture_artifact(build_name)
-    except Exception:
-        serial_result = {"template_file_url": None}
+    # Do not swallow this error. If the workbook fails, we want the real traceback.
+    serial_result = generate_required_serial_capture_artifact(build_name)
 
     build = frappe.get_doc("InductOne Build", build_name)
 
@@ -197,7 +195,7 @@ def generate_required_serial_capture_artifact(build_name: str):
         parent_name=co_name,
         title=f"Builder Serial Capture Workbook - {build.name}",
         file_url=saved.file_url,
-        source_type="BUILD",
+        source_type="MANUAL",
         source_name=build.name,
         sort_order=320,
         note=f"Build-specific workbook generated from OPS-BLD-F01 template for build {build.name}",
@@ -312,8 +310,8 @@ def _build_builder_release_manifest(build, configuration_order, package_doc, fla
 
 
 def _build_builder_serial_workbook_bytes(build_doc, configuration_order_doc):
-    template_path = frappe.get_app_path(
-        "inductone_tools",
+    template_path = os.path.join(
+        os.path.dirname(__file__),
         "builder_templates",
         "OPS-BLD-F01_Template.xlsx"
     )
@@ -678,7 +676,7 @@ def _sync_builder_release_document_index(configuration_order_name, build_name, m
         parent_name=configuration_order_name,
         title=f"Builder Release Manifest - {build_name}",
         file_url=manifest_url,
-        source_type="BUILD",
+        source_type="MANUAL",
         source_name=build_name,
         sort_order=310,
         note=note,
