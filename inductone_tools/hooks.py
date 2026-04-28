@@ -41,6 +41,7 @@ fixtures = [
                 "InductOne As-Built Serial",
                 "InductOne Configuration Order",
                 "InductOne Configuration Order Delta Line",
+                "InductOne Configuration Order Selected Option",
                 "InductOne Configuration Order Document Index"
             ]]
         ]
@@ -58,6 +59,7 @@ fixtures = [
                 "InductOne As-Built Serial",
                 "InductOne Configuration Order",
                 "InductOne Configuration Order Delta Line",
+                "InductOne Configuration Order Selected Option",
                 "InductOne Configuration Order Document Index"
             ]]
         ]
@@ -75,6 +77,7 @@ fixtures = [
                 "InductOne As-Built Serial",
                 "InductOne Configuration Order",
                 "InductOne Configuration Order Delta Line",
+                "InductOne Configuration Order Selected Option",
                 "InductOne Configuration Order Document Index"
             ]]
         ]

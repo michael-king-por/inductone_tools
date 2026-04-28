@@ -144,18 +144,107 @@ def release_to_builder_now(build_name: str, package_name: str = None, note: str 
     _set_if_present(build, ["builder_released_by", "released_to_builder_by"], frappe.session.user)
     _set_if_present(build, ["builder_release_note", "builder_release_notes"], note or "")
     _set_if_present(build, ["as_built_status"], "Pending Builder Submission")
+    
+    # Stamp the linked Configuration Order as Released
+    co_name = _resolve_configuration_order_name(build)
+    if co_name:
+        try:
+            co_status_field_exists = frappe.db.has_column("InductOne Configuration Order", "co_status")
+        except Exception:
+            co_status_field_exists = True
 
+        if co_status_field_exists:
+            frappe.db.set_value(
+                "InductOne Configuration Order",
+                co_name,
+                {
+                    "co_status": "Released",
+                },
+            )
+            frappe.db.commit()
+    
     build.save(ignore_permissions=True)
 
     return {
         "ok": True,
         "build": build.name,
+        "configuration_order": co_name,
+        "co_status": "Released" if co_name else None,
         "bundle_file_url": result.get("bundle_file_url"),
         "serial_template_file_url": serial_result.get("template_file_url"),
         "released_at": getattr(build, "released_at", None),
         "released_by": getattr(build, "released_by", None),
     }
 
+@frappe.whitelist()
+def acknowledge_builder_release(build_name: str, acknowledgment_file_url: str = None, note: str = None):
+    """
+    Records the builder's acknowledgment of receipt for a released build.
+
+    Transitions the linked Configuration Order from 'Released' to 'Awaiting Completion'
+    and stamps acknowledgment metadata. Optionally attaches the acknowledgment file
+    (typically a signed return of the release PDF) to the CO.
+    """
+    if not build_name:
+        frappe.throw("build_name is required.")
+
+    build = frappe.get_doc("InductOne Build", build_name)
+    co_name = _resolve_configuration_order_name(build)
+
+    if not co_name:
+        frappe.throw(f"Build {build_name} has no linked Configuration Order to acknowledge.")
+
+    co = frappe.get_doc("InductOne Configuration Order", co_name)
+
+    current_status = getattr(co, "co_status", None)
+    if current_status not in ("Released", "Awaiting Completion"):
+        frappe.throw(
+            f"Configuration Order {co_name} is in status '{current_status}'. "
+            f"Acknowledgment is only valid for 'Released' COs."
+        )
+
+    now_dt = frappe.utils.now_datetime()
+    current_user = frappe.session.user
+
+    update_payload = {
+        "co_status": "Awaiting Completion",
+        "acknowledged_at": now_dt,
+        "acknowledged_by": current_user,
+    }
+
+    if acknowledgment_file_url:
+        update_payload["acknowledgment_file"] = acknowledgment_file_url
+
+    frappe.db.set_value(
+        "InductOne Configuration Order",
+        co_name,
+        update_payload,
+    )
+
+    # Add a Document Index row referencing the acknowledgment so it lives on the CO bundle
+    if acknowledgment_file_url:
+        _append_or_update_document_index_row(
+            parent_doctype="InductOne Configuration Order",
+            parent_name=co_name,
+            title=f"Builder Acknowledgment - {build_name}",
+            file_url=acknowledgment_file_url,
+            source_type="MANUAL",
+            source_name=build_name,
+            sort_order=315,
+            note=f"Acknowledged by {current_user} at {now_dt}" + (f" | {note}" if note else ""),
+        )
+
+    frappe.db.commit()
+
+    return {
+        "ok": True,
+        "build": build_name,
+        "configuration_order": co_name,
+        "co_status": "Awaiting Completion",
+        "acknowledged_at": now_dt,
+        "acknowledged_by": current_user,
+        "acknowledgment_file": acknowledgment_file_url or None,
+    }
 
 @frappe.whitelist()
 def generate_required_serial_capture_artifact(build_name: str):
