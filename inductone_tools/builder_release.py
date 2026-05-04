@@ -177,12 +177,12 @@ def release_to_builder_now(build_name: str, package_name: str = None, note: str 
     }
 
 @frappe.whitelist()
-def acknowledge_builder_release(build_name: str, acknowledgment_file_url: str = None, note: str = None):
+def acknowledge_builder_release(build_name: str, acknowledgement_file_url: str = None, note: str = None):
     """
-    Records the builder's acknowledgment of receipt for a released build.
+    Records the builder's acknowledgement of receipt for a released build.
 
     Transitions the linked Configuration Order from 'Released' to 'Awaiting Completion'
-    and stamps acknowledgment metadata. Optionally attaches the acknowledgment file
+    and stamps acknowledgement metadata. Optionally attaches the acknowledgement file
     (typically a signed return of the release PDF) to the CO.
     """
     if not build_name:
@@ -200,7 +200,7 @@ def acknowledge_builder_release(build_name: str, acknowledgment_file_url: str = 
     if current_status not in ("Released", "Awaiting Completion"):
         frappe.throw(
             f"Configuration Order {co_name} is in status '{current_status}'. "
-            f"Acknowledgment is only valid for 'Released' COs."
+            f"acknowledgement is only valid for 'Released' COs."
         )
 
     now_dt = frappe.utils.now_datetime()
@@ -212,8 +212,8 @@ def acknowledge_builder_release(build_name: str, acknowledgment_file_url: str = 
         "acknowledged_by": current_user,
     }
 
-    if acknowledgment_file_url:
-        update_payload["acknowledgment_file"] = acknowledgment_file_url
+    if acknowledgement_file_url:
+        update_payload["acknowledgement_file"] = acknowledgement_file_url
 
     frappe.db.set_value(
         "InductOne Configuration Order",
@@ -221,13 +221,13 @@ def acknowledge_builder_release(build_name: str, acknowledgment_file_url: str = 
         update_payload,
     )
 
-    # Add a Document Index row referencing the acknowledgment so it lives on the CO bundle
-    if acknowledgment_file_url:
+    # Add a Document Index row referencing the acknowledgement so it lives on the CO bundle
+    if acknowledgement_file_url:
         _append_or_update_document_index_row(
             parent_doctype="InductOne Configuration Order",
             parent_name=co_name,
-            title=f"Builder Acknowledgment - {build_name}",
-            file_url=acknowledgment_file_url,
+            title=f"Builder acknowledgement - {build_name}",
+            file_url=acknowledgement_file_url,
             source_type="MANUAL",
             source_name=build_name,
             sort_order=315,
@@ -243,7 +243,7 @@ def acknowledge_builder_release(build_name: str, acknowledgment_file_url: str = 
         "co_status": "Awaiting Completion",
         "acknowledged_at": now_dt,
         "acknowledged_by": current_user,
-        "acknowledgment_file": acknowledgment_file_url or None,
+        "acknowledgement_file": acknowledgement_file_url or None,
     }
 
 @frappe.whitelist()
