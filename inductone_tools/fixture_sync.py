@@ -62,8 +62,9 @@ def export_and_push_fixtures():
         steps.append(commit_step)
 
         if commit_step["committed"]:
+            steps.append(_integrate_remote(app_path))
             steps.append(_push(app_path))
-            ok_message = "Fixtures exported, committed, and pushed."
+            ok_message = "Fixtures exported, committed, rebased, and pushed."
         else:
             ok_message = "Fixtures exported. No changes to commit."
 
@@ -212,6 +213,35 @@ def _stage_and_commit(app_path):
         "files": files,
         "message": message,
         "sha": sha,
+    }
+
+
+def _integrate_remote(app_path):
+    """Fetch remote main and rebase local commit(s) before pushing."""
+    fetch = _git(app_path, ["fetch", "origin", TARGET_BRANCH], check=True)
+
+    remote_ref = f"origin/{TARGET_BRANCH}"
+    exists = _git(
+        app_path,
+        ["rev-parse", "--verify", remote_ref],
+        check=False,
+    )
+
+    if exists.returncode != 0:
+        return {
+            "step": "integrate_remote",
+            "action": "no_remote_branch",
+            "stdout": fetch.stdout.strip(),
+            "stderr": fetch.stderr.strip(),
+        }
+
+    rebase = _git(app_path, ["rebase", remote_ref], check=True)
+
+    return {
+        "step": "integrate_remote",
+        "action": "rebase",
+        "stdout": rebase.stdout.strip(),
+        "stderr": rebase.stderr.strip(),
     }
 
 
