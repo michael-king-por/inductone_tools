@@ -58,6 +58,23 @@ def create_completion_from_upload(
     if hasattr(completion, "builder_supplier") and getattr(build, "builder_supplier", None):
         completion.builder_supplier = build.builder_supplier
 
+    if hasattr(completion, "builder_contact_name") and getattr(build, "builder_poc", None):
+        contact = frappe.db.get_value(
+            "Contact",
+            build.builder_poc,
+            ["full_name", "first_name", "last_name"],
+            as_dict=True
+        ) or {}
+        
+        name = contact.get("full_name")
+        if not name:
+            first = contact.get("first_name") or ""
+            last = contact.get("last_name") or ""
+            name = (first + " " + last).strip()
+        
+        if name:
+            completion.builder_contact_name = name
+
     completion.status = "Submitted"
 
     if hasattr(completion, "submitted_at"):
