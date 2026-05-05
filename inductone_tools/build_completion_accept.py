@@ -95,7 +95,8 @@ def accept_completion_create_as_built(completion_name, as_built_notes=None):
         "as_built_record": as_built.name,
         "completion_status": "Accepted",
         "completed_at": now,
-        "latest_build_completion": completion.name
+        "latest_build_completion": completion.name,
+        "build_status": "COMPLETED"
     }
     for field, value in build_updates.items():
         if hasattr(build, field):
