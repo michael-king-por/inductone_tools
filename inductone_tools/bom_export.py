@@ -1251,3 +1251,17 @@ def _manifest_text(doc, rows, exts, missing_rows):
         f"Generated: {frappe.utils.now()}",
     ]
     return "\n".join(lines)
+
+def before_save(doc, method):
+    """Auto-populate builder_supplier from linked InductOne Build."""
+    if doc.builder_supplier:
+        return
+    if not doc.inductone_build:
+        return
+    supplier = frappe.db.get_value(
+        "InductOne Build",
+        doc.inductone_build,
+        "builder_supplier"
+    )
+    if supplier:
+        doc.builder_supplier = supplier

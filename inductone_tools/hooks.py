@@ -8,6 +8,9 @@ app_license = "MIT"
 doc_events = {
     "InductOne Configuration Order": {
         "after_insert": "inductone_tools.inductone_tools.doctype.inductone_configuration_order.inductone_configuration_order.enqueue_flat_bom_generation"
+    },
+    "BOM Export Package": {
+        "before_save": "inductone_tools.bom_export.before_save"
     }
 }
 
