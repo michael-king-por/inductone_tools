@@ -39,7 +39,7 @@ def create_completion_from_upload(
     co_name = build.latest_config_order
     co = frappe.get_doc("InductOne Configuration Order", co_name)
 
-    expected_status = "Awaiting Completion (Builder Acknowledged)"
+    expected_status = "Awaiting Completion"
     if co.co_status != expected_status:
         frappe.throw(_(
             "Configuration Order {0} is in status '{1}'. "
