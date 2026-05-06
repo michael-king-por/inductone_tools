@@ -109,16 +109,16 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
     readme_url = generate_builder_readme_md(build_name)
 
     # Add to CO documents table
-    co.append("documents", {
-        "source_type": "MANUAL",
-        "source_name": build_name,
-        "doc_type": "OTHER",
-        "doc_title": f"Builder README - {build_name}",
-        "file_url": readme_url,
-        "required": "YES",
-        "sort_order": 50,   # render this near the top of the document list
-        "small_text_vtsj": "Builder-facing release README with bundle overview and acknowledgment instructions"
-    })
+    _append_or_update_document_index_row(
+        parent_doctype="InductOne Configuration Order",
+        parent_name=co.name,
+        title=f"Builder README - {build_name}",
+        file_url=readme_url,
+        source_type="MANUAL",
+        source_name=build_name,
+        sort_order=50,
+        note="Builder-facing release README with bundle overview and acknowledgment instructions",
+    )
 
     return {
         "ok": True,
@@ -856,7 +856,7 @@ def generate_builder_readme_md(build_name):
     Returns the file_url of the saved README.
     """
     build = frappe.get_doc("InductOne Build", build_name)
-    co_name = build.latest_config_order
+    co_name = _resolve_configuration_order_name(build)
     
     if not co_name:
         frappe.throw(_("Cannot generate builder README: no Configuration Order on build."))
