@@ -6,6 +6,7 @@ from tempfile import NamedTemporaryFile
 import frappe
 from frappe.utils import now
 from frappe.utils.file_manager import save_file
+from frappe import _
 
 from openpyxl import load_workbook
 
@@ -104,6 +105,20 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
         package_name=package_doc.name if package_doc else None,
         flat_bom_file_url=flat_bom_file_url,
     )
+    # Generate the builder-facing README
+    readme_url = generate_builder_readme_md(build_name)
+
+    # Add to CO documents table
+    co.append("documents", {
+        "source_type": "MANUAL",
+        "source_name": build_name,
+        "doc_type": "OTHER",
+        "doc_title": f"Builder README - {build_name}",
+        "file_url": readme_url,
+        "required": "YES",
+        "sort_order": 50,   # render this near the top of the document list
+        "small_text_vtsj": "Builder-facing release README with bundle overview and acknowledgment instructions"
+    })
 
     return {
         "ok": True,
@@ -832,3 +847,109 @@ def _set_if_present(doc, fieldnames, value):
         except Exception:
             continue
     return False
+
+def generate_builder_readme_md(build_name):
+    """
+    Generate a builder-facing Markdown README explaining what the bundle contains
+    and what the builder needs to do with it. Saved as a File on the InductOne Build.
+    
+    Returns the file_url of the saved README.
+    """
+    build = frappe.get_doc("InductOne Build", build_name)
+    co_name = build.latest_config_order
+    
+    if not co_name:
+        frappe.throw(_("Cannot generate builder README: no Configuration Order on build."))
+    
+    co = frappe.get_doc("InductOne Configuration Order", co_name)
+    
+    builder_supplier = build.builder_supplier or "(builder)"
+    customer_project = getattr(co, "customer_project_label", "") or ""
+    orientation = build.orientation or ""
+    
+    md_lines = [
+        "# Builder Release — Welcome",
+        "",
+        f"**Build:** `{build_name}`  ",
+        f"**Configuration Order:** `{co_name}`  ",
+        f"**Builder:** {builder_supplier}  ",
+    ]
+    
+    if customer_project:
+        md_lines.append(f"**Customer / Project:** {customer_project}  ")
+    if orientation:
+        md_lines.append(f"**Orientation:** {orientation}  ")
+    
+    md_lines.extend([
+        f"**Released:** {frappe.utils.now()}",
+        "",
+        "---",
+        "",
+        "## What you've received",
+        "",
+        "This release package contains everything you need to fabricate this InductOne system. The package is organized as follows:",
+        "",
+        "| Document | Purpose |",
+        "|---|---|",
+        "| **Configuration Order PDF** | The formal release record. Lists the configured options for this build. Sign the acknowledgment block and return a copy to confirm receipt. |",
+        "| **BOM Export Package ZIP** | All part drawings (PDF, STL, DXF, STEP as available), organized by item code. PDFs are watermarked with the package identifier. |",
+        "| **Flat BOM CSV** | Rolled-up parts list with quantities. Use this as your procurement and assembly checklist. |",
+        "| **Builder Serial Confirmation Workbook (XLSX)** | Capture serial numbers as you build. Return this workbook on completion. |",
+        "| **Builder Release Manifest** | Plain-text record of the release — what was sent and when. Reference document only. |",
+        "",
+        "---",
+        "",
+        "## What we need from you",
+        "",
+        "### 1. Acknowledge receipt",
+        "",
+        "Open the **Configuration Order PDF**, review the configured options, sign the *Acknowledged by — Builder* block at the bottom, and return a signed copy to your Plus One Operations point of contact.",
+        "",
+        "Plus One will record the acknowledgment in our system. The build status moves to *Awaiting Completion* and you can begin fabrication.",
+        "",
+        "### 2. Build to the configured options",
+        "",
+        "The **Configuration Options** section of the CO PDF lists every option that has been applied to this build. Build to that exact configuration.",
+        "",
+        "If a deviation is required (substitute part, scope change, missing drawing), contact your Plus One Operations point of contact **before** making the change. Do not build around an issue silently.",
+        "",
+        "### 3. Capture serial numbers",
+        "",
+        "As you fabricate, fill in the **Builder Serial Confirmation Workbook** with serial numbers for the items listed. The workbook is pre-populated with the items that require serialization for this specific build.",
+        "",
+        "### 4. Submit on completion",
+        "",
+        "When the build is complete, return:",
+        "",
+        "- The completed Builder Serial Confirmation Workbook",
+        "- Notes on any deviations or substitutions made during fabrication",
+        "- Any other completion evidence required by your contract",
+        "",
+        "Plus One will review the submission. Once accepted, the build is closed and an immutable As-Built Record is created.",
+        "",
+        "---",
+        "",
+        "## Questions",
+        "",
+        "Contact your Plus One Operations point of contact directly for any questions about this release. For escalation, contact `ops@plusonerobotics.com`.",
+        "",
+        "---",
+        "",
+        "*Plus One Robotics — Robots work. People rule.*",
+        ""
+    ])
+    
+    md_content = "\n".join(md_lines)
+    
+    # Save as a File on the InductOne Build
+    file_name = f"{build_name}_README.md"
+    
+    saved = save_file(
+        fname=file_name,
+        content=md_content.encode("utf-8"),
+        dt="InductOne Build",
+        dn=build_name,
+        is_private=1
+    )
+    
+    return saved.file_url

@@ -1124,13 +1124,6 @@ def build_zip_bytes(package_name, package_doc, rows, attachment_index, exts, mis
                         zf.write(abs_path, zip_path)
                 else:
                     zf.write(abs_path, zip_path)
-
-        zf.writestr("missing_files.csv", _missing_csv_bytes(missing_rows))
-        zf.writestr("results.csv", _results_csv_bytes(
-            rows=rows,
-            attachment_index=attachment_index,
-            exts=exts
-        ))
         zf.writestr("manifest.txt", _manifest_text(package_doc, rows, exts, missing_rows))
 
     buf.seek(0)
@@ -1242,14 +1235,59 @@ def _missing_csv_bytes(missing_rows):
 
 
 def _manifest_text(doc, rows, exts, missing_rows):
+    """
+    Self-describing manifest for the BOM Export Package ZIP.
+    Describes what's inside, regardless of downstream consumer.
+    """
+    extension_list = ", ".join(exts)
+    
+    # Count rows by node type for an at-a-glance summary
+    assembly_count = sum(1 for r in rows if r.get("node_type") == "Assembly")
+    leaf_count = sum(1 for r in rows if r.get("node_type") == "Leaf")
+    
+    # Determine source mode for context
+    source_mode = doc.source_mode or "Standard BOM"
+    
     lines = [
-        f"BOM Export Package: {doc.name}",
-        f"Root BOM: {doc.bom}",
-        f"Extensions: {', '.join(exts)}",
-        f"Total exploded rows: {len(rows)}",
-        f"Missing entries: {len(missing_rows)}",
-        f"Generated: {frappe.utils.now()}",
+        "BOM EXPORT PACKAGE",
+        "=" * 60,
+        "",
+        f"Package:        {doc.name}",
+        f"Source Mode:    {source_mode}",
+        f"Root BOM:       {doc.bom or '(none)'}",
+        f"Generated:      {frappe.utils.now()}",
+        "",
     ]
+    
+    # Add configured-build context only if applicable
+    if source_mode == "Configured Build":
+        lines.extend([
+            "CONFIGURED BUILD CONTEXT",
+            "-" * 60,
+            f"InductOne Build:      {doc.inductone_build or '(none)'}",
+            f"Configuration Order:  {doc.configuration_order or '(none)'}",
+            f"Configured Snapshot:  {doc.configured_snapshot or '(none)'}",
+            "",
+        ])
+    
+    lines.extend([
+        "CONTENTS",
+        "-" * 60,
+        f"Total BOM rows:    {len(rows)}",
+        f"  Assemblies:      {assembly_count}",
+        f"  Leaf items:      {leaf_count}",
+        f"File types:        {extension_list}",
+        "",
+        "FILE ORGANIZATION",
+        "-" * 60,
+        "",
+        "  /<EXT>/<item_code>/<original_filename>",
+        "",
+        "  Files are organized by extension type, then by item code.",
+        "  PDFs are watermarked with this package's identifier.",
+        "",
+    ])
+    
     return "\n".join(lines)
 
 def before_save(doc, method):
