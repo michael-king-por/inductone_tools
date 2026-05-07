@@ -246,9 +246,11 @@ def release_to_builder_now(build_name: str, package_name: str = None, note: str 
             f"Cannot release — readiness check failed:\n\n{missing_list}"
         )
     
-    # Now safe to generate artifacts
-    result = generate_builder_release_bundle(build_name=build_name, package_name=package_name)
+    # Generate workbook FIRST so its file_url is available when the manifest is written
     serial_result = generate_required_serial_capture_artifact(build_name)
+    
+    # Now generate bundle (manifest will pick up the workbook URL from the build)
+    result = generate_builder_release_bundle(build_name=build_name, package_name=package_name)
     
     build = frappe.get_doc("InductOne Build", build_name)
     
