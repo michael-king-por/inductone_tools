@@ -12,6 +12,119 @@ from openpyxl import load_workbook
 
 from .bom_export import build_configured_rows
 
+@frappe.whitelist()
+def check_builder_release_readiness(build_name: str):
+    """
+    Read-only readiness check for builder release.
+    
+    Validates that everything required to release is in place.
+    Does NOT generate any artifacts. Does NOT modify any state.
+    Returns a structured result with ready/missing/warnings.
+    """
+    if not build_name:
+        frappe.throw(_("build_name is required."))
+    
+    build = frappe.get_doc("InductOne Build", build_name)
+    
+    missing = []
+    warnings = []
+    
+    # ---- Build-level requirements ----
+    
+    if not getattr(build, "builder_supplier", None):
+        missing.append("Builder (Supplier) is not set on the build.")
+    
+    if not getattr(build, "top_item", None):
+        missing.append("Top Item is not set on the build.")
+    
+    top_bom = getattr(build, "top_bom", None) or getattr(build, "bom", None)
+    if not top_bom:
+        missing.append("Top BOM is not set on the build.")
+    
+    snapshot_name = _resolve_snapshot_name(build)
+    if not snapshot_name:
+        missing.append("No snapshot has been generated for this build.")
+    
+    co_name = _resolve_configuration_order_name(build)
+    if not co_name:
+        missing.append("No Configuration Order has been generated for this build.")
+    
+    # ---- CO-level requirements ----
+    
+    co = None
+    if co_name:
+        try:
+            co = frappe.get_doc("InductOne Configuration Order", co_name)
+        except Exception:
+            missing.append(f"Configuration Order {co_name} could not be loaded.")
+    
+    if co and snapshot_name:
+        co_snapshot = getattr(co, "snapshot", None)
+        if co_snapshot and co_snapshot != snapshot_name:
+            missing.append(
+                f"Configuration Order points to snapshot {co_snapshot}, "
+                f"but build is pointing to snapshot {snapshot_name}. "
+                f"Regenerate the Configuration Order from the current snapshot."
+            )
+    
+    if co:
+        co_status = getattr(co, "co_status", None)
+        if co_status and co_status not in ("Draft", "Released"):
+            warnings.append(
+                f"Configuration Order is in status '{co_status}'. "
+                f"Releasing now will not change that state."
+            )
+    
+    # ---- BOM Export Package requirements ----
+    
+    package_name = _resolve_bom_export_package_name(build, co) if co else None
+    if not package_name:
+        missing.append("No BOM Export Package is linked to this build.")
+    else:
+        try:
+            package_doc = frappe.get_doc("BOM Export Package", package_name)
+            if not getattr(package_doc, "output_zip", None):
+                missing.append(
+                    f"BOM Export Package {package_name} has not been generated. "
+                    f"Open it and run generation before releasing."
+                )
+            elif getattr(package_doc, "status", None) != "Complete":
+                warnings.append(
+                    f"BOM Export Package {package_name} status is '{package_doc.status}', not 'Complete'. "
+                    f"Verify it generated successfully."
+                )
+        except Exception as e:
+            missing.append(f"BOM Export Package {package_name} could not be loaded: {str(e)}")
+    
+    # ---- Flat BOM check ----
+    
+    if co:
+        flat_bom_url = _resolve_flat_bom_file_url(build, co)
+        if not flat_bom_url:
+            warnings.append(
+                "No Flat BOM CSV is currently linked to the Configuration Order. "
+                "It will be generated at release time if missing."
+            )
+    
+    # ---- Already released? ----
+    
+    if getattr(build, "build_status", None) == "RELEASED_TO_BUILDER":
+        warnings.append(
+            "This build has already been released to the builder. "
+            "Releasing again will regenerate artifacts."
+        )
+    
+    ready = len(missing) == 0
+    
+    return {
+        "ok": True,
+        "ready": ready,
+        "build": build_name,
+        "configuration_order": co_name,
+        "bom_export_package": package_name,
+        "missing": missing,
+        "warnings": warnings,
+    }
 
 @frappe.whitelist()
 def generate_builder_release_bundle(build_name: str, package_name: str = None):
@@ -120,26 +233,29 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
 @frappe.whitelist()
 def release_to_builder_now(build_name: str, package_name: str = None, note: str = None):
     """
-    Minimal operational release action.
-
-    - Ensures the builder handoff manifest exists
-    - Generates/refreshes the builder serial capture workbook from template
-    - Stamps the user's actual release fields
-    - Uses the Configuration Order document list as the builder package
+    Release a build to the builder.
+    
+    Generates the manifest and workbook, syncs the CO document index,
+    and stamps the build/CO status. Throws if readiness check fails.
     """
+    # Defense in depth: re-validate readiness server-side before generating anything
+    readiness = check_builder_release_readiness(build_name)
+    if not readiness.get("ready"):
+        missing_list = "\n".join(f"  • {m}" for m in readiness.get("missing", []))
+        frappe.throw(
+            f"Cannot release — readiness check failed:\n\n{missing_list}"
+        )
+    
+    # Now safe to generate artifacts
     result = generate_builder_release_bundle(build_name=build_name, package_name=package_name)
-
-    # Do not swallow this error. If the workbook fails, we want the real traceback.
     serial_result = generate_required_serial_capture_artifact(build_name)
-
+    
     build = frappe.get_doc("InductOne Build", build_name)
-
-    # Stamp actual fields used by the current build doctype/client flow
+    
+    # Stamp build fields
     _set_if_present(build, ["build_status"], "RELEASED_TO_BUILDER")
     _set_if_present(build, ["released_at"], frappe.utils.now_datetime())
     _set_if_present(build, ["released_by"], frappe.session.user)
-
-    # Optional helper fields if they exist
     _set_if_present(build, ["builder_release_status"], "Released")
     _set_if_present(build, ["builder_released_on", "released_to_builder_at"], frappe.utils.now_datetime())
     _set_if_present(build, ["builder_released_by", "released_to_builder_by"], frappe.session.user)
@@ -158,14 +274,12 @@ def release_to_builder_now(build_name: str, package_name: str = None, note: str 
             frappe.db.set_value(
                 "InductOne Configuration Order",
                 co_name,
-                {
-                    "co_status": "Released",
-                },
+                {"co_status": "Released"},
             )
             frappe.db.commit()
     
     build.save(ignore_permissions=True)
-
+    
     return {
         "ok": True,
         "build": build.name,
