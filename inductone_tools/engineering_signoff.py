@@ -489,7 +489,8 @@ def _serialize_items_table(items):
 
 def _require_signoff_role():
     """Raise PermissionError if current user lacks Engineering - Signoff role."""
-    if not frappe.has_role("Engineering - Signoff"):
+    user_roles = frappe.get_roles(frappe.session.user)
+    if "Engineering - Signoff" not in user_roles and "System Manager" not in user_roles:
         frappe.throw(
             _("This action requires the 'Engineering - Signoff' role."),
             frappe.PermissionError

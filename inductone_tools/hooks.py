@@ -11,6 +11,16 @@ doc_events = {
     },
     "BOM Export Package": {
         "before_save": "inductone_tools.bom_export.before_save"
+    },
+    "BOM": {
+        "before_save": "inductone_tools.engineering_signoff.on_target_save",
+        "after_insert": "inductone_tools.engineering_signoff.on_target_after_insert",
+        "on_update": "inductone_tools.engineering_signoff.on_target_after_save"
+    },
+    "Product Bundle": {
+        "before_save": "inductone_tools.engineering_signoff.on_target_save",
+        "after_insert": "inductone_tools.engineering_signoff.on_target_after_insert",
+        "on_update": "inductone_tools.engineering_signoff.on_target_after_save"
     }
 }
 
