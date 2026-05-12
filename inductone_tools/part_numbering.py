@@ -367,3 +367,248 @@ def allocate_numbers(allocation_request: str):
         "total_allocated": len(created),
         "created": created,
     }
+def _is_controlled_tranche_number(value: str) -> bool:
+    if not value:
+        return False
+
+    value = str(value).strip()
+    return bool(CONTROLLED_NUMBER_RE.match(value))
+
+
+def _expected_family_for_part_number(part_number: str):
+    if not _is_controlled_tranche_number(part_number):
+        return None
+
+    prefix = str(part_number).strip()[0]
+
+    for family, family_prefix in CONTROLLED_FAMILY_PREFIX.items():
+        if prefix == family_prefix:
+            return family
+
+    return None
+
+
+def _get_assignment_for_item(doc):
+    assignment_name = doc.get("custom_part_number_assignment")
+
+    if not assignment_name:
+        frappe.throw(
+            _(
+                "Item Code {0} is controlled. Select the matching Part Number Assignment before saving."
+            ).format(doc.item_code)
+        )
+
+    assignment = frappe.get_doc("Part Number Assignment", assignment_name)
+
+    if str(assignment.part_number).strip() != str(doc.item_code).strip():
+        frappe.throw(
+            _(
+                "Item Code must match Part Number Assignment. Item Code is {0}, assignment is {1}."
+            ).format(doc.item_code, assignment.part_number)
+        )
+
+    return assignment
+
+
+def validate_item_part_number_control(doc, method=None):
+    """
+    Hooked on Item.validate.
+
+    Rules:
+        - Controlled tranche Item Codes require Part Number Assignment.
+        - Custom/non-tranche Item Codes are enforced when an assignment is selected.
+        - Item Code must exactly equal assignment.part_number.
+        - Family must match prefix.
+        - Assignment cannot already be released to another Item.
+        - GitLab EC URL is required to release/link the Item.
+    """
+    if not doc.item_code:
+        return
+
+    item_code = str(doc.item_code).strip()
+    doc.item_code = item_code
+
+    is_tranche = _is_controlled_tranche_number(item_code)
+    has_assignment = bool(doc.get("custom_part_number_assignment"))
+
+    # For now, enforce all numeric tranche numbers.
+    # Non-tranche/custom numbers are enforced only when an assignment is selected.
+    if not is_tranche and not has_assignment:
+        doc.custom_part_number_release_status = "Not Controlled"
+        return
+
+    assignment = _get_assignment_for_item(doc)
+
+    if assignment.status in {"Cancelled", "Superseded"}:
+        frappe.throw(
+            _(
+                "Part Number Assignment {0} is {1} and cannot be used for Item creation."
+            ).format(assignment.name, assignment.status)
+        )
+
+    if assignment.status == "Released" and assignment.released_item and assignment.released_item != doc.name:
+        frappe.throw(
+            _(
+                "Part Number Assignment {0} is already released to Item {1}."
+            ).format(assignment.name, assignment.released_item)
+        )
+
+    if is_tranche:
+        expected_family = _expected_family_for_part_number(item_code)
+
+        if assignment.number_family != expected_family:
+            frappe.throw(
+                _(
+                    "Item Code {0} expects Number Family {1}, but assignment {2} is {3}."
+                ).format(item_code, expected_family, assignment.name, assignment.number_family)
+            )
+
+        if assignment.number_family not in {"Part", "Assembly", "Software", "Service"}:
+            frappe.throw(
+                _(
+                    "Controlled tranche Item Code {0} cannot use assignment family {1}."
+                ).format(item_code, assignment.number_family)
+            )
+
+    if assignment.number_family == "Custom":
+        if not assignment.is_custom_number:
+            frappe.throw(_("Custom assignment must have Is Custom Number checked."))
+
+        if not assignment.custom_number_justification:
+            frappe.throw(_("Custom assignments require justification before Item creation."))
+
+    if not doc.get("custom_gitlab_ec_url") and assignment.gitlab_ec_url:
+        doc.custom_gitlab_ec_url = assignment.gitlab_ec_url
+
+    if not doc.get("custom_gitlab_reference") and assignment.gitlab_reference:
+        doc.custom_gitlab_reference = assignment.gitlab_reference
+
+    if not doc.get("custom_gitlab_ec_url"):
+        frappe.throw(
+            _(
+                "GitLab EC URL is required before creating/releasing controlled Item {0}."
+            ).format(item_code)
+        )
+
+    doc.custom_controlled_number_family = assignment.number_family
+
+    if assignment.status in {"Reserved", "In Development"}:
+        doc.custom_part_number_release_status = "Reserved"
+    elif assignment.status == "Released":
+        doc.custom_part_number_release_status = "Released"
+    else:
+        doc.custom_part_number_release_status = "Exception"
+
+
+def update_assignment_after_item_save(doc, method=None):
+    """
+    Hooked on Item.after_insert and Item.on_update.
+
+    Once an Item validates successfully, close the loop:
+        Part Number Assignment → Released → Item
+    """
+    if not doc.get("custom_part_number_assignment"):
+        return
+
+    assignment = frappe.get_doc("Part Number Assignment", doc.custom_part_number_assignment)
+
+    if str(assignment.part_number).strip() != str(doc.item_code).strip():
+        return
+
+    changed = False
+
+    if assignment.released_item != doc.name:
+        assignment.released_item = doc.name
+        changed = True
+
+    if assignment.gitlab_ec_url != doc.get("custom_gitlab_ec_url"):
+        assignment.gitlab_ec_url = doc.get("custom_gitlab_ec_url")
+        changed = True
+
+    if assignment.gitlab_reference != doc.get("custom_gitlab_reference"):
+        assignment.gitlab_reference = doc.get("custom_gitlab_reference")
+        changed = True
+
+    if assignment.status != "Released":
+        assignment.status = "Released"
+        changed = True
+
+    if not assignment.date_released:
+        assignment.date_released = nowdate()
+        changed = True
+
+    if not assignment.released_by:
+        assignment.released_by = frappe.session.user
+        changed = True
+
+    if changed:
+        frappe.flags.part_number_allocation_update = True
+        assignment.save(ignore_permissions=True)
+        frappe.flags.part_number_allocation_update = False
+
+    if doc.get("custom_part_number_release_status") != "Released":
+        frappe.db.set_value(
+            "Item",
+            doc.name,
+            "custom_part_number_release_status",
+            "Released",
+            update_modified=False,
+        )
+
+
+def validate_product_bundle_part_number_control(doc, method=None):
+    """
+    Hooked on Product Bundle.validate.
+
+    Keeps Product Bundle aligned with Assembly-controlled parent Item.
+    """
+    if not doc.get("new_item_code"):
+        return
+
+    bundle_item_code = str(doc.new_item_code).strip()
+
+    if not _is_controlled_tranche_number(bundle_item_code):
+        return
+
+    expected_family = _expected_family_for_part_number(bundle_item_code)
+
+    if expected_family != "Assembly":
+        frappe.throw(
+            _(
+                "Product Bundle parent Item {0} must use an Assembly-controlled number beginning with 2."
+            ).format(bundle_item_code)
+        )
+
+    item = frappe.get_doc("Item", bundle_item_code)
+
+    if not item.get("custom_part_number_assignment"):
+        frappe.throw(
+            _(
+                "Product Bundle parent Item {0} must be linked to a Part Number Assignment."
+            ).format(bundle_item_code)
+        )
+
+    assignment = frappe.get_doc("Part Number Assignment", item.custom_part_number_assignment)
+
+    if assignment.number_family != "Assembly":
+        frappe.throw(
+            _(
+                "Product Bundle parent Item {0} must use an Assembly Part Number Assignment."
+            ).format(bundle_item_code)
+        )
+
+    if assignment.status != "Released":
+        frappe.throw(
+            _(
+                "Product Bundle parent Item {0} must have a Released Part Number Assignment."
+            ).format(bundle_item_code)
+        )
+
+    if not doc.get("custom_part_number_assignment"):
+        doc.custom_part_number_assignment = assignment.name
+
+    if not doc.get("custom_gitlab_ec_url") and item.get("custom_gitlab_ec_url"):
+        doc.custom_gitlab_ec_url = item.custom_gitlab_ec_url
+
+    if not doc.get("custom_gitlab_reference") and item.get("custom_gitlab_reference"):
+        doc.custom_gitlab_reference = item.custom_gitlab_reference
