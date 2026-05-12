@@ -17,6 +17,12 @@ doc_events = {
         "after_insert": "inductone_tools.engineering_signoff.on_target_after_insert",
         "on_update": "inductone_tools.engineering_signoff.on_target_after_save"
     },
+    "Part Number Allocation Request": {
+        "validate": "inductone_tools.part_numbering.validate_allocation_request",
+    },
+    "Part Number Assignment": {
+        "validate": "inductone_tools.part_numbering.validate_part_number_assignment",
+    },
     "Product Bundle": {
         "before_save": "inductone_tools.engineering_signoff.on_target_save",
         "after_insert": "inductone_tools.engineering_signoff.on_target_after_insert",

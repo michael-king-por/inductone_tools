@@ -1,6 +1,10 @@
 import frappe
 from frappe import _
 
+from inductone_tools.instance.creation import (
+    create_instance_from_as_built,
+)
+
 
 @frappe.whitelist()
 def accept_completion_create_as_built(completion_name, as_built_notes=None):
@@ -11,6 +15,11 @@ def accept_completion_create_as_built(completion_name, as_built_notes=None):
       3. Set Build Completion status to Accepted
       4. Update parent Build with as_built_record link and completion_status
       5. Transition CO to Closed
+      6. Create the InductOne Instance (the deployed-unit record)
+
+    Step 6 is new. The Instance is the entity Support will reference for
+    the life of the unit. It is created here, in the same transaction, so
+    that acceptance is never partially complete.
     """
     if not completion_name:
         frappe.throw(_("completion_name is required."))
@@ -43,6 +52,15 @@ def accept_completion_create_as_built(completion_name, as_built_notes=None):
             "A build can only have one As-Built Record."
         ).format(build_name, build.as_built_record))
 
+    # Precondition for Instance creation downstream: the Build must have a
+    # system_serial allocated. Fail loudly here, before mutating anything.
+    if not getattr(build, "system_serial", None):
+        frappe.throw(_(
+            "InductOne Build {0} has no system_serial. The stenciled serial "
+            "must be allocated at builder release before acceptance can complete. "
+            "Open the Build and use 'Allocate Serial' from the Builder Tranche."
+        ).format(build_name))
+
     now = frappe.utils.now_datetime()
     user = frappe.session.user
 
@@ -63,14 +81,16 @@ def accept_completion_create_as_built(completion_name, as_built_notes=None):
     as_built.accepted_at = now
     as_built.accepted_by = user
 
+    # Mirror system_serial onto As-Built so the printed record carries it.
+    if getattr(build, "system_serial", None) and hasattr(as_built, "system_serial"):
+        as_built.system_serial = build.system_serial
+
     if as_built_notes:
         as_built.notes = as_built_notes
 
-    # Auto-lock on creation per design
     as_built.status = "Locked"
     as_built.lock_notes = "Auto-locked at acceptance by {0} on {1}".format(user, now)
 
-    # Copy serials with source traceability
     for src_row in completion.serials:
         as_built.append("serials", {
             "item_code": src_row.item_code,
@@ -115,6 +135,9 @@ def accept_completion_create_as_built(completion_name, as_built_notes=None):
             "accept_completion_create_as_built: CO status transition"
         )
 
+    # 6: Create the InductOne Instance
+    instance_name = create_instance_from_as_built(as_built.name, user=user)
+
     frappe.db.commit()
 
     return {
@@ -123,5 +146,6 @@ def accept_completion_create_as_built(completion_name, as_built_notes=None):
         "completion_name": completion.name,
         "build_name": build_name,
         "configuration_order": co_name,
-        "co_status": "Closed"
+        "co_status": "Closed",
+        "instance_name": instance_name,
     }
