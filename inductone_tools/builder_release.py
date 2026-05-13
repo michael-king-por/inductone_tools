@@ -586,9 +586,13 @@ def _build_builder_serial_workbook_bytes(build_doc, configuration_order_doc):
     builder_poc = getattr(build_doc, "builder_poc", None) or ""
     builder_poc_email = getattr(build_doc, "builder_poc_email", None) or getattr(build_doc, "builder_contact_email", None) or ""
 
-    # Prefer a true machine serial if you add one later; otherwise leave blank.
+    # The system_serial field is the canonical InductOne serial allocated
+    # from the builder's tranche at release time. The two legacy fallback
+    # field names are kept for forward/backward compatibility in case
+    # other code paths used them at any point.
     inductone_serial = (
-        getattr(build_doc, "inductone_serial_number", None)
+        getattr(build_doc, "system_serial", None)
+        or getattr(build_doc, "inductone_serial_number", None)
         or getattr(build_doc, "machine_serial_number", None)
         or ""
     )

@@ -91,14 +91,24 @@ def accept_completion_create_as_built(completion_name, as_built_notes=None):
     as_built.status = "Locked"
     as_built.lock_notes = "Auto-locked at acceptance by {0} on {1}".format(user, now)
 
+    # Copy serials with source traceability. component_label is the new
+    # field that carries the workbook label; populated for rows that came
+    # from the auto-parsed workbook, may be empty for rows that were
+    # manually added pre-workbook-import.
     for src_row in completion.serials:
-        as_built.append("serials", {
+        row_data = {
             "item_code": src_row.item_code,
             "item_name": src_row.item_name,
             "serial_number": src_row.serial_number,
             "source_completion_row": src_row.name,
             "notes": src_row.notes
-        })
+        }
+        # Only set component_label if the source row has it (forward
+        # compatibility — older completion records won't have this field)
+        src_label = getattr(src_row, "component_label", None)
+        if src_label:
+            row_data["component_label"] = src_label
+        as_built.append("serials", row_data)
 
     as_built.insert(ignore_permissions=True)
 
