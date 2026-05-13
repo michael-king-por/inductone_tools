@@ -40,7 +40,17 @@ def check_builder_release_readiness(build_name: str):
     top_bom = getattr(build, "top_bom", None) or getattr(build, "bom", None)
     if not top_bom:
         missing.append("Top BOM is not set on the build.")
-    
+
+    # System serial must be allocated before release; the builder needs
+    # to know what to stencil on the unit, and the release package
+    # (CO PDF, builder instructions) won't carry a serial if none exists.
+    if not getattr(build, "system_serial", None):
+        missing.append(
+            "System serial has not been allocated. "
+            "Click 'Allocate Serial' on the build to assign one from the "
+            "builder's tranche before releasing."
+        )
+
     snapshot_name = _resolve_snapshot_name(build)
     if not snapshot_name:
         missing.append("No snapshot has been generated for this build.")
@@ -65,6 +75,28 @@ def check_builder_release_readiness(build_name: str):
                 f"Configuration Order points to snapshot {co_snapshot}, "
                 f"but build is pointing to snapshot {snapshot_name}. "
                 f"Regenerate the Configuration Order from the current snapshot."
+            )
+
+    # CO and Build must agree on the system serial. The release gate
+    # in release_to_builder_now self-heals this case (stamps the CO from
+    # the Build) but reporting it here gives the user a chance to fix it
+    # via the normal flow — clicking Allocate Serial again will
+    # re-propagate to the CO.
+    if co:
+        build_serial = getattr(build, "system_serial", None)
+        co_serial = getattr(co, "system_serial", None)
+        if build_serial and co_serial and build_serial != co_serial:
+            missing.append(
+                f"System serial mismatch: Build has '{build_serial}' "
+                f"but Configuration Order has '{co_serial}'. "
+                f"This indicates a data drift — investigate manually."
+            )
+        elif build_serial and not co_serial:
+            warnings.append(
+                f"Build has system serial '{build_serial}' but the "
+                f"Configuration Order does not. Click 'Allocate Serial' on "
+                f"the build to re-propagate, or proceed with release "
+                f"(the release will self-heal this case)."
             )
     
     if co:
@@ -239,13 +271,27 @@ def release_to_builder_now(build_name: str, package_name: str = None, note: str 
     and stamps the build/CO status. Throws if readiness check fails.
     """
     # Defense in depth: re-validate readiness server-side before generating anything
+    # Defense in depth: re-validate readiness server-side before generating anything
     readiness = check_builder_release_readiness(build_name)
     if not readiness.get("ready"):
         missing_list = "\n".join(f"  • {m}" for m in readiness.get("missing", []))
         frappe.throw(
             f"Cannot release — readiness check failed:\n\n{missing_list}"
         )
-    
+
+    # Serial gate: refuse to release without a system_serial on the CO.
+    # The release package (CO PDF, builder instructions) must communicate
+    # the stenciled serial to the builder; without it, the builder has no
+    # instruction on what to apply to the unit. The assertion self-heals
+    # if the parent Build has a serial but the CO doesn't (stamps it and
+    # proceeds), which handles the case where someone allocated a serial
+    # before this gate was added.
+    from inductone_tools.serial_allocation.co_sync import assert_co_has_serial
+    build = frappe.get_doc("InductOne Build", build_name)
+    co_name_for_gate = _resolve_configuration_order_name(build)
+    if co_name_for_gate:
+        assert_co_has_serial(co_name_for_gate)
+
     # Generate workbook FIRST so its file_url is available when the manifest is written
     serial_result = generate_required_serial_capture_artifact(build_name)
     
