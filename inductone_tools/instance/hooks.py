@@ -26,6 +26,11 @@ ALLOWED_TRANSITIONS = {
     "Installed": set(),
 }
 
+# All valid status values. Any of these is acceptable on creation — a
+# backfill unit may arrive already Installed; we don't need to make it
+# pretend to be Ready for Ship first.
+VALID_STATUSES = set(ALLOWED_TRANSITIONS.keys())
+
 
 def validate_instance(doc, method=None):
     """
@@ -63,14 +68,19 @@ def _validate_serial_format(doc):
 def _validate_status_transition(doc):
     """Forward-only state machine. Blocks regressions and skipped states.
 
-    On creation (doc.is_new()), only 'Ready for Ship' is permitted.
-    On update, the new status must be in ALLOWED_TRANSITIONS[old_status]."""
+    On creation (doc.is_new()), any valid status is permitted. This allows
+    backfill units to be created directly as 'Installed' without having to
+    walk through the full lifecycle. The constraint being enforced here is
+    'don't create garbage states', not 'always start at Ready for Ship'.
+
+    On update, the new status must be in ALLOWED_TRANSITIONS[old_status].
+    """
     if doc.is_new():
-        if doc.status and doc.status != "Ready for Ship":
+        if doc.status and doc.status not in VALID_STATUSES:
             frappe.throw(_(
-                "New Instances must be created in status 'Ready for Ship' "
-                "(got '{0}')."
-            ).format(doc.status))
+                "'{0}' is not a valid Instance status. "
+                "Valid values: {1}."
+            ).format(doc.status, ", ".join(sorted(VALID_STATUSES))))
         return
 
     old_status = frappe.db.get_value(doc.doctype, doc.name, "status")
