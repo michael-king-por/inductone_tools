@@ -382,6 +382,12 @@ def _assign_node_ids_and_parents(resolved_rows):
             "source_option_code": row.get("source_option_code") or "",
             "excluded_by_structural_effect": int(row.get("excluded_by_structural_effect") or 0),
             "item_group": "",  # filled in by _enrich_with_item_metadata
+            "source_bom": row.get("source_bom") or "",
+            "source_bom_item": row.get("source_bom_item") or "",
+            "source_bom_item_idx": int(row.get("source_bom_item_idx") or 0),
+            "balloon_numbers": row.get("balloon_numbers") or "",
+            "electrical_unit": row.get("electrical_unit") or "",
+            "source_electrical_bom_rev": row.get("source_electrical_bom_rev") or "",
         }
 
         out.append(hierarchy_node)
@@ -475,6 +481,12 @@ def _insert_hierarchy_rows(snapshot_name, hierarchy_rows):
             "source_option_code": row["source_option_code"],
             "excluded_by_structural_effect": row["excluded_by_structural_effect"],
             "item_group": row["item_group"],
+            "source_bom": row.get("source_bom") or "",
+            "source_bom_item": row.get("source_bom_item") or "",
+            "source_bom_item_idx": int(row.get("source_bom_item_idx") or 0),
+            "balloon_numbers": row.get("balloon_numbers") or "",
+            "electrical_unit": row.get("electrical_unit") or "",
+            "source_electrical_bom_rev": row.get("source_electrical_bom_rev") or "",
         })
         doc.insert(ignore_permissions=True)
 
@@ -485,14 +497,23 @@ def _insert_hierarchy_rows(snapshot_name, hierarchy_rows):
 
 # Column layout — matches the BOM Explorer report screenshot.
 COLUMNS = [
-    ("Item Code",            "item_code",          50),
-    ("Item Name",            "item_name",          30),
-    ("BOM",                  "bom_used",           28),
-    ("Qty",                  "qty",                 8),
-    ("UOM",                  "uom",                 8),
-    ("BOM Level",            "bom_level",          10),
-    ("Standard Description", "description",        40),
-    ("Item Group",           "item_group",         18),
+    ("Item Code",            "item_code",                  50),
+    ("Item Name",            "item_name",                  30),
+    ("Balloon #",            "balloon_numbers",            14),
+    ("Electrical Unit",      "electrical_unit",            16),
+    ("Source Rev",           "source_electrical_bom_rev",  14),
+    ("BOM",                  "bom_used",                   28),
+    ("Qty",                  "qty",                         8),
+    ("UOM",                  "uom",                         8),
+    ("BOM Level",            "bom_level",                  10),
+    ("Standard Description", "description",                40),
+    ("Item Group",           "item_group",                 18),
+
+    # Audit/debug columns. Keep visible for now during validation.
+    # Hide later if builders do not need them.
+    ("Source BOM",           "source_bom",                 28),
+    ("Source BOM Item",      "source_bom_item",            18),
+    ("Source BOM Item IDX",  "source_bom_item_idx",        12),
 ]
 
 INDENT_CHAR = "\u00a0"  # non-breaking space
@@ -659,6 +680,12 @@ def _build_root_row(snap):
         "description": top_item_desc,
         "item_group": top_item_group,
         "node_type": "Assembly",
+        "source_bom": "",
+        "source_bom_item": "",
+        "source_bom_item_idx": 0,
+        "balloon_numbers": "",
+        "electrical_unit": "",
+        "source_electrical_bom_rev": "",
     }
 
 
