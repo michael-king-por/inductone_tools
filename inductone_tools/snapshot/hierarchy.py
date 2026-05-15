@@ -179,17 +179,28 @@ def _build_stub_export_package(snap):
     this call.
     """
     stub = frappe.get_doc({
-        "doctype": "BOM Export Package",
-        "source_mode": "Configured Build",
-        "bom": snap.top_bom,
-        "inductone_build": snap.inductone_build,
-        "configured_snapshot": snap.name,
-        # build_configured_rows reads explosion_mode and max_depth.
-        # Use the same defaults the real release flow uses.
-        "explosion_mode": "Follow Explicit Child BOM Links",
-        "max_depth": 0,
-        "include_qty": 1,
+    "doctype": "BOM Export Package",
+    "source_mode": "Configured Build",
+    "bom": snap.top_bom,
+    "inductone_build": snap.inductone_build,
+    "configured_snapshot": snap.name,
+    # build_configured_rows reads explosion_mode and max_depth.
+    # Use the same defaults the real release flow uses.
+    "explosion_mode": "Follow Explicit Child BOM Links",
+    "max_depth": 0,
+    "include_qty": 1,
     })
+
+    # Hierarchy-specific resolver behavior:
+    #
+    # 1. Preserve duplicate BOM row occurrences so the frozen workbook
+    #    matches the live BOM report structure.
+    # 2. Apply configured snapshot quantities where safe, e.g. the
+    #    25 ft hose override, without stamping rolled-up flat quantities
+    #    onto repeated branch occurrences.
+    stub.preserve_duplicate_occurrences = 1
+    stub.apply_snapshot_quantities = 1
+
     return stub
 
 
@@ -199,47 +210,159 @@ def _build_stub_export_package(snap):
 
 def _assign_node_ids_and_parents(resolved_rows):
     """
-    Walk the resolved rows in order and produce hierarchy rows with
-    stable node_id / parent_node_id linkage.
+    Build hierarchy rows with stable node_id / parent_node_id linkage
+    using each row's ancestor path, not incoming row order.
 
-    The resolved rows come out of build_configured_rows in walk order
-    (depth-first via explode_bom_tree_structured). For each row, the
-    parent is the most recently emitted row whose item_code matches
-    the last entry in this row's ancestor_item_codes AND whose
-    bom_level is exactly one less.
+    Why this exists:
+      build_configured_rows() is optimized for configured export output
+      and may return rows sorted/grouped by bom_level, item_code, etc.
+      That order is not a valid tree walk. The previous implementation
+      used a stack and assumed rows arrived depth-first, which caused
+      level-2+ rows to attach to the most recent prior row at the previous
+      level instead of their real parent.
 
-    For root-level rows (no ancestors), parent_node_id is empty.
+    Canonical rule:
+      Each resolved row carries:
+        - bom_level
+        - item_code
+        - ancestor_item_codes
+
+      For a row:
+        full_path   = ancestor_item_codes + [item_code]
+        parent_path = ancestor_item_codes
+
+      The parent is the row whose full_path equals parent_path.
+
+    Notes:
+      - Item codes can repeat in different branches, so parent lookup must
+        be path-based, not item-code-based.
+      - Duplicate item rows under the exact same parent path are allowed;
+        they receive occurrence suffixes internally so node IDs remain
+        unique while the visible item data remains unchanged.
+      - Output order is rebuilt into a depth-first tree order so the
+        workbook's indentation and Excel outline controls behave like a
+        real hierarchy.
     """
-    out = []
-    # Stack of (node_id, item_code, bom_level) representing the open
-    # branch from the root down to the current insertion point.
-    # We pop entries when we move back up the tree.
-    branch_stack = []
+    if not resolved_rows:
+        return []
 
+    normalized = []
+
+    # First pass: normalize rows and create durable path keys.
+    #
+    # A raw path of only item codes is sufficient for parent lookup in the
+    # normal case. However, duplicate item rows can exist under the same
+    # parent. To avoid overwriting path_index entries, we track occurrences
+    # of the same raw path and append an internal occurrence number.
+    #
+    # Parent lookup intentionally uses the unsuffixed parent raw path and
+    # resolves to the first matching parent node for that path, which is
+    # correct for normal BOM assembly parentage.
+    raw_path_counts = {}
+
+    for original_index, row in enumerate(resolved_rows):
+        item_code = row.get("item_code") or ""
+        bom_level = int(row.get("bom_level") or 0)
+        ancestor_items = list(row.get("ancestor_item_codes") or [])
+
+        full_raw_path = tuple(ancestor_items + [item_code])
+        parent_raw_path = tuple(ancestor_items)
+
+        occurrence = raw_path_counts.get(full_raw_path, 0) + 1
+        raw_path_counts[full_raw_path] = occurrence
+
+        normalized.append({
+            "original_index": original_index,
+            "row": row,
+            "item_code": item_code,
+            "bom_level": bom_level,
+            "ancestor_items": ancestor_items,
+            "full_raw_path": full_raw_path,
+            "parent_raw_path": parent_raw_path,
+            "occurrence": occurrence,
+            "children": [],
+            "node_id": None,
+            "parent_node_id": "",
+        })
+
+    # Index the first node seen for each raw path. This is used for parent
+    # lookup. Because a valid BOM parent assembly should normally be unique
+    # at a given path, first-node lookup is appropriate and stable.
+    first_node_by_raw_path = {}
+    all_nodes_by_raw_path = {}
+
+    for node in normalized:
+        full_raw_path = node["full_raw_path"]
+        all_nodes_by_raw_path.setdefault(full_raw_path, []).append(node)
+        if full_raw_path not in first_node_by_raw_path:
+            first_node_by_raw_path[full_raw_path] = node
+
+    roots = []
+
+    # Second pass: link each node to its parent using ancestor path.
+    for node in normalized:
+        parent_raw_path = node["parent_raw_path"]
+
+        if not parent_raw_path:
+            # Immediate child of the synthetic workbook root.
+            roots.append(node)
+            continue
+
+        parent_node = first_node_by_raw_path.get(parent_raw_path)
+
+        if parent_node:
+            node["parent_node_id"] = "__PENDING__"
+            parent_node["children"].append(node)
+        else:
+            # Defensive fallback:
+            # If a configured structural addition has a parent path that is
+            # not present in the filtered result, keep it as a root-level row
+            # rather than throwing away data or attaching it to a wrong parent.
+            #
+            # This should be rare. It preserves visibility while avoiding
+            # false hierarchy.
+            roots.append(node)
+
+    # Sort siblings in a stable, BOM-report-like order.
+    #
+    # Use original_index as the final tiebreaker so we preserve as much of
+    # the upstream resolver's deterministic ordering as possible within a
+    # given parent branch.
+    def _sibling_sort_key(node):
+        row = node["row"]
+        return (
+            int(row.get("row_order") or 0),
+            int(row.get("bom_level") or 0),
+            row.get("item_code") or "",
+            row.get("bom_used") or "",
+            row.get("node_type") or "",
+            node["occurrence"],
+            node["original_index"],
+        )
+
+    def _sort_tree(nodes):
+        nodes.sort(key=_sibling_sort_key)
+        for n in nodes:
+            _sort_tree(n["children"])
+
+    _sort_tree(roots)
+
+    # Third pass: emit in depth-first order and assign node IDs.
+    out = []
     counter = [0]
+
     def _next_id():
         counter[0] += 1
         return "N{0:05d}".format(counter[0])
 
-    for row in resolved_rows:
+    def _emit(node, parent_node_id=""):
+        row = node["row"]
         node_id = _next_id()
+        node["node_id"] = node_id
+
         bom_level = int(row.get("bom_level") or 0)
-        ancestor_items = row.get("ancestor_item_codes") or []
 
-        # Pop branch_stack entries that are at or below this row's level.
-        # The remaining top of stack is our parent.
-        while branch_stack and branch_stack[-1][2] >= bom_level:
-            branch_stack.pop()
-
-        # Validate that the stack head corresponds to our expected parent.
-        # If ancestor_items is non-empty, the last ancestor should match
-        # the top of the stack. If not, the rows arrived out of order
-        # and we still produce a best-effort parent pointer.
-        parent_node_id = ""
-        if branch_stack:
-            parent_node_id = branch_stack[-1][0]
-
-        node = {
+        hierarchy_node = {
             "node_id": node_id,
             "parent_node_id": parent_node_id,
             "bom_level": bom_level,
@@ -255,17 +378,19 @@ def _assign_node_ids_and_parents(resolved_rows):
             # the resolved row dict from build_configured_rows; we set
             # BASELINE as default and let future work refine this when
             # build_configured_rows is updated to propagate origin.
-            "effect_origin": "BASELINE",
-            "source_option_code": "",
-            "excluded_by_structural_effect": 0,
+            "effect_origin": row.get("effect_origin") or "BASELINE",
+            "source_option_code": row.get("source_option_code") or "",
+            "excluded_by_structural_effect": int(row.get("excluded_by_structural_effect") or 0),
             "item_group": "",  # filled in by _enrich_with_item_metadata
         }
 
-        out.append(node)
+        out.append(hierarchy_node)
 
-        # Push this node onto the stack so subsequent rows can find it
-        # as parent.
-        branch_stack.append((node_id, row.get("item_code") or "", bom_level))
+        for child in node["children"]:
+            _emit(child, parent_node_id=node_id)
+
+    for root in roots:
+        _emit(root, parent_node_id="")
 
     return out
 

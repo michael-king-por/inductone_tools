@@ -294,10 +294,36 @@ def build_configured_rows(package_doc):
     )
 
     included_leaf_codes = {
-        ln.item_code
-        for ln in (snap.lines or [])
-        if int(getattr(ln, "included", 0) or 0) == 1 and getattr(ln, "item_code", None)
+    ln.item_code
+    for ln in (snap.lines or [])
+    if int(getattr(ln, "included", 0) or 0) == 1 and getattr(ln, "item_code", None)
     }
+
+    # Hierarchy-specific behavior flags.
+    #
+    # Normal BOM Export Package behavior remains unchanged unless a caller
+    # explicitly sets these on the in-memory package/stub.
+    preserve_duplicate_occurrences = bool(
+        int(getattr(package_doc, "preserve_duplicate_occurrences", 0) or 0)
+    )
+    apply_snapshot_quantities = bool(
+        int(getattr(package_doc, "apply_snapshot_quantities", 0) or 0)
+    )
+
+    # Snapshot flat lines are the material truth for configured quantities.
+    # For hierarchy output, we apply these quantities only when the item
+    # appears once in the surviving hierarchy. If an item appears multiple
+    # times in different BOM occurrences, the snapshot line is a rolled-up
+    # flat quantity and must not be stamped onto each branch occurrence.
+    snapshot_qty_by_item = {}
+    if apply_snapshot_quantities:
+        for ln in (snap.lines or []):
+            item_code = getattr(ln, "item_code", None)
+            if not item_code:
+                continue
+            if int(getattr(ln, "included", 0) or 0) != 1:
+                continue
+            snapshot_qty_by_item[item_code] = float(getattr(ln, "qty", 0) or 0)
 
     structural_sets = load_snapshot_structural_effect_sets(snap)
 
@@ -379,23 +405,68 @@ def build_configured_rows(package_doc):
 
             fallback_additions.append(row)
 
-    # Combine + dedupe
-    seen = set()
-    out = []
+        # Combine rows.
+    #
+    # Normal configured export behavior still dedupes by the legacy key.
+    # Hierarchy output must preserve duplicate BOM row occurrences because
+    # the same item can legitimately appear more than once under the same
+    # parent assembly. Collapsing those rows causes the frozen hierarchy to
+    # disagree with the live BOM report.
+    candidate_rows = filtered + explicit_structure_rows + fallback_additions
 
-    for row in filtered + explicit_structure_rows + fallback_additions:
-        key = (
-            row.get("item_code") or "",
-            row.get("bom_used") or "",
-            row.get("node_type") or "",
-            tuple(row.get("ancestor_item_codes") or []),
-        )
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(row)
+    if preserve_duplicate_occurrences:
+        out = list(candidate_rows)
+    else:
+        seen = set()
+        out = []
 
-    # Stable ordering
+        for row in candidate_rows:
+            key = (
+                row.get("item_code") or "",
+                row.get("bom_used") or "",
+                row.get("node_type") or "",
+                tuple(row.get("ancestor_item_codes") or []),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(row)
+
+    # Apply configured snapshot quantities only where safe.
+    #
+    # If a leaf item occurs once in the surviving hierarchy, the flat
+    # configured snapshot quantity can be safely written onto that row.
+    # If it occurs multiple times, the snapshot line is rolled-up material
+    # quantity and should not be copied onto each branch occurrence.
+    if apply_snapshot_quantities and snapshot_qty_by_item:
+        leaf_occurrence_count = {}
+
+        for row in out:
+            if not row.get("is_leaf"):
+                continue
+            item_code = row.get("item_code") or ""
+            if not item_code:
+                continue
+            leaf_occurrence_count[item_code] = leaf_occurrence_count.get(item_code, 0) + 1
+
+        for row in out:
+            if not row.get("is_leaf"):
+                continue
+
+            item_code = row.get("item_code") or ""
+            if not item_code:
+                continue
+
+            if item_code not in snapshot_qty_by_item:
+                continue
+
+            if leaf_occurrence_count.get(item_code, 0) == 1:
+                row["qty"] = snapshot_qty_by_item[item_code]
+
+    # Stable ordering.
+    #
+    # The hierarchy module reconstructs parentage/order from ancestor paths,
+    # so this sort can remain for normal configured row consumers.
     out.sort(key=lambda r: (
         int(r.get("bom_level") or 0),
         r.get("item_code") or "",
