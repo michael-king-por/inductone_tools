@@ -161,6 +161,93 @@ def generate_hierarchy_workbook(snapshot_name):
         "configuration_order": co_name,
     }
 
+@frappe.whitelist()
+def sync_hierarchy_workbook_to_configuration_order(snapshot_name, co_name=None):
+    """
+    Register the latest existing Configured BOM Hierarchy workbook
+    attached to a Configured BOM Snapshot into the linked Configuration
+    Order Document Index.
+
+    This does not generate a new workbook. It only reconciles an
+    already-attached snapshot artifact into the CO documents table.
+    """
+    if not snapshot_name:
+        frappe.throw(_("snapshot_name is required."))
+
+    # Validate snapshot exists.
+    frappe.get_doc("Configured BOM Snapshot", snapshot_name)
+
+    if not co_name:
+        co_name = _resolve_co_for_snapshot(snapshot_name)
+
+    if not co_name:
+        return {
+            "ok": False,
+            "snapshot_name": snapshot_name,
+            "configuration_order": None,
+            "file_url": None,
+            "message": "No Configuration Order found for this snapshot.",
+        }
+
+    files = frappe.get_all(
+        "File",
+        filters={
+            "attached_to_doctype": "Configured BOM Snapshot",
+            "attached_to_name": snapshot_name,
+        },
+        fields=["name", "file_name", "file_url", "creation"],
+        order_by="creation desc",
+        limit_page_length=50,
+    )
+
+    hierarchy_file = None
+
+    for f in files:
+        file_name = (f.get("file_name") or "").lower()
+        file_url = (f.get("file_url") or "").lower()
+
+        if (
+            "configured_bom_hierarchy" in file_name
+            or "configured bom hierarchy" in file_name
+            or "configured_bom_hierarchy" in file_url
+            or "configured bom hierarchy" in file_url
+            or "_configured_bom_hierarchy_" in file_name
+            or "_configured_bom_hierarchy_" in file_url
+        ):
+            hierarchy_file = f
+            break
+
+    if not hierarchy_file:
+        return {
+            "ok": False,
+            "snapshot_name": snapshot_name,
+            "configuration_order": co_name,
+            "file_url": None,
+            "message": "No Configured BOM Hierarchy workbook attachment found on snapshot.",
+        }
+
+    file_url = hierarchy_file.get("file_url")
+    if not file_url:
+        return {
+            "ok": False,
+            "snapshot_name": snapshot_name,
+            "configuration_order": co_name,
+            "file_url": None,
+            "message": "Hierarchy workbook File record has no file_url.",
+        }
+
+    _register_in_co_document_index(co_name, snapshot_name, file_url)
+
+    frappe.db.commit()
+
+    return {
+        "ok": True,
+        "snapshot_name": snapshot_name,
+        "configuration_order": co_name,
+        "file_url": file_url,
+        "file_name": hierarchy_file.get("file_name"),
+        "message": "Configured BOM Hierarchy workbook synced to Configuration Order.",
+    }
 
 # ============================================================
 #  Stub package construction — Path B2
@@ -572,12 +659,18 @@ def _render_hierarchy_workbook(snap):
         row_data = {
             "item_code": h.item_code or "",
             "item_name": h.item_name or "",
+            "balloon_numbers": getattr(h, "balloon_numbers", None) or "",
+            "electrical_unit": getattr(h, "electrical_unit", None) or "",
+            "source_electrical_bom_rev": getattr(h, "source_electrical_bom_rev", None) or "",
             "bom_used": h.bom_used or "",
             "qty": h.qty,
             "uom": h.uom or "",
             "bom_level": h.bom_level or 0,
             "description": h.description or "",
             "item_group": h.item_group or "",
+            "source_bom": getattr(h, "source_bom", None) or "",
+            "source_bom_item": getattr(h, "source_bom_item", None) or "",
+            "source_bom_item_idx": int(getattr(h, "source_bom_item_idx", 0) or 0),
             "node_type": h.node_type or "Leaf",
         }
         _write_data_row(ws, current_row, row_data, level=int(h.bom_level or 0))
@@ -776,6 +869,7 @@ def _register_in_co_document_index(co_name, snapshot_name, file_url):
             "source_name": snapshot_name,
             "doc_type": "OTHER",
             "doc_title": row_title,
+            "file": file_url,
             "file_url": file_url,
             "required": "YES",
             "sort_order": 250,

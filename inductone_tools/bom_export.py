@@ -562,34 +562,34 @@ def explode_bom_tree_structured(root_bom: str, explosion_mode: str, max_depth=No
                     "name"
                 )
 
-                row = {
-                "bom_level": level + 1,
-                "item_code": bi.item_code,
-                "item_name": bi.item_name,
-                "qty": float(bi.qty) if include_qty else 1.0,
-                "uom": bi.uom,
-                "description": bi.description,
-                "bom_used": child_bom,
-                "node_type": "Assembly" if child_bom else "Leaf",
-                "is_leaf": 0 if child_bom else 1,
-                "ancestor_item_codes": list(ancestor_items),
-                "ancestor_boms": list(ancestor_boms),
-                "descendant_leaf_item_codes": [],
+            row = {
+            "bom_level": level + 1,
+            "item_code": bi.item_code,
+            "item_name": bi.item_name,
+            "qty": float(bi.qty) if include_qty else 1.0,
+            "uom": bi.uom,
+            "description": bi.description,
+            "bom_used": child_bom,
+            "node_type": "Assembly" if child_bom else "Leaf",
+            "is_leaf": 0 if child_bom else 1,
+            "ancestor_item_codes": list(ancestor_items),
+            "ancestor_boms": list(ancestor_boms),
+            "descendant_leaf_item_codes": [],
 
-                # Source BOM Item occurrence metadata.
-                #
-                # These fields freeze where this row came from. They are
-                # row-occurrence data, not Item master data.
-                "source_bom": bom_name,
-                "source_bom_item": bi.name,
-                "source_bom_item_idx": int(getattr(bi, "idx", 0) or 0),
+            # Source BOM Item occurrence metadata.
+            #
+            # These fields freeze where this row came from. They are
+            # row-occurrence data, not Item master data.
+            "source_bom": bom_name,
+            "source_bom_item": bi.name,
+            "source_bom_item_idx": int(getattr(bi, "idx", 0) or 0),
 
-                # Electrical schematic / balloon callout metadata.
-                # Stored on BOM Item because the callout belongs to this
-                # specific occurrence of the item in this specific BOM.
-                "balloon_numbers": getattr(bi, "custom_balloon_numbers", None) or "",
-                "electrical_unit": getattr(bi, "custom_electrical_unit", None) or "",
-                "source_electrical_bom_rev": getattr(bi, "custom_source_electrical_bom_rev", None) or "",
+            # Electrical schematic / balloon callout metadata.
+            # Stored on BOM Item because the callout belongs to this
+            # specific occurrence of the item in this specific BOM.
+            "balloon_numbers": getattr(bi, "custom_balloon_numbers", None) or "",
+            "electrical_unit": getattr(bi, "custom_electrical_unit", None) or "",
+            "source_electrical_bom_rev": getattr(bi, "custom_source_electrical_bom_rev", None) or "",
             }
 
             if child_bom:
