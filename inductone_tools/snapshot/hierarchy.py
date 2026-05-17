@@ -572,12 +572,18 @@ def _render_hierarchy_workbook(snap):
         row_data = {
             "item_code": h.item_code or "",
             "item_name": h.item_name or "",
+            "balloon_numbers": getattr(h, "balloon_numbers", None) or "",
+            "electrical_unit": getattr(h, "electrical_unit", None) or "",
+            "source_electrical_bom_rev": getattr(h, "source_electrical_bom_rev", None) or "",
             "bom_used": h.bom_used or "",
             "qty": h.qty,
             "uom": h.uom or "",
             "bom_level": h.bom_level or 0,
             "description": h.description or "",
             "item_group": h.item_group or "",
+            "source_bom": getattr(h, "source_bom", None) or "",
+            "source_bom_item": getattr(h, "source_bom_item", None) or "",
+            "source_bom_item_idx": int(getattr(h, "source_bom_item_idx", 0) or 0),
             "node_type": h.node_type or "Leaf",
         }
         _write_data_row(ws, current_row, row_data, level=int(h.bom_level or 0))
