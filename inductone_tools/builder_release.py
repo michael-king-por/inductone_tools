@@ -145,6 +145,19 @@ def check_builder_release_readiness(build_name: str):
             "This build has already been released to the builder. "
             "Releasing again will regenerate artifacts."
         )
+    # ---- Engineering Signoff requirement ----
+
+    if top_bom:
+        from inductone_tools.engineering_signoff import get_current_signoff_status
+        signoff_status = get_current_signoff_status("BOM", top_bom)
+        if signoff_status != "Approved":
+            status_str = signoff_status if signoff_status else "No signoff record exists"
+            missing.append(
+                f"Top BOM {top_bom} does not have an approved Engineering Signoff "
+                f"(current status: {status_str}). "
+                f"Obtain approval from an Engineering - Signoff role holder before releasing."
+            )
+    
     
     ready = len(missing) == 0
     
