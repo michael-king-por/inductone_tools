@@ -927,6 +927,8 @@ def build_structure_rows_from_structural_effects(structural_sets, explosion_mode
                 include_qty=include_qty,
             )
             for row in subtree:
+                row["ancestor_item_codes"] = [item_code] + list(row.get("ancestor_item_codes") or [])
+                row["ancestor_boms"] = [bom_name] + list(row.get("ancestor_boms") or [])
                 _append_row_if_new(row)
 
         else:
