@@ -272,7 +272,9 @@ def build_configured_rows(package_doc):
       1) Snapshot structural_effects are the primary structural truth
       2) Snapshot included leaf lines are the primary material truth
       3) Explicit structural suppressions prune target rows and their descendant branches
-      4) Replacement/addition branches are injected from resolved structural effects
+      4) Replacement is POSITIONAL and SCOPED: a specific occurrence (or N, or all)
+         is suppressed at its exact position and the replacement injected under the
+         same parent. Additions are injected from resolved structural effects.
     """
     if not package_doc.inductone_build:
         frappe.throw("Configured Build mode requires InductOne Build.")
@@ -294,9 +296,9 @@ def build_configured_rows(package_doc):
     )
 
     included_leaf_codes = {
-    ln.item_code
-    for ln in (snap.lines or [])
-    if int(getattr(ln, "included", 0) or 0) == 1 and getattr(ln, "item_code", None)
+        ln.item_code
+        for ln in (snap.lines or [])
+        if int(getattr(ln, "included", 0) or 0) == 1 and getattr(ln, "item_code", None)
     }
 
     # Hierarchy-specific behavior flags.
@@ -358,6 +360,132 @@ def build_configured_rows(package_doc):
     suppressed_bom_set.update(structural_sets.get("suppressed_node_boms", set()))
     suppressed_bom_set.update(structural_sets.get("suppressed_branch_boms", set()))
 
+    # --- Positional REPLACE resolution ---------------------------------------
+    #
+    # Replacement is positional and scoped. Item-level suppression is NOT used
+    # for replacements (load_snapshot_structural_effect_sets no longer adds
+    # replacement targets to the suppressed_* sets). Instead we resolve which
+    # SPECIFIC occurrence(s) of the target to replace, suppress only those by
+    # exact occurrence key, and inject the replacement under the same parent.
+    #
+    #   occ_key = (tuple(ancestor_item_codes), item_code)
+    #
+    # Scope:
+    #   ALL_OCCURRENCES   -> replace every positioned occurrence
+    #   SINGLE_OCCURRENCE -> replace the first occurrence (deterministic order)
+    #   N_OCCURRENCES     -> replace the first replace_count occurrences
+    #
+    # Mode:
+    #   REPLACE_TARGET_NODE   -> in-place LEAF swap (same parent, same depth)
+    #   REPLACE_TARGET_BRANCH -> in-place BRANCH swap (assembly + exploded
+    #                            subtree, re-parented onto the occurrence path)
+    def _occ_key(row):
+        return (tuple(row.get("ancestor_item_codes") or []), row.get("item_code"))
+
+    positional_suppressed_occ = set()
+    positional_replacement_rows = []
+
+    for eff in structural_sets.get("replacement_effects", []):
+        target = eff.get("target_item")
+        if not target:
+            continue
+
+        scope = (eff.get("replace_scope") or "ALL_OCCURRENCES")
+        count = int(eff.get("replace_count") or 1)
+        mode = (eff.get("effect_mode") or "REPLACE_TARGET_BRANCH")
+
+        repl_item = eff.get("replace_with_item")
+        if not repl_item:
+            frappe.throw(
+                f"REPLACE for {target} (option {eff.get('source_option_code')}) "
+                f"has no replace_with_item."
+            )
+        repl_bom = eff.get("resolved_replace_with_bom") or eff.get("replace_with_bom")
+
+        # All positioned occurrences of the target, deterministically ordered.
+        occurrences = [r for r in baseline_rows if r.get("item_code") == target]
+        occurrences.sort(key=lambda r: (
+            " > ".join(r.get("ancestor_item_codes") or []),
+            int(r.get("bom_level") or 0),
+            r.get("bom_used") or "",
+        ))
+
+        if scope == "ALL_OCCURRENCES":
+            chosen = occurrences
+        elif scope == "SINGLE_OCCURRENCE":
+            chosen = occurrences[:1]
+        elif scope == "N_OCCURRENCES":
+            chosen = occurrences[:max(0, count)]
+        else:
+            chosen = occurrences
+
+        if not chosen:
+            frappe.throw(
+                f"REPLACE for {target} (option {eff.get('source_option_code')}) "
+                f"found no occurrence in the baseline to replace."
+            )
+
+        meta = frappe.db.get_value(
+            "Item",
+            repl_item,
+            ["item_name", "description", "stock_uom"],
+            as_dict=True,
+        ) or {}
+
+        for occ in chosen:
+            positional_suppressed_occ.add(_occ_key(occ))
+            anc_items = list(occ.get("ancestor_item_codes") or [])
+            anc_boms = list(occ.get("ancestor_boms") or [])
+            level = int(occ.get("bom_level") or 1)
+            occ_qty = float(occ.get("qty") or 1.0)
+
+            if mode == "REPLACE_TARGET_NODE" or not repl_bom:
+                # In-place LEAF swap: single replacement leaf under the same
+                # parent, at the same depth, carrying the occurrence qty.
+                positional_replacement_rows.append({
+                    "bom_level": level,
+                    "item_code": repl_item,
+                    "item_name": meta.get("item_name") or "",
+                    "qty": occ_qty,
+                    "uom": meta.get("stock_uom") or "",
+                    "description": meta.get("description") or "",
+                    "bom_used": None,
+                    "node_type": "Leaf",
+                    "is_leaf": 1,
+                    "ancestor_item_codes": anc_items,
+                    "ancestor_boms": anc_boms,
+                    "descendant_leaf_item_codes": [repl_item],
+                })
+            else:
+                # In-place BRANCH swap: replacement assembly node under the same
+                # parent, plus its exploded subtree re-parented onto this path.
+                positional_replacement_rows.append({
+                    "bom_level": level,
+                    "item_code": repl_item,
+                    "item_name": meta.get("item_name") or "",
+                    "qty": occ_qty,
+                    "uom": meta.get("stock_uom") or "",
+                    "description": meta.get("description") or "",
+                    "bom_used": repl_bom,
+                    "node_type": "Assembly",
+                    "is_leaf": 0,
+                    "ancestor_item_codes": anc_items,
+                    "ancestor_boms": anc_boms,
+                    "descendant_leaf_item_codes": [],
+                })
+
+                subtree = explode_bom_tree_structured(
+                    root_bom=repl_bom,
+                    explosion_mode=package_doc.explosion_mode or "Follow Explicit Child BOM Links",
+                    max_depth=package_doc.max_depth,
+                    include_qty=bool(getattr(package_doc, "include_qty", 1)),
+                )
+                for srow in subtree:
+                    srow["ancestor_item_codes"] = anc_items + [repl_item] + list(srow.get("ancestor_item_codes") or [])
+                    srow["ancestor_boms"] = anc_boms + [repl_bom] + list(srow.get("ancestor_boms") or [])
+                    srow["bom_level"] = level + int(srow.get("bom_level") or 0)
+                    positional_replacement_rows.append(srow)
+
     filtered = []
     for row in baseline_rows:
         row_item = row.get("item_code")
@@ -365,7 +493,13 @@ def build_configured_rows(package_doc):
         row_ancestor_items = set(row.get("ancestor_item_codes") or [])
         row_ancestor_boms = set(row.get("ancestor_boms") or [])
 
-        # Primary structural suppression rules
+        # Positional replacement suppression (specific occurrence only). This is
+        # what removes ONLY the replaced occurrence(s), leaving sibling
+        # occurrences of the same item intact.
+        if _occ_key(row) in positional_suppressed_occ:
+            continue
+
+        # Primary structural suppression rules (REMOVE options; item-level)
         if row_item and row_item in suppressed_item_set:
             continue
         if row_bom and row_bom in suppressed_bom_set:
@@ -386,7 +520,11 @@ def build_configured_rows(package_doc):
             if descendant_leafs.intersection(included_leaf_codes):
                 filtered.append(row)
 
-    # Explicit structural additions / replacements from resolved snapshot effects
+    # Explicit structural ADDITIONS from resolved snapshot effects.
+    #
+    # NOTE: replacements are NO LONGER injected here — positional replacement
+    # above fully owns them. build_structure_rows_from_structural_effects must
+    # only inject additive_effects (its replacement loop has been removed).
     explicit_structure_rows = build_structure_rows_from_structural_effects(
         structural_sets=structural_sets,
         explosion_mode=package_doc.explosion_mode or "Follow Explicit Child BOM Links",
@@ -428,14 +566,19 @@ def build_configured_rows(package_doc):
 
             fallback_additions.append(row)
 
-        # Combine rows.
+    # Combine rows.
     #
     # Normal configured export behavior still dedupes by the legacy key.
     # Hierarchy output must preserve duplicate BOM row occurrences because
     # the same item can legitimately appear more than once under the same
     # parent assembly. Collapsing those rows causes the frozen hierarchy to
     # disagree with the live BOM report.
-    candidate_rows = filtered + explicit_structure_rows + fallback_additions
+    candidate_rows = (
+        filtered
+        + positional_replacement_rows
+        + explicit_structure_rows
+        + fallback_additions
+    )
 
     if preserve_duplicate_occurrences:
         out = list(candidate_rows)
@@ -889,25 +1032,21 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
         elif action == "REPLACE":
             replacement_effects.append({
                 "action": action,
-                "effect_mode": effect_mode,
+                "effect_mode": effect_mode,        # REPLACE_TARGET_NODE or _BRANCH
                 "target_item": target_item,
                 "target_bom": target_bom,
                 "resolved_target_bom": effective_target_bom,
                 "replace_with_item": replace_with_item,
                 "replace_with_bom": replace_with_bom,
                 "resolved_replace_with_bom": effective_replace_with_bom,
+                "replace_scope": (getattr(row, "replace_scope", None) or "ALL_OCCURRENCES"),
+                "replace_count": int(getattr(row, "replace_count", 1) or 1),
                 "source_option": source_option,
                 "source_option_code": source_option_code,
                 "expand_mode": expand_mode,
                 "row_order": row_order,
                 "reason": reason,
             })
-
-            if effect_mode == "REPLACE_TARGET_BRANCH":
-                if target_item:
-                    suppressed_branch_items.add(target_item)
-                if effective_target_bom:
-                    suppressed_branch_boms.add(effective_target_bom)
 
         elif action == "ADD":
             entry = {
@@ -1056,14 +1195,6 @@ def build_structure_rows_from_structural_effects(structural_sets, explosion_mode
                 "ancestor_boms": [],
                 "descendant_leaf_item_codes": [item_code],
             })
-
-    for eff in structural_sets.get("replacement_effects", []):
-        if (eff.get("effect_mode") or "") != "REPLACE_TARGET_BRANCH":
-            continue
-
-        replacement_item = eff.get("replace_with_item") or eff.get("target_item")
-        replacement_bom = eff.get("resolved_replace_with_bom") or eff.get("replace_with_bom")
-        _append_item_or_bom_branch(replacement_item, replacement_bom)
 
     for eff in structural_sets.get("additive_effects", []):
         if (eff.get("effect_mode") or "") == "NO_STRUCTURAL_CHANGE":
