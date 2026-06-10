@@ -504,6 +504,39 @@ def build_configured_rows(package_doc):
         node = matches[0]
         node["qty"] = float(node.get("qty") or 0) + increment
 
+    # Apply option-driven node quantity OVERRIDES.
+    #
+    # OVERRIDE_NODE_QTY sets a node's contextual qty to an absolute value
+    # (e.g. the 50 ft hose). Leaf or assembly, single occurrence only.
+    for eff in structural_sets.get("override_effects", []):
+        target = eff.get("target_item")
+        if not target:
+            continue
+        new_qty = float(eff.get("effect_qty") or 0)
+        expand_mode = (eff.get("expand_mode") or "AS_ITEM_ONLY").strip()
+        want_leaf = (expand_mode == "AS_ITEM_ONLY")
+
+        matches = [
+            row for row in out
+            if row.get("item_code") == target
+            and bool(row.get("is_leaf")) == want_leaf
+        ]
+        if len(matches) == 0:
+            frappe.throw(
+                f"OVERRIDE_NODE_QTY for {target} (option {eff.get('source_option_code')}) "
+                f"found no matching {'leaf' if want_leaf else 'assembly'} node."
+            )
+        if len(matches) > 1:
+            locs = [
+                " > ".join((r.get('ancestor_item_codes') or []) + [r.get('item_code')])
+                for r in matches
+            ]
+            frappe.throw(
+                f"OVERRIDE_NODE_QTY for {target} (option {eff.get('source_option_code')}) "
+                f"is ambiguous: {len(matches)} matching nodes:\n  " + "\n  ".join(locs)
+            )
+        matches[0]["qty"] = new_qty
+
     # Stable ordering.
     #
     # The hierarchy module reconstructs parentage/order from ancestor paths,
@@ -814,6 +847,7 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
     replacement_effects = []
     additive_effects = []
     increment_effects = []
+    override_effects = []
 
     for row in (getattr(snapshot_doc, "structural_effects", None) or []):
         action = (getattr(row, "action", "") or "").strip()
@@ -879,6 +913,7 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
             entry = {
                 "action": action,
                 "effect_mode": effect_mode,
+                "effect_qty": float(getattr(row, "effect_qty", 0) or 0) or 1.0,
                 "target_item": target_item,
                 "target_bom": target_bom,
                 "resolved_target_bom": effective_target_bom,
@@ -900,6 +935,21 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
             else:
                 additive_effects.append(entry)
 
+        elif action == "QTY_OVERRIDE":
+            override_effects.append({
+                "action": action,
+                "effect_mode": effect_mode,
+                "target_item": target_item,
+                "target_bom": target_bom,
+                "resolved_target_bom": effective_target_bom,
+                "source_option": source_option,
+                "source_option_code": source_option_code,
+                "expand_mode": expand_mode,
+                "row_order": row_order,
+                "reason": reason,
+                "effect_qty": float(getattr(row, "effect_qty", 0) or 0),
+            })
+
     return {
         "removed_target_items": removed_target_items,
         "removed_target_boms": removed_target_boms,
@@ -910,6 +960,7 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
         "replacement_effects": sorted(replacement_effects, key=lambda r: (int(r.get("row_order") or 100), r.get("target_item") or "")),
         "additive_effects": sorted(additive_effects, key=lambda r: (int(r.get("row_order") or 100), r.get("target_item") or "")),
         "increment_effects": sorted(increment_effects, key=lambda r: (int(r.get("row_order") or 100), r.get("target_item") or "")),
+        "override_effects": sorted(override_effects, key=lambda r: (int(r.get("row_order") or 100), r.get("target_item") or "")),
     }
 
 
