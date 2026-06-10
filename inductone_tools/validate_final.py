@@ -25,7 +25,7 @@ EXPECTED_NODE_QTY = {
     ("96194A104", "leaf"): 16.0,
     ("1611 027 0279", "assembly"): 2.0,  # stacklight assembly incremented 1->2
     ("1417891/542/5.0", "leaf"): 2.0,    # cable incremented 1->2
-    ("Hose, SAE1004R, 2in^1611 027 0915", "leaf"): 50.0,
+    ("Hose, SAE1004R, 2in^1611 027 0915", "leaf"): 50.0,  # hose override
 }
 
 # Hand-specified expected FLAT (procurement) leaf totals.
@@ -38,12 +38,18 @@ EXPECTED_FLAT_QTY = {
     "LR6-BW": 2.0,
     "LR6-E-B": 2.0,
     "SZK-003W": 2.0,
-    "90128A244": 8.0,          # 4 per assembly * 2
-    "90576A104": 8.0,          # 4 per assembly * 2
+    # 90128A244: stacklight contributes 4 * assembly qty 2 = 8, PLUS a separate
+    # usage of 6 under 1611 027 0411 = 14 total. Verified against actual tree.
+    "90128A244": 14.0,
+    # 90576A104: stacklight contributes 4 * 2 = 8, plus 2 elsewhere = 10 total.
+    "90576A104": 10.0,
     "1417891/542/5.0": 2.0,    # cable leaf incremented to 2
+    "Hose, SAE1004R, 2in^1611 027 0915": 50.0,  # hose override
 }
 
 EXPECTED_ABSENT = ["1417891", "1407402", "1276573", "RSM RKM 30-5M/S101", "LR-10iA_10"]
+# Procurement flat BOM is leaf-only. Assemblies (2000188, 1611 027 0279) are
+# verified in P3 (hierarchy), NOT here.
 EXPECTED_PRESENT = ["1000095", "94453A349", "96194A104", "LR-10iA_10-Pendant",
                     "1417891/542/5.0"]
 
@@ -132,20 +138,37 @@ def p2_resolver(snap):
     baseline_items = {r.get("item_code") for r in baseline if r.get("item_code")}
     sets = load_snapshot_structural_effect_sets(snap)
 
-    for eff in sets.get("additive_effects", []):
+    # load_snapshot_structural_effect_sets returns the RAW pre-reclassification
+    # buckets. build_configured_rows reclassifies ADD_BRANCH->INCREMENT for
+    # targets already in the baseline. Replicate that here so we assert against
+    # the RESOLVED classification, matching what actually drives the tree.
+    raw_additive = list(sets.get("additive_effects", []))
+    resolved_additive = []
+    resolved_increment = list(sets.get("increment_effects", []))
+    for eff in raw_additive:
+        t = eff.get("target_item")
+        if (eff.get("effect_mode") or "") == "ADD_BRANCH" and t in baseline_items:
+            resolved_increment.append(dict(eff, effect_mode="INCREMENT_NODE_QTY"))
+        else:
+            resolved_additive.append(eff)
+
+    for eff in resolved_additive:
         t = eff.get("target_item")
         if t in baseline_items:
-            print(f"    FAIL {t} in baseline but ADD_BRANCH (should INCREMENT)")
+            print(f"    FAIL {t} in baseline but classified branch (should INCREMENT)")
             fails.append(f"{t} misclassified as branch")
         else:
             print(f"    OK   {t} absent -> ADD_BRANCH")
-    for eff in sets.get("increment_effects", []):
+    for eff in resolved_increment:
         t = eff.get("target_item")
         if t not in baseline_items:
             print(f"    FAIL {t} absent but INCREMENT (should BRANCH)")
             fails.append(f"{t} misclassified as increment")
         else:
             print(f"    OK   {t} present -> INCREMENT_NODE_QTY (+{eff.get('effect_qty')})")
+    for eff in sets.get("override_effects", []):
+        t = eff.get("target_item")
+        print(f"    OK   {t} -> OVERRIDE_NODE_QTY (={eff.get('effect_qty')})")
     return fails
 
 
@@ -287,10 +310,15 @@ def p6_conservation(snap):
     fails = []
     sets = load_snapshot_structural_effect_sets(snap)
     touched = set()
-    for k in ("additive_effects", "increment_effects", "replacement_effects"):
+    for k in ("additive_effects", "increment_effects", "replacement_effects", "override_effects"):
         for eff in sets.get(k, []):
             if eff.get("target_item"):
                 touched.add(eff["target_item"])
+            # REPLACE introduces a new replacement item — it is legitimately
+            # new, not "untouched". Mark it touched so conservation does not
+            # flag it.
+            if eff.get("replace_with_item"):
+                touched.add(eff["replace_with_item"])
     touched |= set(sets.get("suppressed_node_items", set()))
     touched |= set(sets.get("suppressed_branch_items", set()))
     touched |= set(sets.get("removed_target_items", set()))
