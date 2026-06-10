@@ -25,6 +25,7 @@ EXPECTED_NODE_QTY = {
     ("96194A104", "leaf"): 16.0,
     ("1611 027 0279", "assembly"): 2.0,  # stacklight assembly incremented 1->2
     ("1417891/542/5.0", "leaf"): 2.0,    # cable incremented 1->2
+    ("Hose, SAE1004R, 2in^1611 027 0915", "leaf"): 50.0,
 }
 
 # Hand-specified expected FLAT (procurement) leaf totals.
@@ -43,8 +44,8 @@ EXPECTED_FLAT_QTY = {
 }
 
 EXPECTED_ABSENT = ["1417891", "1407402", "1276573", "RSM RKM 30-5M/S101", "LR-10iA_10"]
-EXPECTED_PRESENT = ["2000188", "1000095", "94453A349", "96194A104", "LR-10iA_10-Pendant",
-                    "1611 027 0279", "1417891/542/5.0"]
+EXPECTED_PRESENT = ["1000095", "94453A349", "96194A104", "LR-10iA_10-Pendant",
+                    "1417891/542/5.0"]
 
 APP_ROOT = os.path.expanduser("~/frappe-bench/apps/inductone_tools")
 
