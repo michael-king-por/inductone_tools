@@ -306,26 +306,49 @@ def build_configured_rows(package_doc):
     preserve_duplicate_occurrences = bool(
         int(getattr(package_doc, "preserve_duplicate_occurrences", 0) or 0)
     )
-    apply_snapshot_quantities = bool(
-        int(getattr(package_doc, "apply_snapshot_quantities", 0) or 0)
-    )
-
-    # Snapshot flat lines are the material truth for configured quantities.
-    # For hierarchy output, we apply these quantities only when the item
-    # appears once in the surviving hierarchy. If an item appears multiple
-    # times in different BOM occurrences, the snapshot line is a rolled-up
-    # flat quantity and must not be stamped onto each branch occurrence.
-    snapshot_qty_by_item = {}
-    if apply_snapshot_quantities:
-        for ln in (snap.lines or []):
-            item_code = getattr(ln, "item_code", None)
-            if not item_code:
-                continue
-            if int(getattr(ln, "included", 0) or 0) != 1:
-                continue
-            snapshot_qty_by_item[item_code] = float(getattr(ln, "qty", 0) or 0)
 
     structural_sets = load_snapshot_structural_effect_sets(snap)
+
+    # Server-authoritative re-resolution of ADD effects.
+    #
+    # The client emits a provisional mode, but only the server has the fully
+    # exploded baseline tree, which is what determines whether an ADD target
+    # already exists (=> increment the existing node) or is new (=> inject a
+    # branch). We reclassify here so the decision is derived from the BOM and
+    # cannot drift per-option.
+    baseline_item_codes_all = {
+        r.get("item_code") for r in baseline_rows if r.get("item_code")
+    }
+
+    reclassified_additive = []
+    reclassified_increment = list(structural_sets.get("increment_effects", []))
+
+    for eff in structural_sets.get("additive_effects", []):
+        target = eff.get("target_item")
+        mode = (eff.get("effect_mode") or "")
+        if mode == "ADD_BRANCH" and target in baseline_item_codes_all:
+            # Target already in tree: this is an increment, not a new branch.
+            forced = dict(eff)
+            forced["effect_mode"] = "INCREMENT_NODE_QTY"
+            reclassified_increment.append(forced)
+        else:
+            reclassified_additive.append(eff)
+
+    # Also guard the reverse: an INCREMENT effect whose target is NOT in the
+    # baseline cannot increment anything. Promote it to a branch injection so
+    # the material is not silently lost.
+    final_increment = []
+    for eff in reclassified_increment:
+        target = eff.get("target_item")
+        if target in baseline_item_codes_all:
+            final_increment.append(eff)
+        else:
+            promoted = dict(eff)
+            promoted["effect_mode"] = "ADD_BRANCH"
+            reclassified_additive.append(promoted)
+
+    structural_sets["additive_effects"] = reclassified_additive
+    structural_sets["increment_effects"] = final_increment
 
     suppressed_item_set = set()
     suppressed_item_set.update(structural_sets.get("suppressed_node_items", set()))
@@ -432,36 +455,54 @@ def build_configured_rows(package_doc):
             seen.add(key)
             out.append(row)
 
-    # Apply configured snapshot quantities only where safe.
+    # Apply option-driven node quantity increments.
     #
-    # If a leaf item occurs once in the surviving hierarchy, the flat
-    # configured snapshot quantity can be safely written onto that row.
-    # If it occurs multiple times, the snapshot line is rolled-up material
-    # quantity and should not be copied onto each branch occurrence.
-    if apply_snapshot_quantities and snapshot_qty_by_item:
-        leaf_occurrence_count = {}
+    # Per the configured-BOM model:
+    #   - AS_ITEM_ONLY increment: the single existing LEAF occurrence's
+    #     contextual qty += N. Zero or multiple occurrences => refuse (ambiguous
+    #     or nothing to increment).
+    #   - EXPLODE_DEFAULT_BOM / USE_TARGET_BOM increment: the single existing
+    #     ASSEMBLY node's contextual qty += N. Children untouched; the flat
+    #     rollup multiplies descendants by the new assembly qty.
+    #
+    # Node quantities are the single source of truth. The flat/procurement BOM
+    # is a pure rollup of these. No snapshot-line qty stamping occurs anymore.
+    for eff in structural_sets.get("increment_effects", []):
+        target = eff.get("target_item")
+        if not target:
+            continue
+        increment = float(eff.get("effect_qty") or 1.0)
+        expand_mode = (eff.get("expand_mode") or "AS_ITEM_ONLY").strip()
 
-        for row in out:
-            if not row.get("is_leaf"):
-                continue
-            item_code = row.get("item_code") or ""
-            if not item_code:
-                continue
-            leaf_occurrence_count[item_code] = leaf_occurrence_count.get(item_code, 0) + 1
+        want_leaf = (expand_mode == "AS_ITEM_ONLY")
 
-        for row in out:
-            if not row.get("is_leaf"):
-                continue
+        matches = [
+            row for row in out
+            if row.get("item_code") == target
+            and bool(row.get("is_leaf")) == want_leaf
+        ]
 
-            item_code = row.get("item_code") or ""
-            if not item_code:
-                continue
+        if len(matches) == 0:
+            frappe.throw(
+                f"INCREMENT_NODE_QTY for {target} (option {eff.get('source_option_code')}) "
+                f"found no matching {'leaf' if want_leaf else 'assembly'} node in the "
+                f"configured tree. Nothing to increment."
+            )
+        if len(matches) > 1:
+            locations = [
+                " > ".join((r.get('ancestor_item_codes') or []) + [r.get('item_code')])
+                for r in matches
+            ]
+            frappe.throw(
+                f"INCREMENT_NODE_QTY for {target} (option {eff.get('source_option_code')}) "
+                f"is ambiguous: {len(matches)} matching "
+                f"{'leaf' if want_leaf else 'assembly'} nodes exist:\n  "
+                + "\n  ".join(locations)
+                + "\nQuantity increment requires exactly one occurrence."
+            )
 
-            if item_code not in snapshot_qty_by_item:
-                continue
-
-            if leaf_occurrence_count.get(item_code, 0) == 1:
-                row["qty"] = snapshot_qty_by_item[item_code]
+        node = matches[0]
+        node["qty"] = float(node.get("qty") or 0) + increment
 
     # Stable ordering.
     #
@@ -654,7 +695,7 @@ def build_added_structure_rows_from_selected_options(selected_rows, baseline_row
                     "bom_level": 1,
                     "item_code": target_item,
                     "item_name": meta.get("item_name") or "",
-                    "qty": 1.0 if include_qty else 1.0,
+                    "qty": 1.0,
                     "uom": meta.get("stock_uom") or "",
                     "description": meta.get("description") or "",
                     "bom_used": None,
@@ -685,7 +726,7 @@ def build_added_structure_rows_from_selected_options(selected_rows, baseline_row
                     "bom_level": 1,
                     "item_code": target_item,
                     "item_name": meta.get("item_name") or "",
-                    "qty": 1.0 if include_qty else 1.0,
+                    "qty": 1.0,
                     "uom": meta.get("stock_uom") or "",
                     "description": meta.get("description") or "",
                     "bom_used": default_bom,
@@ -716,7 +757,7 @@ def build_added_structure_rows_from_selected_options(selected_rows, baseline_row
                     "bom_level": 1,
                     "item_code": target_item,
                     "item_name": meta.get("item_name") or "",
-                    "qty": 1.0 if include_qty else 1.0,
+                    "qty": 1.0,
                     "uom": meta.get("stock_uom") or "",
                     "description": meta.get("description") or "",
                     "bom_used": target_bom,
@@ -772,6 +813,7 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
     suppressed_branch_boms = set()
     replacement_effects = []
     additive_effects = []
+    increment_effects = []
 
     for row in (getattr(snapshot_doc, "structural_effects", None) or []):
         action = (getattr(row, "action", "") or "").strip()
@@ -834,7 +876,7 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
                     suppressed_branch_boms.add(effective_target_bom)
 
         elif action == "ADD":
-            additive_effects.append({
+            entry = {
                 "action": action,
                 "effect_mode": effect_mode,
                 "target_item": target_item,
@@ -848,7 +890,15 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
                 "expand_mode": expand_mode,
                 "row_order": row_order,
                 "reason": reason,
-            })
+                # The increment quantity rides on the effect. The client writes
+                # it into `effect_qty` (added field) for INCREMENT_NODE_QTY;
+                # default 1 keeps legacy ADD_BRANCH behavior intact.
+                "effect_qty": float(getattr(row, "effect_qty", 0) or 0) or 1.0,
+            }
+            if effect_mode == "INCREMENT_NODE_QTY":
+                increment_effects.append(entry)
+            else:
+                additive_effects.append(entry)
 
     return {
         "removed_target_items": removed_target_items,
@@ -859,6 +909,7 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
         "suppressed_branch_boms": suppressed_branch_boms,
         "replacement_effects": sorted(replacement_effects, key=lambda r: (int(r.get("row_order") or 100), r.get("target_item") or "")),
         "additive_effects": sorted(additive_effects, key=lambda r: (int(r.get("row_order") or 100), r.get("target_item") or "")),
+        "increment_effects": sorted(increment_effects, key=lambda r: (int(r.get("row_order") or 100), r.get("target_item") or "")),
     }
 
 
@@ -909,7 +960,7 @@ def build_structure_rows_from_structural_effects(structural_sets, explosion_mode
                 "bom_level": 1,
                 "item_code": item_code,
                 "item_name": meta.get("item_name") or "",
-                "qty": 1.0 if include_qty else 1.0,
+                "qty": 1.0,
                 "uom": meta.get("stock_uom") or "",
                 "description": meta.get("description") or "",
                 "bom_used": bom_name,
@@ -929,6 +980,7 @@ def build_structure_rows_from_structural_effects(structural_sets, explosion_mode
             for row in subtree:
                 row["ancestor_item_codes"] = [item_code] + list(row.get("ancestor_item_codes") or [])
                 row["ancestor_boms"] = [bom_name] + list(row.get("ancestor_boms") or [])
+                row["bom_level"] = row["bom_level"] + 1  # offset by injection depth
                 _append_row_if_new(row)
 
         else:
@@ -943,7 +995,7 @@ def build_structure_rows_from_structural_effects(structural_sets, explosion_mode
                 "bom_level": 1,
                 "item_code": item_code,
                 "item_name": meta.get("item_name") or "",
-                "qty": 1.0 if include_qty else 1.0,
+                "qty": 1.0,
                 "uom": meta.get("stock_uom") or "",
                 "description": meta.get("description") or "",
                 "bom_used": None,
