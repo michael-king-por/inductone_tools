@@ -87,6 +87,19 @@ def approve_signoff(signoff_name: str, notes: str = None):
     """
     _require_signoff_role()
 
+    # ---- Configuration Option readiness gate ----
+    if signoff.target_doctype == CONFIG_OPTION_DOCTYPE:
+        mapping_status = frappe.db.get_value(
+            CONFIG_OPTION_DOCTYPE,
+            signoff.target_docname,
+            "mapping_status",
+        )
+        if mapping_status != "Complete":
+            frappe.throw(_(
+                "Cannot approve: Configuration Option '{0}' has Mapping Status '{1}'. "
+                "Mapping Status must be Complete before a signoff can be approved."
+            ).format(signoff.target_docname, mapping_status or "not set"))
+
     signoff = frappe.get_doc("Engineering Signoff", signoff_name)
 
     if signoff.status != "Pending":
@@ -633,7 +646,7 @@ def _serialize_config_option_mappings(rows):
             int(getattr(row, "idx", 0) or 0),
             _norm(getattr(row, "action", None)),
             _norm(getattr(row, "target_item", None)),
-            _norm(getattr(row, "replacement_item", None)),
+            _norm(getattr(row, "replace_with_item", None)),
             _norm(getattr(row, "replace_scope", None)),
             int(getattr(row, "replace_count", 0) or 0),
             _norm(getattr(row, "structural_effect_mode", None)),
