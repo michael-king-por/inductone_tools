@@ -633,7 +633,7 @@ def _serialize_config_option_mappings(rows):
             int(getattr(row, "idx", 0) or 0),
             _norm(getattr(row, "action", None)),
             _norm(getattr(row, "target_item", None)),
-            _norm(getattr(row, "replacement_item", None)),
+            _norm(getattr(row, "replace_with_item", None)),
             _norm(getattr(row, "replace_scope", None)),
             int(getattr(row, "replace_count", 0) or 0),
             _norm(getattr(row, "structural_effect_mode", None)),
