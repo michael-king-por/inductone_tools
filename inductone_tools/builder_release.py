@@ -999,6 +999,92 @@ def _find_first_child_table_field(doc, candidates):
 
     return None
 
+def _append_engineering_signoff_readiness_checks(build, configuration_order, top_bom, missing, warnings):
+    """
+    Defense-in-depth release gate.
+
+    Checks:
+      - Top BOM has approved signoff.
+      - Top Item has approved signoff, if present.
+      - Product Bundle for Top Item has approved signoff, if one exists.
+      - Every selected Configuration Option on the Configuration Order has approved signoff.
+    """
+    from inductone_tools.engineering_signoff import get_current_signoff_status
+
+    if top_bom:
+        _require_approved_signoff(
+            target_doctype="BOM",
+            target_docname=top_bom,
+            missing=missing,
+            get_current_signoff_status=get_current_signoff_status,
+        )
+
+    top_item = getattr(build, "top_item", None)
+    if top_item:
+        _require_approved_signoff(
+            target_doctype="Item",
+            target_docname=top_item,
+            missing=missing,
+            get_current_signoff_status=get_current_signoff_status,
+        )
+
+        product_bundles = frappe.get_all(
+            "Product Bundle",
+            filters={"new_item_code": top_item},
+            pluck="name",
+        )
+
+        for bundle_name in product_bundles:
+            _require_approved_signoff(
+                target_doctype="Product Bundle",
+                target_docname=bundle_name,
+                missing=missing,
+                get_current_signoff_status=get_current_signoff_status,
+            )
+
+    if configuration_order:
+        for row in (getattr(configuration_order, "selected_options", None) or []):
+            option_code = getattr(row, "option_code", None)
+
+            if not option_code:
+                warnings.append(
+                    f"Configuration Order {configuration_order.name} has a selected option row without option_code."
+                )
+                continue
+
+            option_name = frappe.db.get_value(
+                "InductOne Configuration Option",
+                {"option_code": option_code},
+                "name",
+            )
+
+            if not option_name:
+                missing.append(
+                    f"Selected configuration option {option_code} could not be resolved to an InductOne Configuration Option record."
+                )
+                continue
+
+            _require_approved_signoff(
+                target_doctype="InductOne Configuration Option",
+                target_docname=option_name,
+                missing=missing,
+                get_current_signoff_status=get_current_signoff_status,
+                label=option_code,
+            )
+
+
+def _require_approved_signoff(target_doctype, target_docname, missing, get_current_signoff_status, label=None):
+    status = get_current_signoff_status(target_doctype, target_docname)
+
+    if status != "Approved":
+        status_str = status if status else "No signoff record exists"
+        display_name = label or target_docname
+
+        missing.append(
+            f"{target_doctype} {display_name} does not have an approved Engineering Signoff "
+            f"(current status: {status_str}). "
+            f"Obtain approval from an Engineering - Signoff role holder before releasing."
+        )
 
 def _set_if_present(doc, fieldnames, value):
     for fname in fieldnames:

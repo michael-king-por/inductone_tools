@@ -9,31 +9,50 @@ doc_events = {
     "InductOne Configuration Order": {
         "after_insert": "inductone_tools.inductone_tools.doctype.inductone_configuration_order.inductone_configuration_order.enqueue_flat_bom_generation"
     },
+
     "BOM Export Package": {
         "before_save": "inductone_tools.bom_export.before_save"
     },
+
     "BOM": {
         "before_save": "inductone_tools.engineering_signoff.on_target_save",
         "after_insert": "inductone_tools.engineering_signoff.on_target_after_insert",
-        "on_update": "inductone_tools.engineering_signoff.on_target_after_save"
+        "on_update": "inductone_tools.engineering_signoff.on_target_after_save",
     },
-    "Part Number Allocation Request": {
-        "validate": "inductone_tools.part_numbering.validate_allocation_request",
-    },
-    "Part Number Assignment": {
-        "validate": "inductone_tools.part_numbering.validate_part_number_assignment",
-    },
-    "Item": {
-        "validate": "inductone_tools.part_numbering.validate_item_part_number_control",
-        "after_insert": "inductone_tools.part_numbering.update_assignment_after_item_save",
-        "on_update": "inductone_tools.part_numbering.update_assignment_after_item_save",
-    },
+
     "Product Bundle": {
         "before_save": "inductone_tools.engineering_signoff.on_target_save",
         "after_insert": "inductone_tools.engineering_signoff.on_target_after_insert",
         "validate": "inductone_tools.part_numbering.validate_product_bundle_part_number_control",
-        "on_update": "inductone_tools.engineering_signoff.on_target_after_save"
-    }
+        "on_update": "inductone_tools.engineering_signoff.on_target_after_save",
+    },
+
+    "Item": {
+        "validate": "inductone_tools.part_numbering.validate_item_part_number_control",
+        "after_insert": [
+            "inductone_tools.part_numbering.update_assignment_after_item_save",
+            "inductone_tools.engineering_signoff.on_target_after_insert",
+        ],
+        "on_update": [
+            "inductone_tools.part_numbering.update_assignment_after_item_save",
+            "inductone_tools.engineering_signoff.on_target_after_save",
+        ],
+        "before_save": "inductone_tools.engineering_signoff.on_target_save",
+    },
+
+    "InductOne Configuration Option": {
+        "before_save": "inductone_tools.engineering_signoff.on_target_save",
+        "after_insert": "inductone_tools.engineering_signoff.on_target_after_insert",
+        "on_update": "inductone_tools.engineering_signoff.on_target_after_save",
+    },
+
+    "Part Number Allocation Request": {
+        "validate": "inductone_tools.part_numbering.validate_allocation_request",
+    },
+
+    "Part Number Assignment": {
+        "validate": "inductone_tools.part_numbering.validate_part_number_assignment",
+    },
 }
 
 fixtures = [
