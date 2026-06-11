@@ -84,6 +84,7 @@ def execute():
     fails += s3_native_coverage(hier, native_edges, effects)
     fails += s4_path_fidelity(hier, native_paths, effects)
     fails += s5_ancestor_roundtrip(hier)
+    fails += s6_replace_position(hier, effects)
 
     print("\n" + "=" * 78)
     print("FINAL RESULT")
@@ -275,29 +276,111 @@ def s3_native_coverage(hier, native_edges, effects):
     fails = []
     conf = _configured_edges(hier)
 
+    # The configured hierarchy materializes the TOP BOM's children as a forest;
+    # the synthetic top-item node itself is not represented. So top-item->child
+    # edges are satisfied when the child is a root node in the configured tree.
+    top_item = frappe.db.get_value("BOM", TOP_BOM, "item")
+    configured_roots = {h.item_code for h in hier if not h.parent_node_id}
+
     suppressed_items = set()
     suppressed_items |= set(effects.get("suppressed_node_items", set()))
     suppressed_items |= set(effects.get("suppressed_branch_items", set()))
     suppressed_items |= set(effects.get("removed_target_items", set()))
-    # replacement old targets are suppressed branches
-    for eff in effects.get("replacement_effects", []):
-        if eff.get("target_item"):
-            suppressed_items.add(eff["target_item"])
+    # NOTE: replacement targets are NO LONGER item-suppressed (positional now),
+    # so a replaced occurrence's sibling occurrences correctly remain. The
+    # replaced occurrence's edge is allowed-missing because its parent edge is
+    # superseded by the replacement node under the same parent.
+    replaced_targets = {e.get("target_item") for e in effects.get("replacement_effects", [])}
 
-    # an edge is allowed-missing if its child OR parent was suppressed, or any
-    # ancestor of the edge was a suppressed branch
     missing = 0
     for (p, c) in sorted(native_edges):
         if (p, c) in conf:
             continue
         if c in suppressed_items or p in suppressed_items:
             continue
+        # top-item->child edge satisfied by child being a configured root
+        if p == top_item and c in configured_roots:
+            continue
+        # a replaced target edge may be absent at the specific replaced
+        # occurrence; tolerated because positional replacement supersedes it.
+        if c in replaced_targets:
+            continue
         missing += 1
         print(f"    MISSING NATIVE EDGE {p} -> {c} (not suppressed)")
         fails.append(f"missing native edge {p}->{c}")
     print(f"  native edges: {len(native_edges)} | unexpectedly missing: {missing}")
     if not fails:
-        print("  OK — every native edge present except deliberate suppressions")
+        print("  OK — every native edge present except deliberate suppressions / top-item roots / replacements")
+    return fails
+
+
+def s6_replace_position(hier, effects):
+    print("\n" + "-" * 78)
+    print("S6 — Replace position (scoped positional replacement landed correctly)")
+    print("-" * 78)
+    fails = []
+    by_id = {h.node_id: h for h in hier}
+
+    def parent_item(h):
+        p = by_id.get(h.parent_node_id) if h.parent_node_id else None
+        return p.item_code if p else None
+
+    repl_effects = effects.get("replacement_effects", [])
+    if not repl_effects:
+        print("  (no replacement effects)")
+        return fails
+
+    for eff in repl_effects:
+        target = eff.get("target_item")
+        repl = eff.get("replace_with_item")
+        scope = (eff.get("replace_scope") or "ALL_OCCURRENCES")
+        count = int(eff.get("replace_count") or 1)
+
+        target_nodes = [h for h in hier if h.item_code == target]
+        repl_nodes = [h for h in hier if h.item_code == repl]
+
+        # how many replacements should exist
+        if scope == "ALL_OCCURRENCES":
+            # all original occurrences replaced; we can't know original count
+            # from hierarchy alone, but every repl must be positioned (not root)
+            expected_repl = len(repl_nodes)  # informational
+        elif scope == "SINGLE_OCCURRENCE":
+            expected_repl = 1
+        elif scope == "N_OCCURRENCES":
+            expected_repl = count
+        else:
+            expected_repl = len(repl_nodes)
+
+        print(f"  [{eff.get('source_option_code')}] REPLACE {target} -> {repl} "
+              f"scope={scope}")
+        print(f"     target remaining: {len(target_nodes)} | replacement nodes: {len(repl_nodes)}")
+
+        # every replacement node must be positioned (have a parent), not root
+        rooted = [h for h in repl_nodes if not h.parent_node_id]
+        for h in rooted:
+            print(f"    FAIL replacement {repl} is at ROOT (should be under "
+                  f"the replaced occurrence's parent)")
+            fails.append(f"replacement {repl} at root, not positioned")
+
+        # positioned replacements: show their parents
+        for h in repl_nodes:
+            pi = parent_item(h)
+            if pi:
+                print(f"        {repl} under {pi}  (node={h.node_id})")
+
+        if scope in ("SINGLE_OCCURRENCE", "N_OCCURRENCES"):
+            if len(repl_nodes) != expected_repl:
+                print(f"    FAIL expected {expected_repl} replacement(s), found {len(repl_nodes)}")
+                fails.append(f"{repl} count {len(repl_nodes)} != {expected_repl}")
+            # target and replacement must be under DIFFERENT parents
+            tparents = {parent_item(h) for h in target_nodes}
+            rparents = {parent_item(h) for h in repl_nodes}
+            if tparents & rparents:
+                print(f"    FAIL target and replacement share a parent {tparents & rparents}")
+                fails.append(f"{target}/{repl} share parent")
+
+    if not fails:
+        print("  OK — replacements positioned correctly under original parents")
     return fails
 
 
