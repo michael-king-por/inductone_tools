@@ -86,6 +86,7 @@ def approve_signoff(signoff_name: str, notes: str = None):
     approval sets the target option status to Released.
     """
     _require_signoff_role()
+    signoff = frappe.get_doc("Engineering Signoff", signoff_name)
 
     # ---- Configuration Option readiness gate ----
     if signoff.target_doctype == CONFIG_OPTION_DOCTYPE:
@@ -99,8 +100,6 @@ def approve_signoff(signoff_name: str, notes: str = None):
                 "Cannot approve: Configuration Option '{0}' has Mapping Status '{1}'. "
                 "Mapping Status must be Complete before a signoff can be approved."
             ).format(signoff.target_docname, mapping_status or "not set"))
-
-    signoff = frappe.get_doc("Engineering Signoff", signoff_name)
 
     if signoff.status != "Pending":
         frappe.throw(_(
