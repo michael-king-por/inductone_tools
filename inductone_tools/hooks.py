@@ -15,16 +15,12 @@ doc_events = {
     },
 
     "BOM": {
-        "before_save": "inductone_tools.engineering_signoff.on_target_save",
         "after_insert": "inductone_tools.engineering_signoff.on_target_after_insert",
-        "on_update": "inductone_tools.engineering_signoff.on_target_after_save",
     },
 
     "Product Bundle": {
-        "before_save": "inductone_tools.engineering_signoff.on_target_save",
         "after_insert": "inductone_tools.engineering_signoff.on_target_after_insert",
         "validate": "inductone_tools.part_numbering.validate_product_bundle_part_number_control",
-        "on_update": "inductone_tools.engineering_signoff.on_target_after_save",
     },
 
     "Item": {
@@ -33,17 +29,11 @@ doc_events = {
             "inductone_tools.part_numbering.update_assignment_after_item_save",
             "inductone_tools.engineering_signoff.on_target_after_insert",
         ],
-        "on_update": [
-            "inductone_tools.part_numbering.update_assignment_after_item_save",
-            "inductone_tools.engineering_signoff.on_target_after_save",
-        ],
-        "before_save": "inductone_tools.engineering_signoff.on_target_save",
+        "on_update": "inductone_tools.part_numbering.update_assignment_after_item_save",
     },
 
     "InductOne Configuration Option": {
         "before_save": "inductone_tools.engineering_signoff.on_target_save",
-        "after_insert": "inductone_tools.engineering_signoff.on_target_after_insert",
-        "on_update": "inductone_tools.engineering_signoff.on_target_after_save",
     },
 
     "Part Number Allocation Request": {

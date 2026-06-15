@@ -12,6 +12,16 @@ SIGNOFF_ENABLED_DOCTYPES = [
 CONFIG_OPTION_DOCTYPE = "InductOne Configuration Option"
 CONFIG_OPTION_DRAFT_STATUS = "Draft"
 CONFIG_OPTION_RELEASED_STATUS = "Released"
+CONFIG_OPTION_DEPRECATED_STATUS = "Deprecated"
+
+# Doctypes that auto-create a Pending signoff on insert.
+# Configuration Option is intentionally excluded: its signoff is triggered
+# manually once the option has been released on GitLab and is ready for review.
+AUTO_SIGNOFF_ON_INSERT_DOCTYPES = [
+    "BOM",
+    "Product Bundle",
+    "Item",
+]
 
 
 # ---------- Public whitelisted methods ----------
@@ -21,13 +31,23 @@ def request_signoff(target_doctype: str, target_docname: str):
     """
     Create a Pending signoff request for the given target.
 
-    If a current signoff already exists for this target, it is invalidated
-    and a new Pending record becomes current.
+    If a current signoff already exists for this target, it is superseded
+    (is_current -> 0) and a new Pending record becomes current.
 
-    Idempotent: if a current Pending record already exists for the target's
+    Idempotent: if a current Pending record already exists at the target's
     current revision, return it without creating a duplicate.
     """
     _validate_target(target_doctype, target_docname)
+
+    # Configuration Options can only have a signoff requested while Draft.
+    # Released options are locked; Deprecated options are retired.
+    if target_doctype == CONFIG_OPTION_DOCTYPE:
+        status = frappe.db.get_value(CONFIG_OPTION_DOCTYPE, target_docname, "status")
+        if status != CONFIG_OPTION_DRAFT_STATUS:
+            frappe.throw(_(
+                "Configuration Option '{0}' has status '{1}'. A signoff can only be "
+                "requested while the option is Draft."
+            ).format(target_docname, status or "not set"))
 
     target_revision_id = _get_target_revision_id(target_doctype, target_docname)
     target_description = _get_target_description(target_doctype, target_docname)
@@ -56,6 +76,9 @@ def request_signoff(target_doctype: str, target_docname: str):
 
         frappe.db.set_value("Engineering Signoff", cur["name"], "is_current", 0)
 
+    # NOTE: this instantiation line was missing in the broken version, which is
+    # why auto-re-requests crashed with NameError and left orphaned (is_current=0,
+    # no replacement) signoffs. Do not remove it.
     signoff = frappe.new_doc("Engineering Signoff")
     signoff.target_doctype = target_doctype
     signoff.target_docname = target_docname
@@ -83,9 +106,11 @@ def approve_signoff(signoff_name: str, notes: str = None):
     Approve a Pending signoff. Restricted to Engineering - Signoff role.
 
     For InductOne Configuration Option, approval is also the release action:
-    approval sets the target option status to Released.
+    approval sets the target option status to Released (and locks it).
     """
     _require_signoff_role()
+
+    signoff = frappe.get_doc("Engineering Signoff", signoff_name)
 
     # ---- Configuration Option readiness gate ----
     if signoff.target_doctype == CONFIG_OPTION_DOCTYPE:
@@ -100,26 +125,40 @@ def approve_signoff(signoff_name: str, notes: str = None):
                 "Mapping Status must be Complete before a signoff can be approved."
             ).format(signoff.target_docname, mapping_status or "not set"))
 
-    signoff = frappe.get_doc("Engineering Signoff", signoff_name)
-
     if signoff.status != "Pending":
         frappe.throw(_(
             "Cannot approve: signoff is in status '{0}'. Only Pending signoffs can be approved."
         ).format(signoff.status))
 
     if not signoff.is_current:
-        frappe.throw(_(
-            "Cannot approve: this signoff is no longer current. The target has been modified since this request was created."
-        ))
+        cur = frappe.get_all(
+            "Engineering Signoff",
+            filters={
+                "target_doctype": signoff.target_doctype,
+                "target_docname": signoff.target_docname,
+                "is_current": 1,
+            },
+            fields=["name"],
+            limit=1,
+        )
+        msg = _(
+            "Cannot approve: this signoff is no longer current. "
+            "It has been superseded by a newer request."
+        )
+        if cur:
+            msg += " " + _("The current request is {0}.").format(cur[0]["name"])
+        frappe.throw(msg)
 
     current_revision = _get_target_revision_id(signoff.target_doctype, signoff.target_docname)
     if signoff.target_revision_id != current_revision:
-        frappe.db.set_value("Engineering Signoff", signoff.name, "is_current", 0)
-        frappe.db.commit()
+        # The target changed since this request was created. Supersede this stale
+        # request with a fresh one so the target always retains a current Pending
+        # signoff to review. (This is what prevents orphaned signoffs.)
+        new_req = request_signoff(signoff.target_doctype, signoff.target_docname)
         frappe.throw(_(
-            "Cannot approve: target {0} {1} has been modified since this signoff was requested. "
-            "A new signoff request will be created automatically; please review that one instead."
-        ).format(signoff.target_doctype, signoff.target_docname))
+            "Cannot approve: target {0} {1} changed since this signoff was requested. "
+            "A fresh signoff request ({2}) has been created automatically — please review that one instead."
+        ).format(signoff.target_doctype, signoff.target_docname, new_req.get("signoff_name")))
 
     now = frappe.utils.now_datetime()
     user = frappe.session.user
@@ -209,11 +248,101 @@ def reject_signoff(signoff_name: str, reason: str):
 
 
 @frappe.whitelist()
+def supersede_config_option(option_name: str, new_option_code: str = None, notes: str = None):
+    """
+    Supersede a Released Configuration Option.
+
+    Released options are immutable. To revise one, clone it into a new Draft
+    option (carrying its mappings), mark the original Deprecated, and invalidate
+    the original's current signoff. The new Draft goes through signoff fresh.
+
+    Restricted to Engineering - Signoff role: superseding a released,
+    build-driving option is an engineering action.
+    """
+    _require_signoff_role()
+
+    original = frappe.get_doc(CONFIG_OPTION_DOCTYPE, option_name)
+
+    if original.status != CONFIG_OPTION_RELEASED_STATUS:
+        frappe.throw(_(
+            "Only a Released Configuration Option can be superseded. "
+            "'{0}' is currently '{1}'."
+        ).format(option_name, original.status))
+
+    base_code = original.get("option_code") or option_name
+    if not new_option_code:
+        new_option_code = _next_supersede_code(base_code)
+
+    if frappe.db.exists(CONFIG_OPTION_DOCTYPE, {"option_code": new_option_code}):
+        frappe.throw(_(
+            "A Configuration Option with code '{0}' already exists. "
+            "Provide a different code."
+        ).format(new_option_code))
+
+    # Clone (copy_doc carries the mappings child table) and reset to Draft.
+    new_option = frappe.copy_doc(original)
+    new_option.option_code = new_option_code
+    new_option.status = CONFIG_OPTION_DRAFT_STATUS
+    new_option.insert(ignore_permissions=True)
+
+    # Deprecate the original. set_value bypasses the before_save lock by design;
+    # the lock is meant to stop human UI edits, not controlled lifecycle moves.
+    frappe.db.set_value(
+        CONFIG_OPTION_DOCTYPE,
+        option_name,
+        "status",
+        CONFIG_OPTION_DEPRECATED_STATUS,
+        update_modified=True,
+    )
+
+    # Invalidate the original's current signoff — it's retired now.
+    cur = frappe.get_all(
+        "Engineering Signoff",
+        filters={
+            "target_doctype": CONFIG_OPTION_DOCTYPE,
+            "target_docname": option_name,
+            "is_current": 1,
+        },
+        fields=["name"],
+        limit=1,
+    )
+    if cur:
+        frappe.db.set_value("Engineering Signoff", cur[0]["name"], "is_current", 0)
+
+    user = frappe.session.user
+    now = frappe.utils.now_datetime()
+
+    for docname, text in (
+        (option_name, (
+            f"<strong>Configuration Option SUPERSEDED</strong> by {user} at {now}<br>"
+            f"Superseded by: {new_option.name} (code {new_option_code})<br>"
+            f"{frappe.utils.escape_html(notes) if notes else '<em>(no notes)</em>'}"
+        )),
+        (new_option.name, (
+            f"<strong>Configuration Option created by SUPERSEDE</strong> of {option_name} "
+            f"by {user} at {now}. Edit as needed, then request Engineering Signoff."
+        )),
+    ):
+        try:
+            frappe.get_doc(CONFIG_OPTION_DOCTYPE, docname).add_comment("Comment", text=text)
+        except Exception:
+            pass
+
+    frappe.db.commit()
+
+    return {
+        "ok": True,
+        "original": option_name,
+        "new_option": new_option.name,
+        "new_option_code": new_option_code,
+    }
+
+
+@frappe.whitelist()
 def get_current_signoff_status(target_doctype: str, target_docname: str):
     """
     Return the current signoff status for the given target.
-
-    Returns one of: Pending, Approved, Rejected, or None.
+    One of: Pending, Approved, Rejected, or None.
     """
     if not target_doctype or not target_docname:
         return None
@@ -274,14 +403,19 @@ def get_current_signoff_record(target_doctype: str, target_docname: str):
 
 def on_target_save(doc, method=None):
     """
-    before_save handler for signoff-enabled targets.
+    before_save handler. Wired ONLY to InductOne Configuration Option.
 
-    Configuration Option behavior:
-      - Draft -> Released cannot be done manually.
-      - Engineering Signoff approval is the release mechanism.
-      - Any signoff-invalidating edit to a Released option demotes it to Draft.
+    Two guards, both Configuration-Option-specific:
+      1. Immutability: Released and Deprecated options cannot be edited.
+         (Supersede creates a new Draft instead.)
+      2. Manual release block: Draft cannot be flipped to Released by hand;
+         only Engineering Signoff approval releases an option.
+
+    There is intentionally NO signoff-invalidation here. Per process, edits do
+    not trigger or invalidate signoffs — only new records get signoffs, and
+    Released options are locked outright.
     """
-    if doc.doctype not in SIGNOFF_ENABLED_DOCTYPES:
+    if doc.doctype != CONFIG_OPTION_DOCTYPE:
         return
 
     if doc.is_new():
@@ -292,75 +426,43 @@ def on_target_save(doc, method=None):
     except Exception:
         return
 
-    if doc.doctype == CONFIG_OPTION_DOCTYPE:
-        old_status = getattr(previous, "status", None)
-        new_status = getattr(doc, "status", None)
-
-        if (
-            new_status == CONFIG_OPTION_RELEASED_STATUS
-            and old_status != CONFIG_OPTION_RELEASED_STATUS
-            and not getattr(frappe.flags, "engineering_signoff_release_in_progress", False)
-        ):
-            frappe.throw(_(
-                "InductOne Configuration Option cannot be manually set to Released. "
-                "Approve the current Engineering Signoff record to release this option."
-            ))
-
-    if not _signoff_invalidating_change(doc, previous):
-        return
-
-    current = frappe.get_all(
-        "Engineering Signoff",
-        filters={
-            "target_doctype": doc.doctype,
-            "target_docname": doc.name,
-            "is_current": 1,
-        },
-        fields=["name", "status"],
-        limit=1,
+    old_status = getattr(previous, "status", None)
+    new_status = getattr(doc, "status", None)
+    release_in_progress = getattr(
+        frappe.flags, "engineering_signoff_release_in_progress", False
     )
 
-    if current:
-        cur = current[0]
-        frappe.db.set_value("Engineering Signoff", cur["name"], "is_current", 0)
+    # Guard 1 — immutability of Released / Deprecated options.
+    if old_status in (CONFIG_OPTION_RELEASED_STATUS, CONFIG_OPTION_DEPRECATED_STATUS):
+        if not release_in_progress:
+            frappe.throw(_(
+                "InductOne Configuration Option '{0}' is {1} and is locked. "
+                "Released and Deprecated options are immutable. "
+                "Use the Supersede action to create a new editable revision."
+            ).format(doc.name, old_status))
 
-        if cur["status"] == "Approved":
-            try:
-                doc.add_comment(
-                    "Comment",
-                    text=(
-                        f"<strong>Engineering signoff invalidated</strong> due to modification by "
-                        f"{frappe.session.user}. Re-signoff required before release."
-                    ),
-                )
-            except Exception:
-                pass
-
-    if doc.doctype == CONFIG_OPTION_DOCTYPE:
-        if getattr(previous, "status", None) == CONFIG_OPTION_RELEASED_STATUS:
-            doc.status = CONFIG_OPTION_DRAFT_STATUS
-            try:
-                doc.add_comment(
-                    "Comment",
-                    text=(
-                        f"<strong>Configuration Option demoted from Released to Draft</strong> "
-                        f"due to engineering-signoff-invalidating modification by {frappe.session.user}. "
-                        f"Re-signoff required before release."
-                    ),
-                )
-            except Exception:
-                pass
+    # Guard 2 — manual Draft -> Released is not allowed.
+    if (
+        new_status == CONFIG_OPTION_RELEASED_STATUS
+        and old_status != CONFIG_OPTION_RELEASED_STATUS
+        and not release_in_progress
+    ):
+        frappe.throw(_(
+            "InductOne Configuration Option cannot be manually set to Released. "
+            "Approve the current Engineering Signoff record to release this option."
+        ))
 
 
 def on_target_after_insert(doc, method=None):
     """
-    after_insert handler. Auto-create a Pending signoff request.
-    """
-    if doc.doctype not in SIGNOFF_ENABLED_DOCTYPES:
-        return
+    after_insert handler. Auto-create a Pending signoff for newly inserted
+    targets in AUTO_SIGNOFF_ON_INSERT_DOCTYPES (BOM, Item, Product Bundle).
 
-    signoff_required = int(getattr(doc, "signoff_required", 1) or 1)
-    if not signoff_required:
+    Configuration Options are excluded — their signoff is requested manually.
+    Existing (grandfathered) records are never touched: this only fires on
+    genuinely new inserts.
+    """
+    if doc.doctype not in AUTO_SIGNOFF_ON_INSERT_DOCTYPES:
         return
 
     try:
@@ -369,43 +471,6 @@ def on_target_after_insert(doc, method=None):
         frappe.log_error(
             frappe.get_traceback(),
             "engineering_signoff: auto-request on insert failed",
-        )
-
-
-def on_target_after_save(doc, method=None):
-    """
-    on_update handler. If before_save invalidated the current signoff,
-    create a fresh Pending request after the target save completes.
-    """
-    if doc.doctype not in SIGNOFF_ENABLED_DOCTYPES:
-        return
-
-    if doc.is_new():
-        return
-
-    signoff_required = int(getattr(doc, "signoff_required", 1) or 1)
-    if not signoff_required:
-        return
-
-    current = frappe.get_all(
-        "Engineering Signoff",
-        filters={
-            "target_doctype": doc.doctype,
-            "target_docname": doc.name,
-            "is_current": 1,
-        },
-        limit=1,
-    )
-
-    if current:
-        return
-
-    try:
-        request_signoff(doc.doctype, doc.name)
-    except Exception:
-        frappe.log_error(
-            frappe.get_traceback(),
-            "engineering_signoff: auto-request on save failed",
         )
 
 
@@ -427,6 +492,22 @@ def _validate_target(target_doctype, target_docname):
 def _get_target_revision_id(target_doctype, target_docname):
     modified = frappe.db.get_value(target_doctype, target_docname, "modified")
     return str(modified) if modified else ""
+
+
+def _next_supersede_code(base_code):
+    """
+    Given an option code, return the next -R<n> revision code.
+    'CBL-EXT'    -> 'CBL-EXT-R2'
+    'CBL-EXT-R2' -> 'CBL-EXT-R3'
+    """
+    import re
+
+    base_code = (base_code or "").strip()
+    match = re.search(r"^(.*)-R(\d+)$", base_code)
+    if match:
+        stem, num = match.group(1), int(match.group(2))
+        return f"{stem}-R{num + 1}"
+    return f"{base_code}-R2"
 
 
 def _get_target_description(target_doctype, target_docname):
@@ -525,146 +606,11 @@ def _get_target_description(target_doctype, target_docname):
     return target_docname
 
 
-def _signoff_invalidating_change(new_doc, old_doc):
-    if new_doc.doctype == CONFIG_OPTION_DOCTYPE:
-        return _config_option_invalidating_change(new_doc, old_doc)
-
-    if new_doc.doctype == "Item":
-        return _item_invalidating_change(new_doc, old_doc)
-
-    if int(getattr(new_doc, "is_active", 0) or 0) != int(getattr(old_doc, "is_active", 0) or 0):
-        return True
-
-    new_items = _serialize_items_table(getattr(new_doc, "items", []) or [])
-    old_items = _serialize_items_table(getattr(old_doc, "items", []) or [])
-
-    if new_items != old_items:
-        return True
-
-    if new_doc.doctype == "BOM":
-        new_ops = _serialize_items_table(getattr(new_doc, "operations", []) or [])
-        old_ops = _serialize_items_table(getattr(old_doc, "operations", []) or [])
-        if new_ops != old_ops:
-            return True
-
-    return False
-
-
-def _config_option_invalidating_change(new_doc, old_doc):
-    """
-    Intentionally ignores status itself.
-    Status is controlled by the signoff approval side effect.
-    """
-    scalar_fields = [
-        "option_code",
-        "option_name",
-        "option_category",
-        "option_group",
-        "option_group_required",
-        "is_default_selection",
-        "is_active",
-        "sort_order",
-        "mapping_status",
-        "effective_date",
-        "owner_role",
-        "requires_ops_approval",
-        "internal_notes",
-        "builder_description",
-    ]
-
-    for fieldname in scalar_fields:
-        if _norm(getattr(new_doc, fieldname, None)) != _norm(getattr(old_doc, fieldname, None)):
-            return True
-
-    new_mappings = _serialize_config_option_mappings(getattr(new_doc, "mappings_table", []) or [])
-    old_mappings = _serialize_config_option_mappings(getattr(old_doc, "mappings_table", []) or [])
-
-    if new_mappings != old_mappings:
-        return True
-
-    return False
-
-
-def _item_invalidating_change(new_doc, old_doc):
-    """
-    Item signoff does not change Item status/lifecycle.
-    It only invalidates the Engineering Signoff when release-relevant fields change.
-    """
-    scalar_fields = [
-        "item_code",
-        "item_name",
-        "item_group",
-        "description",
-        "stock_uom",
-        "is_stock_item",
-        "has_serial_no",
-        "serial_no_series",
-        "has_batch_no",
-        "disabled",
-        "include_item_in_manufacturing",
-        "default_bom",
-        "valuation_rate",
-        "standard_rate",
-
-        "custom_part_number_control",
-        "custom_part_number",
-        "custom_part_rev",
-        "custom_revision",
-        "custom_source",
-        "custom_source_type",
-        "custom_engineering_release_status",
-        "custom_drawing_number",
-        "custom_drawing_revision",
-        "custom_manufacturer_part_number",
-    ]
-
-    for fieldname in scalar_fields:
-        if _norm(getattr(new_doc, fieldname, None)) != _norm(getattr(old_doc, fieldname, None)):
-            return True
-
-    return False
-
-
-def _serialize_items_table(items):
-    out = []
-    for row in items:
-        out.append((
-            getattr(row, "item_code", None),
-            float(getattr(row, "qty", 0) or 0),
-            getattr(row, "uom", None),
-            getattr(row, "bom_no", None),
-            float(getattr(row, "rate", 0) or 0) if hasattr(row, "rate") else 0,
-        ))
-    return tuple(out)
-
-
-def _serialize_config_option_mappings(rows):
-    out = []
-
-    for row in rows:
-        out.append((
-            int(getattr(row, "idx", 0) or 0),
-            _norm(getattr(row, "action", None)),
-            _norm(getattr(row, "target_item", None)),
-            _norm(getattr(row, "replace_with_item", None)),
-            _norm(getattr(row, "replace_scope", None)),
-            int(getattr(row, "replace_count", 0) or 0),
-            _norm(getattr(row, "structural_effect_mode", None)),
-            int(getattr(row, "preserve_target_item_identity", 0) or 0),
-            _norm(getattr(row, "expand_mode", None)),
-            _norm(getattr(row, "qty_source", None)),
-            float(getattr(row, "qty_fixed", 0) or 0),
-            _norm(getattr(row, "parameter_key", None)),
-            int(getattr(row, "required_for_release", 0) or 0),
-            int(getattr(row, "row_order", 0) or 0),
-        ))
-
-    return tuple(out)
-
-
 def _apply_target_approval_side_effects(signoff):
     """
-    Configuration Option approval is the release action.
+    Configuration Option approval is the release action: set status to Released.
+    The release flag lets the (set_value) write past the before_save guards;
+    set_value does not run before_save, but the flag is kept for defensiveness.
     """
     if signoff.target_doctype != CONFIG_OPTION_DOCTYPE:
         return
@@ -712,19 +658,6 @@ def _apply_target_approval_side_effects(signoff):
 
     finally:
         frappe.flags.engineering_signoff_release_in_progress = False
-
-
-def _norm(value):
-    if value is None:
-        return ""
-
-    if isinstance(value, str):
-        return value.strip()
-
-    if isinstance(value, bool):
-        return int(value)
-
-    return value
 
 
 def _require_signoff_role():
