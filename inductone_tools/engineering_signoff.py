@@ -74,7 +74,13 @@ def request_signoff(target_doctype: str, target_docname: str):
                 "already_existed": True,
             }
 
-        frappe.db.set_value("Engineering Signoff", cur["name"], "is_current", 0)
+        # Stamp a superseded Pending record so it never masquerades as live.
+        # Approved/Rejected records keep their status (history); only Pending
+        # ones, which are now meaningless, are relabelled.
+        supersede_updates = {"is_current": 0}
+        if cur["status"] == "Pending":
+            supersede_updates["status"] = "Superseded"
+        frappe.db.set_value("Engineering Signoff", cur["name"], supersede_updates)
 
     # NOTE: this instantiation line was missing in the broken version, which is
     # why auto-re-requests crashed with NameError and left orphaned (is_current=0,
@@ -109,7 +115,6 @@ def approve_signoff(signoff_name: str, notes: str = None):
     approval sets the target option status to Released (and locks it).
     """
     _require_signoff_role()
-    signoff = frappe.get_doc("Engineering Signoff", signoff_name)
 
     signoff = frappe.get_doc("Engineering Signoff", signoff_name)
 
@@ -150,16 +155,15 @@ def approve_signoff(signoff_name: str, notes: str = None):
             msg += " " + _("The current request is {0}.").format(cur[0]["name"])
         frappe.throw(msg)
 
-    current_revision = _get_target_revision_id(signoff.target_doctype, signoff.target_docname)
-    if signoff.target_revision_id != current_revision:
-        # The target changed since this request was created. Supersede this stale
-        # request with a fresh one so the target always retains a current Pending
-        # signoff to review. (This is what prevents orphaned signoffs.)
-        new_req = request_signoff(signoff.target_doctype, signoff.target_docname)
-        frappe.throw(_(
-            "Cannot approve: target {0} {1} changed since this signoff was requested. "
-            "A fresh signoff request ({2}) has been created automatically — please review that one instead."
-        ).format(signoff.target_doctype, signoff.target_docname, new_req.get("signoff_name")))
+    # Edits do not invalidate signoffs in this model: a meaningful change is a
+    # new record (new revision) with its own signoff, while minor edits to an
+    # existing record are acceptable. Approval therefore accepts the current
+    # state and records the revision actually approved. (The old revision-gate
+    # here generated a dead Pending record on every approval whose target had
+    # been touched since request — including a normal submit — so it is removed.)
+    signoff.target_revision_id = _get_target_revision_id(
+        signoff.target_doctype, signoff.target_docname
+    )
 
     now = frappe.utils.now_datetime()
     user = frappe.session.user
