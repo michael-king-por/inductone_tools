@@ -109,6 +109,7 @@ def approve_signoff(signoff_name: str, notes: str = None):
     approval sets the target option status to Released (and locks it).
     """
     _require_signoff_role()
+    signoff = frappe.get_doc("Engineering Signoff", signoff_name)
 
     signoff = frappe.get_doc("Engineering Signoff", signoff_name)
 
