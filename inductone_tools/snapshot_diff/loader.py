@@ -38,6 +38,9 @@ from .engine import (
     diff_snapshots,
     ADDED, REMOVED, QTY_CHANGED, REVISION_CHANGED, MOVED, UNCHANGED,
 )
+from .tree import (
+    diff_snapshots_tree, flatten_tree, CHANGED,
+)
 
 
 # ----------------------------------------------------------------------------
@@ -325,3 +328,208 @@ def _fmt_qty(q):
     if abs(q - round(q)) < 1e-9:
         return str(int(round(q)))
     return "{0:.3f}".format(q).rstrip("0").rstrip(".")
+
+
+# ============================================================================
+#  REPORT DATA -- the method the UI Script Report calls
+# ============================================================================
+#
+#  The pasted Script Report runs inside Frappe's safe_exec sandbox, which
+#  forbids imports and any name starting with an underscore. So the report
+#  script is a thin shell that calls THIS method via frappe.call(). All the
+#  real work happens here, in unrestricted app code.
+#
+#  Returns a dict: {"columns": [...], "data": [...], "message": "...",
+#                   "report_summary": [...]}
+#  The shell hands columns/data/message/report_summary straight back to Frappe.
+
+@frappe.whitelist()
+def get_report_data(snapshot_a=None, snapshot_b=None,
+                    view_mode="Hierarchical", context_mode="Changes only"):
+    """
+    Build the full report payload for the Configured Snapshot Diff report.
+
+    Called from the UI Script Report shell. All logic lives here (unrestricted
+    app code) rather than in the sandboxed report script.
+    """
+    if not snapshot_a or not snapshot_b:
+        return {
+            "columns": _report_empty_columns(view_mode),
+            "data": [],
+            "message": _report_intro_message(),
+            "report_summary": [],
+        }
+
+    if snapshot_a == snapshot_b:
+        return {
+            "columns": _report_empty_columns(view_mode),
+            "data": [],
+            "message": _(
+                "Both snapshots are the same -- there is nothing to diff."
+            ),
+            "report_summary": [],
+        }
+
+    nodes_a = load_snapshot_nodes(snapshot_a)
+    nodes_b = load_snapshot_nodes(snapshot_b)
+
+    if view_mode == "Flat Procurement":
+        return _report_flat(nodes_a, nodes_b, snapshot_a, snapshot_b, context_mode)
+    return _report_tree(nodes_a, nodes_b, snapshot_a, snapshot_b, context_mode)
+
+
+def _report_tree(nodes_a, nodes_b, snapshot_a, snapshot_b, context_mode):
+    changes_only = (context_mode == "Changes only")
+    res = diff_snapshots_tree(
+        nodes_a, nodes_b, snapshot_a, snapshot_b, changes_only=changes_only
+    )
+
+    columns = [
+        {"label": _("Change"), "fieldname": "status", "fieldtype": "Data", "width": 110},
+        {"label": _("Item (indented by level)"), "fieldname": "item_display", "fieldtype": "Data", "width": 360},
+        {"label": _("Item Name"), "fieldname": "item_name", "fieldtype": "Data", "width": 220},
+        {"label": _("Qty A to B"), "fieldname": "qty_change", "fieldtype": "Data", "width": 110},
+        {"label": _("Revision A to B"), "fieldname": "rev_change", "fieldtype": "Data", "width": 140},
+        {"label": _("Level"), "fieldname": "bom_level", "fieldtype": "Int", "width": 60},
+        {"label": _("What changed"), "fieldname": "note", "fieldtype": "Data", "width": 360},
+    ]
+
+    indent_unit = "\u00a0\u00a0\u00a0\u00a0"
+    marker_map = {ADDED: "[+] ", REMOVED: "[-] ", CHANGED: "[~] ", UNCHANGED: "    "}
+
+    data = []
+    for n in flatten_tree(res):
+        indent = indent_unit * n.bom_level
+        marker = marker_map.get(n.status, "")
+        data.append({
+            "status": n.status.title(),
+            "item_display": "{0}{1}{2}".format(marker, indent, n.item_code),
+            "item_name": n.item_name,
+            "qty_change": _report_pair(n.a_qty, n.b_qty),
+            "rev_change": _report_rev_pair(n.a_revision, n.b_revision),
+            "bom_level": n.bom_level,
+            "note": n.note,
+            "_status_raw": n.status,
+        })
+
+    return {
+        "columns": columns,
+        "data": data,
+        "message": _report_banner("Hierarchical", snapshot_a, snapshot_b, context_mode),
+        "report_summary": [
+            {"label": _("Added"), "value": res.added, "indicator": "Green"},
+            {"label": _("Removed"), "value": res.removed, "indicator": "Red"},
+            {"label": _("Changed"), "value": res.changed, "indicator": "Blue"},
+            {"label": _("Unchanged"), "value": res.unchanged, "indicator": "Grey"},
+            {"label": _("Total Changes"), "value": res.total_changes, "indicator": "Orange"},
+        ],
+    }
+
+
+def _report_flat(nodes_a, nodes_b, snapshot_a, snapshot_b, context_mode):
+    include_unchanged = (context_mode == "Show full list")
+    res = diff_snapshots(
+        nodes_a, nodes_b, snapshot_a, snapshot_b,
+        include_unchanged=include_unchanged,
+    )
+
+    columns = [
+        {"label": _("Change"), "fieldname": "category", "fieldtype": "Data", "width": 150},
+        {"label": _("Item Code"), "fieldname": "item_code", "fieldtype": "Link", "options": "Item", "width": 160},
+        {"label": _("Item Name"), "fieldname": "item_name", "fieldtype": "Data", "width": 240},
+        {"label": _("Item Group"), "fieldname": "item_group", "fieldtype": "Data", "width": 150},
+        {"label": _("Total Qty A to B"), "fieldname": "qty_change", "fieldtype": "Data", "width": 130},
+        {"label": _("Revision A to B"), "fieldname": "rev_change", "fieldtype": "Data", "width": 150},
+        {"label": _("UOM"), "fieldname": "uom", "fieldtype": "Data", "width": 70},
+        {"label": _("What to do"), "fieldname": "note", "fieldtype": "Data", "width": 380},
+    ]
+
+    data = []
+    for ln in res.lines:
+        data.append({
+            "category": ln.primary_category.replace("_", " ").title(),
+            "item_code": ln.item_code,
+            "item_name": ln.item_name,
+            "item_group": ln.item_group,
+            "qty_change": _report_pair(ln.a_qty, ln.b_qty),
+            "rev_change": _report_rev_pair(ln.a_revision, ln.b_revision),
+            "uom": ln.b_uom or ln.a_uom,
+            "note": ln.note,
+            "_status_raw": ln.primary_category,
+        })
+
+    return {
+        "columns": columns,
+        "data": data,
+        "message": _report_banner("Flat Procurement", snapshot_a, snapshot_b, context_mode),
+        "report_summary": [
+            {"label": _("Added"), "value": res.added, "indicator": "Green"},
+            {"label": _("Removed"), "value": res.removed, "indicator": "Red"},
+            {"label": _("Revision Changed"), "value": res.revision_changed, "indicator": "Blue"},
+            {"label": _("Qty Changed"), "value": res.qty_changed, "indicator": "Orange"},
+            {"label": _("Moved"), "value": res.moved, "indicator": "Purple"},
+            {"label": _("Total Changes"), "value": res.total_changes, "indicator": "Orange"},
+        ],
+    }
+
+
+def _report_pair(a, b):
+    if a is None and b is None:
+        return ""
+    if a is None:
+        return "(none) -> {0}".format(_report_fmt(b))
+    if b is None:
+        return "{0} -> (none)".format(_report_fmt(a))
+    if abs((a or 0) - (b or 0)) > 1e-9:
+        return "{0} -> {1}".format(_report_fmt(a), _report_fmt(b))
+    return _report_fmt(b)
+
+
+def _report_rev_pair(a, b):
+    a = a or ""
+    b = b or ""
+    if a != b:
+        return "{0} -> {1}".format(a or "(none)", b or "(none)")
+    return b
+
+
+def _report_fmt(q):
+    if q is None:
+        return "(none)"
+    try:
+        q = float(q)
+    except (TypeError, ValueError):
+        return str(q)
+    if abs(q - round(q)) < 1e-9:
+        return str(int(round(q)))
+    return "{0:.3f}".format(q).rstrip("0").rstrip(".")
+
+
+def _report_banner(view, a, b, context_mode):
+    return _(
+        "<b>{view} view</b> -- comparing <b>{a}</b> (previous build) against "
+        "<b>{b}</b> (this build). Context: {ctx}. Switch the View Mode filter "
+        "to move between the engineering tree view and the flat procurement "
+        "view. Use Download Diff Workbook for a color-coded export."
+    ).format(view=view, a=a, b=b, ctx=context_mode)
+
+
+def _report_intro_message():
+    return _(
+        "Select <b>Snapshot A</b> (the previous/reference build) and "
+        "<b>Snapshot B</b> (this build) to compare. The diff shows exactly "
+        "what changed between the two configurations so prior build knowledge "
+        "can be amended rather than blindly reused."
+    )
+
+
+def _report_empty_columns(view_mode):
+    if view_mode == "Flat Procurement":
+        return [
+            {"label": _("Change"), "fieldname": "category", "fieldtype": "Data", "width": 150},
+            {"label": _("Item Code"), "fieldname": "item_code", "fieldtype": "Data", "width": 160},
+        ]
+    return [
+        {"label": _("Change"), "fieldname": "status", "fieldtype": "Data", "width": 110},
+        {"label": _("Item"), "fieldname": "item_display", "fieldtype": "Data", "width": 360},
+    ]
