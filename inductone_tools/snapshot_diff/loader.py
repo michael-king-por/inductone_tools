@@ -506,12 +506,121 @@ def _report_fmt(q):
 
 
 def _report_banner(view, a, b, context_mode):
-    return _(
-        "<b>{view} view</b> -- comparing <b>{a}</b> (previous build) against "
-        "<b>{b}</b> (this build). Context: {ctx}. Switch the View Mode filter "
-        "to move between the engineering tree view and the flat procurement "
-        "view. Use Download Diff Workbook for a color-coded export."
+    # A swatch chip for the legend.
+    def chip(color, label):
+        return (
+            "<span style='display:inline-block;padding:2px 10px;margin:2px 4px;"
+            "border-radius:4px;background:{0};color:#1f2a44;font-size:0.85em;"
+            "white-space:nowrap;'>{1}</span>"
+        ).format(color, label)
+
+    header = (
+        "<div style='margin-bottom:8px;'>"
+        "<b>{view} view</b> &mdash; comparing <b>{a}</b> (previous build) "
+        "against <b>{b}</b> (this build). "
+        "<span style='color:#667085;'>Context: {ctx}.</span>"
+        "</div>"
     ).format(view=view, a=a, b=b, ctx=context_mode)
+
+    purpose = (
+        "<div style='margin-bottom:10px;color:#475467;'>"
+        "This is a comparison of two configured builds. It exists so that "
+        "knowledge from the previous build can be <b>amended, not blindly "
+        "reused</b> &mdash; only the lines below are different between the two "
+        "builds. Everything not shown is unchanged and can be built the same "
+        "way as before."
+        "</div>"
+    )
+
+    # Legend chips -- same colors as the rows.
+    legend = (
+        "<div style='margin-bottom:8px;'>"
+        + chip("#DCFCE7", "Added")
+        + chip("#FEE2E2", "Removed")
+        + chip("#E0F2FE", "Revision changed")
+        + chip("#FEF9C3", "Qty changed")
+        + chip("#F3E8FF", "Moved")
+        + "</div>"
+    )
+
+    # Glossary -- the non-obvious meanings, tailored to the active view.
+    if view == "Flat Procurement":
+        glossary_rows = [
+            ("Added",
+             "A part that was NOT on the previous build and IS on this one. "
+             "You must source/buy it for this build."),
+            ("Removed",
+             "A part that WAS on the previous build and is NOT on this one. "
+             "Do not buy or include it this time."),
+            ("Revision changed",
+             "The same part, but it is now sourced from a different BOM "
+             "revision than before. The part number may be identical &mdash; "
+             "what changed is the revision of the bill of materials it comes "
+             "from. Treat it as: re-verify this part against the new revision."),
+            ("Qty changed",
+             "The same part, but the <b>total</b> quantity needed across the "
+             "whole build is different. The Total Qty column shows "
+             "<i>previous &rarr; this build</i>."),
+            ("Revision A &rarr; B column",
+             "Shows the BOM revision(s) the part is sourced from, previous "
+             "build on the left, this build on the right. If a part is used "
+             "in more than one BOM, you may see more than one revision listed "
+             "&mdash; that means the part lives in multiple bills of material, "
+             "each at its own revision. That is normal for shared/common parts."),
+        ]
+    else:
+        glossary_rows = [
+            ("&#10133; Added",
+             "This node is new in this build &mdash; it did not exist at this "
+             "position in the previous build's tree."),
+            ("&#10134; Removed",
+             "This node was in the previous build at this position and is gone "
+             "in this one."),
+            ("&#9999; Changed",
+             "This node exists in both builds at the same position, but its "
+             "quantity and/or its BOM revision changed. The What-changed "
+             "column spells out which."),
+            ("Indentation / Level",
+             "Rows are indented by their depth in the assembly. A change shown "
+             "under a parent assembly means that change happens <i>inside</i> "
+             "that assembly. Parent rows are kept (even when unchanged) so you "
+             "can see where in the structure each change lives."),
+            ("Revision changed",
+             "The part is sourced from a different BOM revision than before. "
+             "Per the rule we use: a row is flagged only when <b>its own</b> "
+             "sourcing BOM revision changes. A parent assembly's revision "
+             "bumping does NOT flag its children unless the child itself "
+             "actually changed &mdash; so if a child is unflagged, its use is "
+             "genuinely unchanged and prior knowledge still applies."),
+        ]
+
+    glossary = (
+        "<details style='margin-top:4px;'>"
+        "<summary style='cursor:pointer;color:#1794ce;font-weight:600;'>"
+        "What do these mean? (click to expand)</summary>"
+        "<table style='margin-top:8px;border-collapse:collapse;width:100%;'>"
+    )
+    for i, (term, desc) in enumerate(glossary_rows):
+        bg = "#f9fafb" if i % 2 == 0 else "#ffffff"
+        glossary += (
+            "<tr style='background:{0};'>"
+            "<td style='padding:6px 10px;vertical-align:top;font-weight:600;"
+            "white-space:nowrap;border-bottom:1px solid #eaecf0;'>{1}</td>"
+            "<td style='padding:6px 10px;vertical-align:top;color:#475467;"
+            "border-bottom:1px solid #eaecf0;'>{2}</td>"
+            "</tr>"
+        ).format(bg, term, desc)
+    glossary += "</table></details>"
+
+    note = (
+        "<div style='margin-top:8px;color:#667085;font-size:0.85em;'>"
+        "Switch <b>View Mode</b> for the engineering tree vs. the flat "
+        "procurement list. Use <b>Download Diff Workbook</b> for a color-coded "
+        "export you can send to the builder."
+        "</div>"
+    )
+
+    return header + purpose + legend + glossary + note
 
 
 def _report_intro_message():
