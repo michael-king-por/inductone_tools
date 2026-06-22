@@ -43,6 +43,24 @@ doc_events = {
     "Part Number Assignment": {
         "validate": "inductone_tools.part_numbering.validate_part_number_assignment",
     },
+
+    # ============================================================
+    # ADDED 2026-06 — server-side validation that was never wired.
+    # These three entries are the fix for audit findings C3 and C4.
+    # DO NOT deploy this file until the functions they point at exist
+    # in the repo (see notes from Claude). All ship in ONE release.
+    # ============================================================
+    "InductOne Instance": {
+        "validate": "inductone_tools.instance.hooks.validate_instance",
+    },
+
+    "InductOne Builder Tranche": {
+        "validate": "inductone_tools.serial_allocation.tranche.validate_tranche",
+    },
+
+    "InductOne Build Completion": {
+        "validate": "inductone_tools.build_completion.validate_build_completion",
+    },
 }
 
 fixtures = [

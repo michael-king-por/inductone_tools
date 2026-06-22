@@ -91,24 +91,42 @@ def accept_completion_create_as_built(completion_name, as_built_notes=None):
     as_built.status = "Locked"
     as_built.lock_notes = "Auto-locked at acceptance by {0} on {1}".format(user, now)
 
+    # Copy serials with source traceability. component_label carries the
+    # workbook label (e.g. "Robot 1 Gripper Upper"); it is populated for
+    # rows that came from the auto-parsed builder workbook and may be empty
+    # for rows that were added manually before workbook import. It is only
+    # set when the source row has it, for forward/backward compatibility.
     for src_row in completion.serials:
-        as_built.append("serials", {
+        row_data = {
             "item_code": src_row.item_code,
             "item_name": src_row.item_name,
             "serial_number": src_row.serial_number,
             "source_completion_row": src_row.name,
-            "notes": src_row.notes
-        })
+            "notes": src_row.notes,
+        }
+        src_label = getattr(src_row, "component_label", None)
+        if src_label:
+            row_data["component_label"] = src_label
+        as_built.append("serials", row_data)
 
     as_built.insert(ignore_permissions=True)
 
-    # 3: Update Build Completion
+    # 3: Update Build Completion.
+    # The transition to 'Accepted' is gated server-side (see
+    # build_completion.validate_build_completion): a direct write to
+    # 'Accepted' is refused UNLESS this flag is set, which guarantees the
+    # As-Built / Instance / CO-close side effects can never be bypassed.
     completion.status = "Accepted"
     if hasattr(completion, "reviewed_by") and not completion.reviewed_by:
         completion.reviewed_by = user
     if hasattr(completion, "reviewed_at") and not completion.reviewed_at:
         completion.reviewed_at = now
-    completion.save(ignore_permissions=True)
+
+    frappe.flags.io_acceptance_in_progress = True
+    try:
+        completion.save(ignore_permissions=True)
+    finally:
+        frappe.flags.io_acceptance_in_progress = False
 
     # 4: Update parent Build
     build_updates = {
@@ -123,22 +141,31 @@ def accept_completion_create_as_built(completion_name, as_built_notes=None):
             setattr(build, field, value)
     build.save(ignore_permissions=True)
 
-    # 5: Transition CO to Closed
-    try:
-        co = frappe.get_doc("InductOne Configuration Order", co_name)
-        if hasattr(co, "co_status"):
-            co.co_status = "Closed"
-            co.save(ignore_permissions=True)
-    except Exception:
-        frappe.log_error(
-            frappe.get_traceback(),
-            "accept_completion_create_as_built: CO status transition"
-        )
+    # 5: Transition CO to Closed.
+    # This is part of the ATOMIC acceptance. If it fails, the whole
+    # operation must fail and roll back — we must never report success while
+    # leaving the CO open. There is deliberately NO broad try/except here:
+    # an exception propagates, the request transaction rolls back (nothing
+    # above has been committed yet), and the caller sees a real error.
+    co = frappe.get_doc("InductOne Configuration Order", co_name)
+    if not hasattr(co, "co_status"):
+        frappe.throw(_(
+            "Configuration Order {0} has no co_status field; cannot close it."
+        ).format(co_name))
+    co.co_status = "Closed"
+    co.save(ignore_permissions=True)
 
     # 6: Create the InductOne Instance
     instance_name = create_instance_from_as_built(as_built.name, user=user)
 
     frappe.db.commit()
+
+    # Report the PERSISTED CO status, read back from the database, rather
+    # than asserting a hardcoded value. If anything above had failed we
+    # would not have reached this point.
+    final_co_status = frappe.db.get_value(
+        "InductOne Configuration Order", co_name, "co_status"
+    )
 
     return {
         "ok": True,
@@ -146,6 +173,6 @@ def accept_completion_create_as_built(completion_name, as_built_notes=None):
         "completion_name": completion.name,
         "build_name": build_name,
         "configuration_order": co_name,
-        "co_status": "Closed",
+        "co_status": final_co_status,
         "instance_name": instance_name,
     }

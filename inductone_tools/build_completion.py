@@ -230,3 +230,102 @@ def _completion_serial_has_field(fieldname):
     has = bool(meta.get_field(fieldname))
     _field_cache[fieldname] = has
     return has
+
+
+# ============================================================
+#  Server-side state machine + required-field guard
+#  Registered in hooks.py:
+#    doc_events["InductOne Build Completion"]["validate"]
+#  ADDED 2026-06 — audit finding C4.
+# ============================================================
+
+# Forward-only Build Completion lifecycle.
+#   Submitted -> Reviewed | Rejected
+#   Reviewed  -> Accepted | Rejected
+#   Rejected  -> (terminal; the builder submits a NEW completion record)
+#   Accepted  -> (terminal)
+_COMPLETION_TRANSITIONS = {
+    "Submitted": {"Reviewed", "Rejected"},
+    "Reviewed": {"Accepted", "Rejected"},
+    "Rejected": set(),
+    "Accepted": set(),
+}
+
+
+def validate_build_completion(doc, method=None):
+    """
+    Server-side guard for InductOne Build Completion.
+
+    Why this exists: Mark Reviewed / Reject / Accept were previously
+    enforced ONLY in the browser (client scripts). A save via the REST API,
+    a data import, the bench console, or any alternate client could move a
+    completion into Reviewed / Rejected / Accepted while skipping the
+    serial requirement, the rejection-reason requirement, and — most
+    importantly — the acceptance side effects (As-Built creation, Instance
+    creation, CO close). This makes those rules authoritative on the
+    server, for every client, on every save.
+    """
+    _validate_completion_transition(doc)
+    _validate_completion_required_fields(doc)
+
+
+def _validate_completion_transition(doc):
+    """Enforce the forward-only lifecycle and the method-only path to
+    'Accepted'."""
+    if doc.is_new():
+        if doc.status and doc.status != "Submitted":
+            frappe.throw(_(
+                "New Build Completions must start in status 'Submitted' "
+                "(got '{0}')."
+            ).format(doc.status))
+        return
+
+    old_status = frappe.db.get_value("InductOne Build Completion", doc.name, "status")
+    new_status = doc.status
+
+    if old_status == new_status:
+        return
+
+    allowed = _COMPLETION_TRANSITIONS.get(old_status, set())
+    if new_status not in allowed:
+        frappe.throw(_(
+            "Invalid Build Completion transition: '{0}' -> '{1}'. "
+            "Allowed next states from '{0}': {2}."
+        ).format(
+            old_status, new_status,
+            ", ".join(sorted(allowed)) if allowed else "(none — terminal state)"
+        ))
+
+    # 'Accepted' is reachable ONLY through accept_completion_create_as_built,
+    # which sets this flag. A direct write to 'Accepted' from any other path
+    # is refused so the As-Built / Instance / CO-close side effects can
+    # never be bypassed.
+    if new_status == "Accepted" and not frappe.flags.get("io_acceptance_in_progress"):
+        frappe.throw(_(
+            "A Build Completion can only be set to 'Accepted' through the "
+            "'Accept Completion' action, which creates the locked As-Built "
+            "Record and the InductOne Instance. Setting the status to "
+            "'Accepted' directly is not permitted."
+        ))
+
+
+def _validate_completion_required_fields(doc):
+    """Enforce gating that was previously browser-only, and stamp the
+    reviewer on the server so it is authoritative rather than client-supplied."""
+    if doc.status == "Reviewed" and not (doc.serials or []):
+        frappe.throw(_(
+            "Cannot mark this Build Completion as 'Reviewed': at least one "
+            "serial row is required first."
+        ))
+
+    if doc.status == "Rejected" and not (getattr(doc, "review_notes", None) or "").strip():
+        frappe.throw(_(
+            "A rejection reason is required. Record it in Review Notes before "
+            "rejecting this Build Completion."
+        ))
+
+    if doc.status in ("Reviewed", "Rejected"):
+        if hasattr(doc, "reviewed_by") and not doc.reviewed_by:
+            doc.reviewed_by = frappe.session.user
+        if hasattr(doc, "reviewed_at") and not doc.reviewed_at:
+            doc.reviewed_at = now_datetime()

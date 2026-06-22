@@ -18,17 +18,26 @@ from frappe import _
 from frappe.utils import now_datetime
 
 
-# Valid forward transitions. Once Installed, the unit's state lives in Salesforce
-# and is not tracked here further. Backwards transitions are blocked.
+# Valid forward transitions.
+#   At Builder      -> Ready for Ship   (builder-intake unit becomes certified built)
+#   Ready for Ship  -> Shipped
+#   Shipped         -> Installed
+# Once Installed, the unit's state lives in Salesforce and is not tracked
+# here further. Backwards transitions are blocked.
+#
+# NOTE: 'At Builder' is a real status option on the Instance.status field
+# (used by the at-builder intake path). It MUST appear here, or registering
+# this validator would block every At Builder -> Ready for Ship transition.
 ALLOWED_TRANSITIONS = {
+    "At Builder": {"Ready for Ship"},
     "Ready for Ship": {"Shipped"},
     "Shipped": {"Installed"},
     "Installed": set(),
 }
 
 # All valid status values. Any of these is acceptable on creation — a
-# backfill unit may arrive already Installed; we don't need to make it
-# pretend to be Ready for Ship first.
+# backfill unit may arrive already Installed, and an intake unit may be
+# created directly as 'At Builder'; we don't force a starting state.
 VALID_STATUSES = set(ALLOWED_TRANSITIONS.keys())
 
 
@@ -69,9 +78,10 @@ def _validate_status_transition(doc):
     """Forward-only state machine. Blocks regressions and skipped states.
 
     On creation (doc.is_new()), any valid status is permitted. This allows
-    backfill units to be created directly as 'Installed' without having to
-    walk through the full lifecycle. The constraint being enforced here is
-    'don't create garbage states', not 'always start at Ready for Ship'.
+    backfill units to be created directly as 'Installed', and intake units
+    to be created as 'At Builder', without walking the full lifecycle. The
+    constraint being enforced here is 'don't create garbage states', not
+    'always start at Ready for Ship'.
 
     On update, the new status must be in ALLOWED_TRANSITIONS[old_status].
     """
