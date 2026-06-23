@@ -135,6 +135,36 @@ fixtures = [
         ]
     },
     {
-        "dt": "Client Script"
+        "dt": "Client Script",
+        "filters": [
+            ["name", "in", [
+                "minimal",
+                "Attachment_display",
+                "generate_zip",
+                "InductOne Selection Prevention",
+                "Sales Order Build Button",
+                "Load Catalog Options - Enforce Group-of Exclusivity",
+                "InductOne Configuration Export Package",
+                "InductOne As-Built Record Script",
+                "Options Catalog Print Button",
+                "InductOne Build Script",
+                "InductOne Build Completion Script",
+                "Fixture Export Control Script",
+                "InductOne List Formatting",
+                "InductOne Build HTML Controls",
+                "InductOne Build Supplier Population",
+                "Engineering Signoff Actions",
+                "BOM Engineering Signoff Banner",
+                "Product Bundle Engineering Signoff Banner",
+                "InductOne Instance Script",
+                "Part Number Allocation Request - Allocate Numbers Button",
+                "Item Part Number Integration",
+                "Product Bundle Part Number Allocation Script",
+                "InductOne Configuration Option styling",
+                "Engineering Signoff Banner - Item",
+                "Engineering Signoff Banner - Configuration Option",
+                "InductOne Configuration Option Review Button"
+            ]]
+        ]
     }
 ]

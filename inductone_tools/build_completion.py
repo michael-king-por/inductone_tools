@@ -240,11 +240,13 @@ def _completion_serial_has_field(fieldname):
 # ============================================================
 
 # Forward-only Build Completion lifecycle.
+#   Draft     -> Submitted
 #   Submitted -> Reviewed | Rejected
 #   Reviewed  -> Accepted | Rejected
 #   Rejected  -> (terminal; the builder submits a NEW completion record)
 #   Accepted  -> (terminal)
 _COMPLETION_TRANSITIONS = {
+    "Draft": {"Submitted"},
     "Submitted": {"Reviewed", "Rejected"},
     "Reviewed": {"Accepted", "Rejected"},
     "Rejected": set(),
@@ -273,9 +275,10 @@ def _validate_completion_transition(doc):
     """Enforce the forward-only lifecycle and the method-only path to
     'Accepted'."""
     if doc.is_new():
-        if doc.status and doc.status != "Submitted":
+        allowed_initial_statuses = {"Draft", "Submitted"}
+        if doc.status and doc.status not in allowed_initial_statuses:
             frappe.throw(_(
-                "New Build Completions must start in status 'Submitted' "
+                "New Build Completions must start in status 'Draft' or 'Submitted' "
                 "(got '{0}')."
             ).format(doc.status))
         return
