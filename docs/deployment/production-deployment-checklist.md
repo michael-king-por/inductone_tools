@@ -10,8 +10,8 @@ Before starting, set these variables in the production bench shell:
 export PROD_BENCH="/home/frappe/frappe-bench"          # Example: /home/frappe/frappe-bench
 export PROD_SITE="plusonerobotics.v.frappe.cloud"                 # Example: plusonerobotics.v.frappe.cloud
 export INDUCTONE_BRANCH="main"        # Example: main
-export EXPECTED_COMMIT="<commit-sha-to-deploy>"
-export EVIDENCE_DIR="/mnt/c/hub/frappe-sandbox/validation-evidence"
+export EXPECTED_COMMIT="406d80a437ab934f9adfdb2a11e599c00cce3ca3"
+export EVIDENCE_DIR="$PROD_BENCH/sites/$PROD_SITE/private/deployment-evidence"
 ```
 
 If the production host cannot write to `/mnt/c/hub/frappe-sandbox/validation-evidence`, set `EVIDENCE_DIR` to a writable deployment-evidence folder on the production host, then copy the generated JSON evidence file back to `C:\hub\frappe-sandbox\validation-evidence` after verification.
@@ -386,12 +386,12 @@ After all Phase 5 checks pass, record:
 
 | Field | Value |
 |---|---|
-| Deployment timestamp |  |
+| Deployment timestamp | 6/25/26 - 3:37 |
 | Commit SHA deployed |  |
-| Person who performed deployment |  |
+| Person who performed deployment | Michael King |
 | Phase 1 backup path |  |
-| Phase 5 automated evidence JSON |  |
-| Deviations from this checklist and why |  |
+| Phase 5 automated evidence JSON | /home/frappe/frappe-bench/sites/plusonerobotics.v.frappe.cloud/private/deployment-evidence/production_post_deploy_validation_20260625T203809Z.json |
+| Deviations from this checklist and why | migration done via Frappe cloud dashboard, not bench git pull |
 
 Final sign-off:
 
