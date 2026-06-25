@@ -4,6 +4,36 @@ This document records the current observed permission posture and the target aud
 
 It is intentionally conservative. Current observations do not automatically imply the final desired model. Permissions should be changed only after role intent is confirmed and tested in a candidate sandbox.
 
+## June 25, 2026 target model
+
+The current target model is documented in [Role Governance Audit](role-governance-audit.md). That document supersedes the earlier transitional role names below.
+
+Target custom roles:
+
+- `InductOne Manager`
+- `InductOne Process Architect`
+- `Operations Viewer`
+- `Operations Manager`
+- `Inventory Operator`
+- `Gripper Manufacturer`
+- `Engineering User`
+- `InductOne External Builder`
+- `Finance Viewer`
+- `Procurement User`
+
+Legacy/transitional roles should not be used as the final authority layer:
+
+- `InductOne Process Manager`
+- `InductOne Architect`
+- `Engineering Signoff Delegate`
+- `Part Number Manager`
+- `Engineering - Signoff`
+- `OPS-INDUCTONE-GATEKEEP`
+- `PRODUCT-INDUCTONE-GATEKEEP`
+- generic `Builder`
+- generic `Manufacturing User`
+- generic `Project Manager` / `Projects Manager`
+
 ## Roles observed during audit
 
 InductOne-specific roles observed:
@@ -45,22 +75,104 @@ Several critical DocTypes did not show Custom DocPerm rows in the audited fixtur
 - Engineering Signoff
 - Part Number Allocation Request
 
+## Confirmed target personas
+
+The following target personas were confirmed during the June 2026 hardening review.
+
+| Persona / role | Intended users | Purpose |
+|---|---|---|
+| External Builder | `motion.builder@plusonerobotics.com`, `lam@plusonerobotics.com` | Access assigned builder-facing handoff artifacts and upload completion workbooks. |
+| InductOne Process Manager | `michael.king@plusonerobotics.com`, `christina.gt@plusonerobotics.com`, `jim.haws@plusonerobotics.com`, `david.brain@plusonerobotics.com` | Own normal InductOne workflow: create/edit Builds, release to builder, allocate serials, upload/review/reject/accept completions. |
+| InductOne Architect/Admin | initially `michael.king@plusonerobotics.com` | Maintain Builder Tranches, architecture, fixtures, schema, and emergency correction paths. |
+| Engineering Signoff Approver | `shaun.edwards@plusonerobotics.com`, `jason.minica@plusonerobotics.com`, `wayne.kirk@plusonerobotics.com`, `david.moreno@plusonerobotics.com` | Official engineering approval/rejection of controlled engineering artifacts. |
+| Engineering Signoff Delegate | `michael.king@plusonerobotics.com`, `christina.gt@plusonerobotics.com`, `david.brain@plusonerobotics.com` | Explicit delegate role for approving/rejecting signoffs on engineering's behalf. |
+| Part Number Manager | `michael.king@plusonerobotics.com`, `christina.gt@plusonerobotics.com`, `david.brain@plusonerobotics.com`, engineering approvers | Allocate part numbers. |
+| System Manager | sharply reduced admin set | ERPNext/site administration only; not a substitute for InductOne workflow access. |
+
+Deprecated or transitional roles:
+
+- `OPS-INDUCTONE-GATEKEEP`
+- `PRODUCT-INDUCTONE-GATEKEEP`
+
+These appear deprecated by intent. They should not be used for new permission hardening unless deliberately repurposed.
+
+## Implemented repo model
+
+As of the June 23, 2026 hardening implementation, the repository includes:
+
+- `inductone_tools.external_builder_permissions`, which enforces external-builder query scoping in code.
+- `permission_query_conditions` hooks for:
+  - `Item`,
+  - `BOM`,
+  - `InductOne Configuration Order`,
+  - `BOM Export Package`,
+  - `InductOne Build Completion`,
+  - `Configured BOM Snapshot`.
+- `has_permission` hooks for raw `Item` and `BOM` denial.
+- role fixtures for:
+  - `InductOne External Builder`,
+  - `InductOne Process Manager`,
+  - `InductOne Architect`,
+  - `Engineering Signoff Delegate`,
+  - `Part Number Manager`.
+- a role profile fixture for `InductOne External Builder`.
+- a migration patch: `inductone_tools.patches.v2026_06_23_external_builder_permissions`.
+
+The patch intentionally stops using the generic `Builder` role and the generic `Builder` Role Profile for external InductOne supplier access because sandbox testing showed that profile can rehydrate broad roles (`Builder`, `Manufacturing User`) and expose raw ERPNext `Item`/`BOM` access. External builder users are moved to the `InductOne External Builder` role and Role Profile instead.
+
+The patch also removes Item Group User Permissions from the external builder accounts and keeps only Supplier scoping:
+
+- `motion.builder@plusonerobotics.com` -> `Motion Controls`
+- `lam@plusonerobotics.com` -> `LAM`
+
+Configured BOM Snapshot access is indirect: an external builder can list/open snapshots only when the snapshot is linked to a Configuration Order or BOM Export Package assigned to one of that user's Supplier values.
+
+External builder workspace access is also moved from the old `Builder` role to `InductOne External Builder`. The intended external landing surface is `Builder Portal`. The old `Build` workspace is deprecated and should stay hidden; Operations and Engineering workspaces are not intended for supplier users.
+
+Known UI nuance: Frappe's implicit `Desk User` role can still make some report/export/print affordances appear enabled for `Item`, but the query condition returns no rows for external-builder-only users. This must be included in UI smoke testing.
+
 ## Target permission model
 
 The target model should be documented and then implemented. Do not infer final policy from current rows alone.
 
-| DocType | Builder | Manufacturing/Ops | Product/Engineering gatekeep | System Manager |
+| DocType | External Builder | InductOne Process Manager | Engineering Approver / Delegate | InductOne Architect/Admin | System Manager |
 |---|---|---|---|---|
-| InductOne Build | Read limited assigned builds; no destructive edits | Create/update through workflow actions | Read; maybe approve/release gates if defined | Full admin |
-| InductOne Configuration Option | No access unless needed | Read released options | Create/edit/release through signoff | Full admin |
-| InductOne Configuration Order | Read assigned released orders | Create/update through release workflow | Read/review | Full admin |
-| BOM Export Package | Read assigned builder packages | Generate/manage packages | Read/review | Full admin |
-| InductOne Builder Tranche | No access | Allocate via action only; no direct range edits | Maybe read | Full admin or designated serial admin |
-| InductOne Build Completion | Upload/update assigned completion evidence | Review/reject/accept through actions | Read | Full admin |
-| InductOne As-Built Record | Read assigned if appropriate | Read locked evidence | Read | Full admin; mutation restricted |
-| InductOne Instance | Read assigned units if appropriate | Update lifecycle through allowed actions | Read | Full admin |
-| Engineering Signoff | No access | Read | Request/approve/reject/supersede by gatekeeper roles | Full admin |
-| Part Number Allocation Request | No access | Request/allocate as authorized | Review as needed | Full admin |
+| InductOne Build | No direct access unless proven necessary | Create/edit/manage assigned/internal Builds | Read if needed | Full architect/admin | Full admin |
+| InductOne Configuration Option | No direct access | Read released/usable options | Approve/reject/supersede through signoff | Admin as needed | Full admin |
+| InductOne Configuration Order | Read assigned builder-facing orders | Create/update/release workflow | Read if needed | Full architect/admin | Full admin |
+| BOM Export Package | Read/download assigned generated packages only | Generate/manage packages | Read if needed | Full architect/admin | Full admin |
+| Configured BOM Snapshot | Read assigned generated snapshots/diff output only | Generate/read snapshots | Read if needed | Full architect/admin | Full admin |
+| Raw Item / BOM / Sales Order | No access through InductOne builder workflow | Access only if separately required by ERPNext duties | Access only if separately required | Admin as needed | Full admin |
+| InductOne Builder Tranche | No access | Allocate serials only through controlled action | No access | Create/edit/retire tranches | Full admin |
+| InductOne Build Completion | Upload completion workbook / update assigned evidence as intentionally exposed | Upload/review/reject/accept through actions | Read if needed | Full architect/admin | Full admin |
+| InductOne As-Built Record | Read assigned locked evidence only if useful | Read locked evidence | Read if needed | Full architect/admin; mutation restricted | Full admin |
+| InductOne Instance | Usually no access unless support reference needed | Read/update lifecycle through allowed actions | Read if needed | Full architect/admin | Full admin |
+| Engineering Signoff | No access | Request/read as needed | Approve/reject/supersede | Full architect/admin | Full admin |
+| Part Number Allocation Request | No access | Allocate only if assigned Part Number Manager | Read/review/allocate if assigned | Full architect/admin | Full admin |
+| Fixture Export Control | No access | No access | No access | System/architect only | Full admin |
+
+## External builder access intent
+
+External builders should receive generated handoff artifacts, not live engineering/ERP source records.
+
+They should be able to access:
+
+- assigned `InductOne Configuration Order` records,
+- assigned `BOM Export Package` records,
+- generated files attached to those packages/orders,
+- assigned `Configured BOM Snapshot` and generated diff/snapshot outputs,
+- assigned `InductOne Build Completion` records or controlled upload path for completion workbook submission.
+
+They should not be able to access:
+
+- raw `Item` records,
+- raw `BOM` records,
+- `Sales Order` records,
+- unrelated supplier/build records,
+- `InductOne Builder Tranche`,
+- fixture/export/admin tooling.
+
+This must be validated in a sandbox by testing list/form/file/report access as `motion.builder@plusonerobotics.com` and `lam@plusonerobotics.com`.
 
 ## Server-side enforcement rule
 
@@ -111,6 +223,21 @@ For each release that changes permissions or method gates, test:
 - Manufacturing/Ops can perform intended operational actions.
 - Gatekeeper roles can perform signoff actions.
 - Unauthorized roles cannot call whitelisted state-changing endpoints directly.
+
+## Confirmed next permission-hardening work
+
+1. Run `bench migrate` in a candidate sandbox and verify the migration patch result.
+2. Confirm external builders use `InductOne External Builder`, not `Builder`.
+3. Confirm external builders no longer have `Manufacturing User` or Item Group User Permissions.
+4. Confirm assigned Supplier User Permissions remain correct.
+5. Reduce broad `System Manager` assignment in candidate after access smoke tests pass.
+6. Run effective-access tests for:
+   - process manager,
+   - external builder,
+   - engineering approver,
+   - engineering delegate,
+   - part number manager,
+   - ordinary internal user.
 
 ## Handoff requirement
 

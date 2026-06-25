@@ -33,13 +33,13 @@ CONTROLLED_NUMBER_RE = re.compile(r"^[1-4][0-9]+$")
 
 def _has_part_number_manager_role() -> bool:
     roles = set(frappe.get_roles(frappe.session.user))
-    return bool({"System Manager", "Part Number Manager"} & roles)
+    return bool({"Engineering User", "InductOne Process Architect", "System Manager"} & roles)
 
 
 def _require_part_number_manager():
     if not _has_part_number_manager_role():
         frappe.throw(
-            _("Only users with Part Number Manager or System Manager role may allocate part numbers."),
+            _("Only users with Engineering User or InductOne Process Architect role may allocate part numbers."),
             frappe.PermissionError,
         )
 

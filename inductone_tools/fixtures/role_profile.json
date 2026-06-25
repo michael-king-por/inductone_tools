@@ -1,0 +1,172 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Role Profile",
+  "name": "InductOne External Builder",
+  "role_profile": "InductOne External Builder",
+  "roles": [
+   {
+    "docstatus": 0,
+    "doctype": "Has Role",
+    "idx": 1,
+    "parent": "InductOne External Builder",
+    "parentfield": "roles",
+    "parenttype": "Role Profile",
+    "role": "InductOne External Builder"
+   }
+  ]
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Role Profile",
+  "name": "InductOne Manager",
+  "role_profile": "InductOne Manager",
+  "roles": [
+   {
+    "docstatus": 0,
+    "doctype": "Has Role",
+    "idx": 1,
+    "parent": "InductOne Manager",
+    "parentfield": "roles",
+    "parenttype": "Role Profile",
+    "role": "InductOne Manager"
+   }
+  ]
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Role Profile",
+  "name": "InductOne Process Architect",
+  "role_profile": "InductOne Process Architect",
+  "roles": [
+   {
+    "docstatus": 0,
+    "doctype": "Has Role",
+    "idx": 1,
+    "parent": "InductOne Process Architect",
+    "parentfield": "roles",
+    "parenttype": "Role Profile",
+    "role": "InductOne Process Architect"
+   }
+  ]
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Role Profile",
+  "name": "Operations Viewer",
+  "role_profile": "Operations Viewer",
+  "roles": [
+   {
+    "docstatus": 0,
+    "doctype": "Has Role",
+    "idx": 1,
+    "parent": "Operations Viewer",
+    "parentfield": "roles",
+    "parenttype": "Role Profile",
+    "role": "Operations Viewer"
+   }
+  ]
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Role Profile",
+  "name": "Operations Manager",
+  "role_profile": "Operations Manager",
+  "roles": [
+   {
+    "docstatus": 0,
+    "doctype": "Has Role",
+    "idx": 1,
+    "parent": "Operations Manager",
+    "parentfield": "roles",
+    "parenttype": "Role Profile",
+    "role": "Operations Manager"
+   }
+  ]
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Role Profile",
+  "name": "Inventory Operator",
+  "role_profile": "Inventory Operator",
+  "roles": [
+   {
+    "docstatus": 0,
+    "doctype": "Has Role",
+    "idx": 1,
+    "parent": "Inventory Operator",
+    "parentfield": "roles",
+    "parenttype": "Role Profile",
+    "role": "Inventory Operator"
+   }
+  ]
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Role Profile",
+  "name": "Gripper Manufacturer",
+  "role_profile": "Gripper Manufacturer",
+  "roles": [
+   {
+    "docstatus": 0,
+    "doctype": "Has Role",
+    "idx": 1,
+    "parent": "Gripper Manufacturer",
+    "parentfield": "roles",
+    "parenttype": "Role Profile",
+    "role": "Gripper Manufacturer"
+   }
+  ]
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Role Profile",
+  "name": "Engineering User",
+  "role_profile": "Engineering User",
+  "roles": [
+   {
+    "docstatus": 0,
+    "doctype": "Has Role",
+    "idx": 1,
+    "parent": "Engineering User",
+    "parentfield": "roles",
+    "parenttype": "Role Profile",
+    "role": "Engineering User"
+   }
+  ]
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Role Profile",
+  "name": "Finance Viewer",
+  "role_profile": "Finance Viewer",
+  "roles": [
+   {
+    "docstatus": 0,
+    "doctype": "Has Role",
+    "idx": 1,
+    "parent": "Finance Viewer",
+    "parentfield": "roles",
+    "parenttype": "Role Profile",
+    "role": "Finance Viewer"
+   }
+  ]
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Role Profile",
+  "name": "Procurement User",
+  "role_profile": "Procurement User",
+  "roles": [
+   {
+    "docstatus": 0,
+    "doctype": "Has Role",
+    "idx": 1,
+    "parent": "Procurement User",
+    "parentfield": "roles",
+    "parenttype": "Role Profile",
+    "role": "Procurement User"
+   }
+  ]
+ }
+]

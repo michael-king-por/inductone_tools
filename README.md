@@ -19,6 +19,7 @@ Start here:
 - [Rollback runbook](docs/deployment/rollback.md)
 - [Lifecycle and state-machine reference](docs/workflows/lifecycle-reference.md)
 - [Permission matrix](docs/security/permission-matrix.md)
+- [Permission hardening test plan](docs/security/permission-test-plan.md)
 - [Whitelisted method inventory](docs/security/whitelisted-methods.md)
 - [Hardening roadmap](docs/audit/hardening-roadmap.md)
 

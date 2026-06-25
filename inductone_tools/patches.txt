@@ -1,0 +1,1 @@
+inductone_tools.patches.v2026_06_23_external_builder_permissions

@@ -20,6 +20,13 @@ This documentation is written for ownership handoff. It should let a future main
 ## Security, permissions, and auditability
 
 - [Permission matrix](security/permission-matrix.md)
+- [Role governance audit](security/role-governance-audit.md)
+- [Role effect map](security/role-effect-map.md)
+- [Role migration and validation gameplan](security/role-migration-validation-gameplan.md)
+- [Permission hardening test plan](security/permission-test-plan.md)
+- [Candidate smoke-test checklist](security/candidate-smoke-test-checklist.md)
+- [GUI smoke validation - 2026-06-25](security/gui-smoke-validation-2026-06-25.md)
+- [Hardening progress tracker](security/hardening-progress-tracker.md)
 - [Whitelisted method inventory](security/whitelisted-methods.md)
 
 ## Hardening

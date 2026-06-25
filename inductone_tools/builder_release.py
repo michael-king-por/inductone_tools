@@ -12,6 +12,16 @@ from openpyxl import load_workbook
 
 from .bom_export import build_configured_rows
 
+
+def _require_release_role():
+    roles = set(frappe.get_roles(frappe.session.user))
+    if not {"InductOne Manager", "InductOne Process Architect", "System Manager"} & roles:
+        frappe.throw(
+            _("This action requires the 'InductOne Manager' role."),
+            frappe.PermissionError,
+        )
+
+
 @frappe.whitelist()
 def check_builder_release_readiness(build_name: str):
     """
@@ -155,7 +165,7 @@ def check_builder_release_readiness(build_name: str):
             missing.append(
                 f"Top BOM {top_bom} does not have an approved Engineering Signoff "
                 f"(current status: {status_str}). "
-                f"Obtain approval from an Engineering - Signoff role holder before releasing."
+                f"Obtain approval from an Engineering User role holder before releasing."
             )
     
     
@@ -283,6 +293,8 @@ def release_to_builder_now(build_name: str, package_name: str = None, note: str 
     Generates the manifest and workbook, syncs the CO document index,
     and stamps the build/CO status. Throws if readiness check fails.
     """
+    _require_release_role()
+
     # Defense in depth: re-validate readiness server-side before generating anything
     # Defense in depth: re-validate readiness server-side before generating anything
     readiness = check_builder_release_readiness(build_name)
@@ -1083,7 +1095,7 @@ def _require_approved_signoff(target_doctype, target_docname, missing, get_curre
         missing.append(
             f"{target_doctype} {display_name} does not have an approved Engineering Signoff "
             f"(current status: {status_str}). "
-            f"Obtain approval from an Engineering - Signoff role holder before releasing."
+            f"Obtain approval from an Engineering User role holder before releasing."
         )
 
 def _set_if_present(doc, fieldnames, value):

@@ -109,7 +109,7 @@ def request_signoff(target_doctype: str, target_docname: str):
 @frappe.whitelist()
 def approve_signoff(signoff_name: str, notes: str = None):
     """
-    Approve a Pending signoff. Restricted to Engineering - Signoff role.
+    Approve a Pending signoff. Restricted to Engineering User role.
 
     For InductOne Configuration Option, approval is also the release action:
     approval sets the target option status to Released (and locks it).
@@ -204,7 +204,7 @@ def approve_signoff(signoff_name: str, notes: str = None):
 @frappe.whitelist()
 def reject_signoff(signoff_name: str, reason: str):
     """
-    Reject a Pending signoff. Restricted to Engineering - Signoff role.
+    Reject a Pending signoff. Restricted to Engineering User role.
     Reason is required.
     """
     _require_signoff_role()
@@ -261,7 +261,7 @@ def supersede_config_option(option_name: str, new_option_code: str = None, notes
     option (carrying its mappings), mark the original Deprecated, and invalidate
     the original's current signoff. The new Draft goes through signoff fresh.
 
-    Restricted to Engineering - Signoff role: superseding a released,
+    Restricted to Engineering User role: superseding a released,
     build-driving option is an engineering action.
     """
     _require_signoff_role()
@@ -667,8 +667,8 @@ def _apply_target_approval_side_effects(signoff):
 
 def _require_signoff_role():
     user_roles = frappe.get_roles(frappe.session.user)
-    if "Engineering - Signoff" not in user_roles and "System Manager" not in user_roles:
+    if not {"Engineering User", "InductOne Process Architect", "System Manager"} & set(user_roles):
         frappe.throw(
-            _("This action requires the 'Engineering - Signoff' role."),
+            _("This action requires the 'Engineering User' role."),
             frappe.PermissionError,
         )

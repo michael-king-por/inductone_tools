@@ -1,0 +1,185 @@
+"""Shared candidate role-validation configuration.
+
+These values are intentionally explicit so the validation scripts can be
+reviewed like code. User assignment is still operational/database state; this
+file records the candidate test matrix, not an instruction to grant production
+access.
+"""
+
+TARGET_ROLE_ASSIGNMENTS = {
+    "michael.king@plusonerobotics.com": [
+        "System Manager",
+        "InductOne Process Architect",
+        "InductOne Manager",
+        "Engineering User",
+        "Operations Manager",
+    ],
+    "christina.gt@plusonerobotics.com": [
+        "InductOne Manager",
+        "Engineering User",
+        "Operations Manager",
+    ],
+    "jim.haws@plusonerobotics.com": [
+        "InductOne Manager",
+        "Operations Manager",
+    ],
+    "david.brain@plusonerobotics.com": [
+        "InductOne Manager",
+        "Engineering User",
+        "Operations Manager",
+    ],
+    "shaun.edwards@plusonerobotics.com": ["Engineering User"],
+    "jason.minica@plusonerobotics.com": ["Engineering User"],
+    "wayne.kirk@plusonerobotics.com": ["Engineering User"],
+    "david.moreno@plusonerobotics.com": ["Engineering User"],
+    "motion.builder@plusonerobotics.com": ["InductOne External Builder"],
+    "lam@plusonerobotics.com": ["InductOne External Builder"],
+    "candidate.operations.viewer@example.invalid": ["Operations Viewer"],
+    "candidate.inventory.operator@example.invalid": ["Inventory Operator"],
+    "candidate.gripper.manufacturer@example.invalid": ["Gripper Manufacturer"],
+    "candidate.finance.viewer@example.invalid": ["Finance Viewer"],
+    "candidate.procurement.user@example.invalid": ["Procurement User"],
+}
+
+LEGACY_ROLES_TO_REMOVE_IN_CANDIDATE = {
+    "InductOne Process Manager",
+    "InductOne Architect",
+    "Engineering Signoff Delegate",
+    "Part Number Manager",
+    "Engineering - Signoff",
+    "OPS-INDUCTONE-GATEKEEP",
+    "PRODUCT-INDUCTONE-GATEKEEP",
+}
+
+# Roles that commonly came from broad/old Role Profiles and can mask whether
+# the new target roles actually work. Remove these only in candidate persona
+# tests, never blindly in production.
+BROAD_PROFILE_ROLES_TO_REMOVE_IN_STRICT_CANDIDATE_TESTS = {
+    "Academics User",
+    "Accounts Manager",
+    "Accounts User",
+    "Agriculture Manager",
+    "Agriculture User",
+    "Analytics",
+    "Auditor",
+    "Blogger",
+    "Builder",
+    "Customer",
+    "Dashboard Manager",
+    "Delivery Manager",
+    "Delivery User",
+    "Fleet Manager",
+    "Fulfillment User",
+    "HR Manager",
+    "HR User",
+    "Inbox User",
+    "Item Manager",
+    "Knowledge Base Contributor",
+    "Knowledge Base Editor",
+    "Maintenance Manager",
+    "Maintenance User",
+    "Manufacturing Manager",
+    "Manufacturing User",
+    "Newsletter Manager",
+    "Part Number Reviewer",
+    "Prepared Report User",
+    "Project Manager",
+    "Projects Manager",
+    "Projects User",
+    "Purchase Manager",
+    "Purchase Master Manager",
+    "Purchase User",
+    "Quality Manager",
+    "Report Manager",
+    "Sales Manager",
+    "Sales Master Manager",
+    "Sales Order Approver",
+    "Sales User",
+    "Script Manager",
+    "Stock Manager",
+    "Stock User",
+    "Supplier",
+    "Support Team",
+    "System Manager",
+    "Translator",
+    "Website Manager",
+    "Wiki Approver",
+    "Workspace Manager",
+}
+
+# These framework roles are expected to remain for Desk users.
+FOUNDATIONAL_ROLES_TO_KEEP = {"All", "Guest", "Desk User"}
+
+EXTERNAL_BUILDERS = {
+    "motion.builder@plusonerobotics.com": "Motion Controls",
+    "lam@plusonerobotics.com": "LAM",
+}
+
+AUDIT_USERS = [
+    "michael.king@plusonerobotics.com",
+    "christina.gt@plusonerobotics.com",
+    "jim.haws@plusonerobotics.com",
+    "david.brain@plusonerobotics.com",
+    "shaun.edwards@plusonerobotics.com",
+    "jason.minica@plusonerobotics.com",
+    "wayne.kirk@plusonerobotics.com",
+    "david.moreno@plusonerobotics.com",
+    "motion.builder@plusonerobotics.com",
+    "lam@plusonerobotics.com",
+    "candidate.operations.viewer@example.invalid",
+    "candidate.inventory.operator@example.invalid",
+    "candidate.gripper.manufacturer@example.invalid",
+    "candidate.finance.viewer@example.invalid",
+    "candidate.procurement.user@example.invalid",
+]
+
+AUDIT_DOCTYPES = [
+    "InductOne Build",
+    "InductOne Configuration Option",
+    "InductOne Builder Tranche",
+    "InductOne Configuration Order",
+    "BOM Export Package",
+    "Configured BOM Snapshot",
+    "InductOne Build Completion",
+    "InductOne As-Built Record",
+    "InductOne Instance",
+    "Engineering Signoff",
+    "Part Number Allocation Request",
+    "Part Number Assignment",
+    "Item",
+    "BOM",
+    "Product Bundle",
+    "Sales Order",
+    "Delivery Note",
+    "Stock Entry",
+    "Stock Ledger Entry",
+    "Warehouse",
+    "Bin",
+    "Serial No",
+    "Work Order",
+    "Purchase Order",
+    "Purchase Receipt",
+    "Purchase Invoice",
+    "Sales Invoice",
+    "Payment Entry",
+    "Supplier",
+    "Customer",
+    "Address",
+    "Contact",
+    "Item Price",
+    "Price List",
+    "UOM",
+    "Item Group",
+    "Brand",
+    "Stock Reconciliation",
+    "Material Request",
+    "Pick List",
+    "Packed Item",
+    "Account",
+    "GL Entry",
+    "Journal Entry",
+    "Cost Center",
+    "Payment Ledger Entry",
+]
+
+PERMISSION_TYPES = ["read", "write", "create", "submit", "cancel", "delete"]

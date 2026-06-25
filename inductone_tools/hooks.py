@@ -63,6 +63,20 @@ doc_events = {
     },
 }
 
+permission_query_conditions = {
+    "Item": "inductone_tools.external_builder_permissions.deny_raw_item_for_external_builder",
+    "BOM": "inductone_tools.external_builder_permissions.deny_raw_bom_for_external_builder",
+    "InductOne Configuration Order": "inductone_tools.external_builder_permissions.restrict_configuration_order_for_external_builder",
+    "BOM Export Package": "inductone_tools.external_builder_permissions.restrict_bom_export_package_for_external_builder",
+    "InductOne Build Completion": "inductone_tools.external_builder_permissions.restrict_build_completion_for_external_builder",
+    "Configured BOM Snapshot": "inductone_tools.external_builder_permissions.restrict_configured_snapshot_for_external_builder",
+}
+
+has_permission = {
+    "Item": "inductone_tools.external_builder_permissions.deny_raw_item_permission",
+    "BOM": "inductone_tools.external_builder_permissions.deny_raw_bom_permission",
+}
+
 fixtures = [
     {
         "dt": "DocType",
@@ -70,6 +84,50 @@ fixtures = [
             ["module", "in", [
                 "Operations - POR",
                 "InductOne Tools"
+            ]]
+        ]
+    },
+    {
+        "dt": "Role",
+        "filters": [
+            ["name", "in", [
+                "InductOne External Builder",
+                "InductOne Manager",
+                "InductOne Process Architect",
+                "Operations Viewer",
+                "Operations Manager",
+                "Inventory Operator",
+                "Gripper Manufacturer",
+                "Engineering User",
+                "Finance Viewer",
+                "Procurement User"
+            ]]
+        ]
+    },
+    {
+        "dt": "Role Profile",
+        "filters": [
+            ["name", "in", [
+                "InductOne External Builder",
+                "InductOne Manager",
+                "InductOne Process Architect",
+                "Operations Viewer",
+                "Operations Manager",
+                "Inventory Operator",
+                "Gripper Manufacturer",
+                "Engineering User",
+                "Finance Viewer",
+                "Procurement User"
+            ]]
+        ]
+    },
+    {
+        "dt": "Wiki Page",
+        "filters": [
+            ["name", "in", [
+                "d0v7dsi9lu",
+                "9n8bvqedso",
+                "3hnmdg9m5q"
             ]]
         ]
     },
@@ -84,6 +142,7 @@ fixtures = [
                 "Configured BOM Snapshot",
                 "Configured BOM Snapshot Item",
                 "InductOne Build Execution Log",
+                "InductOne Builder Tranche",
                 "InductOne Configuration Option",
                 "InductOne Build Option Selection",
                 "InductOne Configuration Option Mapping",
@@ -91,10 +150,15 @@ fixtures = [
                 "InductOne Build Completion Serial",
                 "InductOne As-Built Record",
                 "InductOne As-Built Serial",
+                "InductOne Instance",
                 "InductOne Configuration Order",
                 "InductOne Configuration Order Delta Line",
                 "InductOne Configuration Order Selected Option",
-                "InductOne Configuration Order Document Index"
+                "InductOne Configuration Order Document Index",
+                "Engineering Signoff",
+                "Part Number Allocation Request",
+                "Part Number Assignment",
+                "Fixture Export Control"
             ]]
         ]
     },

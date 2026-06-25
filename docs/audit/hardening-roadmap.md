@@ -73,12 +73,22 @@ Purpose: make access control auditable.
 
 Tasks:
 
-- [ ] Confirm intended roles for Sales/Ops/Manufacturing/Builder/Product/System Manager.
+- [x] Confirm intended roles for InductOne Manager, External Builder, Engineering User, Engineering User, InductOne Process Architect, and System Manager.
 - [ ] Complete desired permission matrix.
 - [ ] Compare desired matrix to Custom DocPerm and User Permission records.
 - [ ] Add or adjust Custom DocPerm only after approval.
 - [ ] Add explicit role checks to state-changing whitelisted methods.
 - [ ] Add role-based smoke tests.
+
+Confirmed intent:
+
+- `Builder` should not be used for external InductOne suppliers; sandbox validation showed it can carry raw `Item`/`BOM` access. Use `InductOne External Builder` instead.
+- `motion.builder@plusonerobotics.com` and `lam@plusonerobotics.com` should remain active external builders.
+- External builders should access assigned generated builder-facing artifacts, not live Items/BOMs/Sales Orders.
+- `InductOne Manager` should include Michael King, Christina Gomez Terry, Jim Haws, and David Brain.
+- `Engineering User` should allow Michael, Christina, and David Brain to approve/reject on engineering's behalf.
+- Broad `System Manager` assignment should be reduced after sandbox testing.
+- Wiki pages must be reviewed after permission hardening so user-facing explanations match the implemented model.
 
 Expected site experience change: none for authorized users; unauthorized bypasses may be blocked.
 

@@ -6,6 +6,15 @@ from inductone_tools.instance.creation import (
 )
 
 
+def _require_completion_accept_role():
+    roles = set(frappe.get_roles(frappe.session.user))
+    if not {"InductOne Manager", "InductOne Process Architect", "System Manager"} & roles:
+        frappe.throw(
+            _("This action requires the 'InductOne Manager' role."),
+            frappe.PermissionError,
+        )
+
+
 @frappe.whitelist()
 def accept_completion_create_as_built(completion_name, as_built_notes=None):
     """
@@ -21,6 +30,8 @@ def accept_completion_create_as_built(completion_name, as_built_notes=None):
     the life of the unit. It is created here, in the same transaction, so
     that acceptance is never partially complete.
     """
+    _require_completion_accept_role()
+
     if not completion_name:
         frappe.throw(_("completion_name is required."))
 

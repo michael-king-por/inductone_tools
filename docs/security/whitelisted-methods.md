@@ -21,25 +21,25 @@ State-changing methods must enforce role, state, and input gates server-side.
 |---|---|---|
 | `inductone_tools.bom_export.generate_now` | State-changing action | Generates/updates BOM Export Package artifacts. Review transaction ownership and role gate. |
 | `inductone_tools.build_completion.create_completion_from_upload` | State-changing action | Creates Build Completion from uploaded workbook. Enforces CO status and parses before mutation. Needs upload/integration tests. |
-| `inductone_tools.build_completion_accept.accept_completion_create_as_built` | Critical state-changing action | Atomic acceptance; must be role-gated and heavily tested. |
+| `inductone_tools.build_completion_accept.accept_completion_create_as_built` | Critical state-changing action | Atomic acceptance; should be restricted to InductOne Manager / InductOne Process Architect and heavily tested. |
 | `inductone_tools.builder_release.check_builder_release_readiness` | Read/validation helper | Should be safe read-only readiness check. |
 | `inductone_tools.builder_release.generate_builder_release_bundle` | State-changing action | Generates builder release artifacts. Needs role gate and failure-state review. |
-| `inductone_tools.builder_release.release_to_builder_now` | Critical state-changing action | Releases operational package/state. Needs explicit role gate and lifecycle tests. |
+| `inductone_tools.builder_release.release_to_builder_now` | Critical state-changing action | Releases operational package/state. Should be restricted to InductOne Manager / InductOne Process Architect and lifecycle-tested. |
 | `inductone_tools.builder_release.acknowledge_builder_release` | State-changing action | Records acknowledgement. Needs actor/role clarity. |
 | `inductone_tools.builder_release.generate_required_serial_capture_artifact` | State-changing action | Generates workbook artifact. Needs package/build precondition tests. |
 | `inductone_tools.builder_release.submit_as_built_now` | Legacy or alternate state action | Review whether still part of intended workflow now that Build Completion acceptance exists. |
 | `inductone_tools.builder_release.close_build_from_as_built` | Legacy or alternate state action | Review for overlap with atomic acceptance path. |
 | `inductone_tools.engineering_signoff.request_signoff` | State-changing action | Creates/updates signoff request. Needs requester role rules. |
-| `inductone_tools.engineering_signoff.approve_signoff` | Critical state-changing action | Releases/approves controlled artifact. Must require gatekeeper role. |
-| `inductone_tools.engineering_signoff.reject_signoff` | Critical state-changing action | Rejects controlled artifact. Must require gatekeeper role and reason. |
-| `inductone_tools.engineering_signoff.supersede_config_option` | Critical state-changing action | Changes option lifecycle. Needs gatekeeper role and audit trail. |
+| `inductone_tools.engineering_signoff.approve_signoff` | Critical state-changing action | Releases/approves controlled artifact. Must require Engineering User, or System Manager. |
+| `inductone_tools.engineering_signoff.reject_signoff` | Critical state-changing action | Rejects controlled artifact. Must require Engineering User, or System Manager, plus reason. |
+| `inductone_tools.engineering_signoff.supersede_config_option` | Critical state-changing action | Changes option lifecycle. Must require Engineering User, or System Manager, plus audit trail. |
 | `inductone_tools.engineering_signoff.get_current_signoff_status` | Read helper | Should remain read-only. |
 | `inductone_tools.engineering_signoff.get_current_signoff_record` | Read helper | Should remain read-only. |
 | `inductone_tools.fixture_sync.export_and_push_fixtures` | Administrative/transitional utility | Highest governance risk. Restrict to System Manager; preferably remove from normal production use. |
 | `inductone_tools.instance.acceptance.accept_completion_create_as_built` | Shim/compatibility action | Verify whether this delegates to canonical acceptance method. Avoid duplicate paths. |
 | `inductone_tools.instance.hooks.get_instance_for_as_built` | Read helper | Used by As-Built client script to show linked Instance. |
 | `inductone_tools.part_numbering.allocate_numbers` | State-changing action | Allocates part numbers. Needs role gate and idempotency/rollback tests. |
-| `inductone_tools.serial_allocation.release.allocate_serial_for_build` | Critical state-changing action | Consumes serial from tranche. Must be role-gated and concurrency-tested. |
+| `inductone_tools.serial_allocation.release.allocate_serial_for_build` | Critical state-changing action | Consumes serial from tranche. Should be restricted to InductOne Manager / InductOne Process Architect and concurrency-tested. |
 | `inductone_tools.serial_allocation.release.preview_serial_for_build` | Read helper | Should not mutate. |
 | `inductone_tools.serial_allocation.tranche.preview_next_serial` | Read helper | Should not mutate. |
 | `inductone_tools.snapshot.hierarchy.populate_snapshot_hierarchy` | State-changing action | Populates snapshot hierarchy. Needs idempotency and permission review. |
