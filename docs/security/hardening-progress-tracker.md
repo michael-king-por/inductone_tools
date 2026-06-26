@@ -45,6 +45,9 @@ This is the durable progress log for the InductOne permission/workflow hardening
 | Wiki role-reference fixture staged | Complete | `C:\hub\frappe-sandbox\validation-evidence\wiki_legacy_term_scan.json`; `C:\hub\frappe-sandbox\validation-evidence\wiki_role_reference_updates.txt`; `C:\hub\frappe-sandbox\validation-evidence\wiki_fixture_validation_final.txt`; `inductone_tools/fixtures/wiki_page.json` |
 | Production user assignment plan | Complete | `docs/deployment/production-user-assignment-plan.md`; Super Role Profile decisions incorporated; signed by system owner |
 | Production deployment checklist | Complete | `docs/deployment/production-deployment-checklist.md`; primary post-deploy verifier at `scripts/run_production_post_deploy_validation.py` |
+| Production deployment | Complete | Deployed and signed off 2026-06-25; production automated validation passed 5/5; evidence `production_post_deploy_validation_20260625T203809Z.json` |
+| Post-deployment governance cleanup | Complete | Operations Member Profile users remapped to Operations Viewer; engineering approvers cleaned; `michael.king` trimmed (`Manufacturing User` removed); `david.brain`, `jim.haws`, and `ryan.hannon` stray Project Manager/Operations Member roles removed; full legacy-role sweep returns zero holders across enabled users |
+| Repo-housekeeping gap closure | Complete | `C:\hub\frappe-sandbox\validation-evidence\repo_housekeeping_gap_closure_20260626.txt`; patch legacy role list includes `Engineering - Signoff`; validator covers Motion and LAM builders; validator default evidence path is host-neutral |
 | Durable governance documentation | Complete | `role-governance-audit.md`, `role-effect-map.md`, `role-migration-validation-gameplan.md` |
 
 ## Key automated validation results
@@ -71,6 +74,9 @@ This is the durable progress log for the InductOne permission/workflow hardening
 | Wiki fixture has no legacy role terms | Pass | `wiki_fixture_validation_final.txt`; 3/3 exported pages pass, including em-dash `Engineering — Signoff` check |
 
 | Production deployment artifacts parse/compile locally | Pass | `python -m compileall inductone_tools scripts`; fixture JSON parse check; `scripts/run_production_post_deploy_validation.py` py_compile |
+| Production deployment automated validation | Pass | `production_post_deploy_validation_20260625T203809Z.json`; 5/5 checks passed at production sign-off on 2026-06-25 |
+| Post-deployment legacy role sweep | Pass | Zero holders across all enabled production users after governance cleanup |
+| Repo-housekeeping before/after grep validation | Pass | `repo_housekeeping_gap_closure_20260626.txt`; before gaps confirmed open, after greps confirm all three closed |
 
 ## Open gates before production
 
@@ -83,13 +89,15 @@ This is the durable progress log for the InductOne permission/workflow hardening
 | Wiki/landing page update | Complete | Candidate wiki role references updated and exported as filtered `Wiki Page` fixture |
 | Production user assignment plan | Complete | `docs/deployment/production-user-assignment-plan.md`; Super Role Profile decisions incorporated; signed by system owner |
 | Production deployment plan | Complete | `docs/deployment/production-deployment-checklist.md`; includes backup, deploy, migrate, role cleanup, primary automated verification, rollback, and sign-off |
+| Production deployment execution | Complete | Deployed and signed off 2026-06-25; 5/5 automated production validation passed |
+| Repo-housekeeping commit | Complete | Local-only commit brings repository in line with deployed production reality and extends future validation to both external builders |
 | Procurement field policy | Partially resolved | Current decision: use `Item Price` for pricing; do not give Item permlevel-1 write |
 | Accounting mutation policy | Resolved for now | Operations Manager/Finance Viewer do not mutate accounting docs |
 
 ## Next recommended sequence
 
-1. System owner executes `docs/deployment/production-deployment-checklist.md`.
-2. Phase 5 primary verification is `scripts/run_production_post_deploy_validation.py`; manual browser checks are secondary confirmation.
+1. Review and push the local repo-housekeeping commit when ready.
+2. Future candidate restores should self-clean legacy `Engineering - Signoff` holders and validate both Motion and LAM external builders.
 3. If any later change touches permissions, wiki fixtures, or workflow gates, rerun:
    - fixture/static validation,
    - candidate migrate,

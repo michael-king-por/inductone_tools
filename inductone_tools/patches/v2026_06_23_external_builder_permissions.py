@@ -56,6 +56,7 @@ LEGACY_INDUCTONE_ROLES = {
     "InductOne Architect",
     "Engineering Signoff Delegate",
     "Part Number Manager",
+    "Engineering - Signoff",
     "OPS-INDUCTONE-GATEKEEP",
     "PRODUCT-INDUCTONE-GATEKEEP",
 }

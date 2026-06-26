@@ -14,7 +14,7 @@ export EXPECTED_COMMIT="406d80a437ab934f9adfdb2a11e599c00cce3ca3"
 export EVIDENCE_DIR="$PROD_BENCH/sites/$PROD_SITE/private/deployment-evidence"
 ```
 
-If the production host cannot write to `/mnt/c/hub/frappe-sandbox/validation-evidence`, set `EVIDENCE_DIR` to a writable deployment-evidence folder on the production host, then copy the generated JSON evidence file back to `C:\hub\frappe-sandbox\validation-evidence` after verification.
+`EVIDENCE_DIR` is the authoritative evidence path for the post-deployment validation script. Keep it on the production host during deployment, then copy the generated JSON evidence file into the durable validation evidence archive after verification if needed.
 
 ## Phase 0 — Pre-deployment gates
 
@@ -284,7 +284,27 @@ The migration patch does not handle these production user assignment decisions. 
 
 Use the automated script as the primary verification method. Manual browser checks are secondary confirmation and should not override a failed automated check.
 
-1. [ ] Run primary automated validation.
+1. [ ] Prepare log directories for standalone Frappe initialization.
+
+   Run on the production host:
+
+   ```bash
+   mkdir -p "$PROD_BENCH/sites/$PROD_SITE/logs"
+   mkdir -p /home/frappe/logs
+   ```
+
+   Note: this prevents `FileNotFoundError` from `frappe.init()` when the validation script runs outside a normal worker/web context.
+
+   Expected output:
+
+   - No output, command exits 0.
+
+   Go/no-go:
+
+   - GO if both directories exist or are created successfully.
+   - NO-GO if either command fails.
+
+2. [ ] Run primary automated validation.
 
    Run on the production host:
 
@@ -301,10 +321,12 @@ Use the automated script as the primary verification method. Manual browser chec
    ```text
    PASS legacy_role_absence: No enabled users hold retired legacy roles.
    PASS super_profile_absence: No enabled users hold Super Role Profile.
-   PASS external_builder_item_denial: motion.builder@plusonerobotics.com cannot read/list Item.
-   PASS external_builder_bom_denial: motion.builder@plusonerobotics.com cannot read/list BOM.
+   PASS external_builder_item_denial_motion: motion.builder@plusonerobotics.com cannot read/list Item.
+   PASS external_builder_bom_denial_motion: motion.builder@plusonerobotics.com cannot read/list BOM.
+   PASS external_builder_item_denial_lam: lam@plusonerobotics.com cannot read/list Item.
+   PASS external_builder_bom_denial_lam: lam@plusonerobotics.com cannot read/list BOM.
    PASS fixture_export_control_viewer_finance_denial: Operations Viewer and Finance Viewer have no read grant on Fixture Export Control.
-   SUMMARY 5/5 passed; evidence=<path>/production_post_deploy_validation_<timestamp>.json
+   SUMMARY 7/7 passed; evidence=<path>/production_post_deploy_validation_<timestamp>.json
    ```
 
    Go/no-go:
@@ -312,7 +334,7 @@ Use the automated script as the primary verification method. Manual browser chec
    - GO if all checks print `PASS` and the script exits 0.
    - NO-GO if any check prints `FAIL` or the script exits non-zero. Execute Phase 6 rollback.
 
-2. [ ] Record the generated JSON evidence file path.
+3. [ ] Record the generated JSON evidence file path.
 
    Evidence file:
 
@@ -320,7 +342,7 @@ Use the automated script as the primary verification method. Manual browser chec
    ________________________________________________
    ```
 
-3. [ ] Secondary manual spot checks.
+4. [ ] Secondary manual spot checks.
 
    These checks are browser confirmation only. The automated script above is the authority for the role/permission assertions it covers.
 
@@ -386,17 +408,17 @@ After all Phase 5 checks pass, record:
 
 | Field | Value |
 |---|---|
-| Deployment timestamp | 6/25/26 - 3:37 |
-| Commit SHA deployed |  |
+| Deployment timestamp | 2026-06-25 20:38 UTC |
+| Commit SHA deployed | 406d80a437ab934f9adfdb2a11e599c00cce3ca3 |
 | Person who performed deployment | Michael King |
-| Phase 1 backup path |  |
+| Phase 1 backup path | /home/frappe/frappe-bench/sites/plusonerobotics.v.frappe.cloud/private/backups/ (taken 2026-06-25 prior to migrate) |
 | Phase 5 automated evidence JSON | /home/frappe/frappe-bench/sites/plusonerobotics.v.frappe.cloud/private/deployment-evidence/production_post_deploy_validation_20260625T203809Z.json |
-| Deviations from this checklist and why | migration done via Frappe cloud dashboard, not bench git pull |
+| Deviations from this checklist and why | Migration triggered via Frappe Cloud dashboard deploy (not manual git pull + bench migrate); Phase 2/3 console steps were not applicable. Role cleanup applied via bench console direct-DB commands due to IPython list comprehension scoping bug with `user.set()`. |
 
 Final sign-off:
 
 ```text
-Deployment completed by: ___________________________
-Date/time: _________________________________________
-System owner approval: _____________________________
+Deployment completed by: Michael King
+Date/time: 2026-06-25 20:38 UTC
+System owner approval: Michael King (system owner)
 ```

@@ -16,7 +16,9 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_EVIDENCE_DIR = "/mnt/c/hub/frappe-sandbox/validation-evidence"
+# Host-neutral fallback. The deployment checklist's $EVIDENCE_DIR / --evidence-dir
+# value is authoritative for production runs.
+DEFAULT_EVIDENCE_DIR = "deployment-evidence"
 
 LEGACY_ROLES = [
     "Builder",
@@ -29,7 +31,10 @@ LEGACY_ROLES = [
     "PRODUCT-INDUCTONE-GATEKEEP",
 ]
 
-EXTERNAL_BUILDER_USER = "motion.builder@plusonerobotics.com"
+EXTERNAL_BUILDER_USERS = [
+    ("motion", "motion.builder@plusonerobotics.com"),
+    ("lam", "lam@plusonerobotics.com"),
+]
 
 frappe = None
 has_permission = None
@@ -169,24 +174,25 @@ def run(site: str, sites_path: str, evidence_dir: str) -> int:
         users=super_profile_users,
     )
 
-    for doctype in ["Item", "BOM"]:
-        permission_result = bool(has_permission(doctype, ptype="read", user=EXTERNAL_BUILDER_USER))
-        list_result = _list_check_as_user(doctype, EXTERNAL_BUILDER_USER)
-        passed = (not permission_result) and list_result["row_count"] == 0
-        _record(
-            results,
-            f"external_builder_{doctype.lower()}_denial",
-            passed,
-            (
-                f"{EXTERNAL_BUILDER_USER} cannot read/list {doctype}."
-                if passed
-                else f"{EXTERNAL_BUILDER_USER} can still read or list {doctype}."
-            ),
-            user=EXTERNAL_BUILDER_USER,
-            doctype=doctype,
-            has_permission_read=permission_result,
-            list_result=list_result,
-        )
+    for user_key, user in EXTERNAL_BUILDER_USERS:
+        for doctype in ["Item", "BOM"]:
+            permission_result = bool(has_permission(doctype, ptype="read", user=user))
+            list_result = _list_check_as_user(doctype, user)
+            passed = (not permission_result) and list_result["row_count"] == 0
+            _record(
+                results,
+                f"external_builder_{doctype.lower()}_denial_{user_key}",
+                passed,
+                (
+                    f"{user} cannot read/list {doctype}."
+                    if passed
+                    else f"{user} can still read or list {doctype}."
+                ),
+                user=user,
+                doctype=doctype,
+                has_permission_read=permission_result,
+                list_result=list_result,
+            )
 
     fixture_export_roles = ["Operations Viewer", "Finance Viewer"]
     grants = _role_read_grants_for_doctype("Fixture Export Control", fixture_export_roles)
@@ -234,7 +240,7 @@ def main() -> int:
     parser.add_argument(
         "--evidence-dir",
         default=os.environ.get("VALIDATION_EVIDENCE_DIR", DEFAULT_EVIDENCE_DIR),
-        help="Directory for JSON evidence output. Defaults to VALIDATION_EVIDENCE_DIR or the local validation evidence folder.",
+        help="Directory for JSON evidence output. In production, pass the checklist's $EVIDENCE_DIR explicitly. Defaults to VALIDATION_EVIDENCE_DIR or ./deployment-evidence.",
     )
     args = parser.parse_args()
 
