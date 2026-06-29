@@ -38,6 +38,14 @@ EXTERNAL_BUILDER_USERS = [
 
 FINANCE_REPORT_ROLE = "Finance Viewer"
 FINANCE_REPORT_USER = "matt.speer@plusonerobotics.com"
+FINANCE_REPORT_DEPENDENCY_DOCTYPES = [
+    "Batch",
+    "Company",
+    "Currency",
+    "Fiscal Year",
+    "Serial and Batch Bundle",
+    "Territory",
+]
 FINANCE_BUSINESS_REPORTS = [
     "Available Batch Report",
     "Available Serial No",
@@ -70,6 +78,43 @@ FINANCE_BUSINESS_REPORTS = [
     "Warehouse Wise Stock Balance",
     "Warehouse wise Item Balance Age and Value",
 ]
+FINANCE_EXECUTION_REPORTS = [
+    "Stock Balance",
+    "Stock Ledger",
+]
+
+TRANSACTION_ROLE_DEPENDENCIES = {
+    "Operations Manager": {
+        "Serial and Batch Bundle": {"read": 1, "write": 1, "create": 1, "submit": 1, "cancel": 1, "amend": 1, "delete": 0},
+        "Batch": {"read": 1, "write": 1, "create": 1},
+        "Serial No": {"read": 1, "write": 1, "create": 1},
+        "Company": {"read": 1},
+        "Currency": {"read": 1},
+        "Fiscal Year": {"read": 1},
+        "Stock Entry Type": {"read": 1},
+        "Territory": {"read": 1},
+    },
+    "Inventory Operator": {
+        "Serial and Batch Bundle": {"read": 1, "write": 1, "create": 1, "submit": 1, "cancel": 1, "amend": 1, "delete": 0},
+        "Batch": {"read": 1, "write": 1, "create": 1},
+        "Serial No": {"read": 1, "write": 1, "create": 1},
+        "Company": {"read": 1},
+        "Currency": {"read": 1},
+        "Fiscal Year": {"read": 1},
+        "Stock Entry Type": {"read": 1},
+        "Territory": {"read": 1},
+    },
+    "Gripper Manufacturer": {
+        "Serial and Batch Bundle": {"read": 1, "write": 1, "create": 1, "submit": 1, "cancel": 1, "amend": 1, "delete": 0},
+        "Batch": {"read": 1, "write": 1, "create": 1},
+        "Serial No": {"read": 1, "write": 1, "create": 1},
+        "Company": {"read": 1},
+        "Currency": {"read": 1},
+        "Fiscal Year": {"read": 1},
+        "Stock Entry Type": {"read": 1},
+        "Territory": {"read": 1},
+    },
+}
 
 frappe = None
 has_permission = None
@@ -177,6 +222,47 @@ def _role_read_grants_for_doctype(doctype: str, roles: list[str]) -> list[dict[s
     return rows
 
 
+def _role_permission_rows_for_doctype(doctype: str, role: str) -> list[dict[str, Any]]:
+    if not frappe.db.exists("DocType", doctype):
+        return [{"doctype": doctype, "role": role, "error": "DocType does not exist"}]
+
+    fields = [
+        "permlevel",
+        "read",
+        "write",
+        "create",
+        "submit",
+        "cancel",
+        "delete",
+        "amend",
+        "report",
+        "export",
+        "print",
+        "select",
+    ]
+    rows: list[dict[str, Any]] = []
+    for table in ["DocPerm", "Custom DocPerm"]:
+        for row in frappe.get_all(
+            table,
+            filters={"parent": doctype, "role": role, "permlevel": 0},
+            fields=fields,
+            order_by="name asc",
+        ):
+            row = dict(row)
+            row["source"] = table
+            rows.append(row)
+    return rows
+
+
+def _permission_rows_satisfy(rows: list[dict[str, Any]], expected_bits: dict[str, int]) -> bool:
+    for row in rows:
+        if row.get("error"):
+            continue
+        if all(int(row.get(field) or 0) == int(value) for field, value in expected_bits.items()):
+            return True
+    return False
+
+
 def _report_roles(report_name: str) -> list[str]:
     if not frappe.db.exists("Report", report_name):
         return []
@@ -206,6 +292,70 @@ def _report_access_as_user(report_name: str, user: str) -> dict[str, Any]:
         return {
             "user_exists": True,
             "permitted": False,
+            "exception": exc.__class__.__name__,
+            "message": str(exc),
+        }
+    finally:
+        frappe.set_user(previous_user)
+
+
+def _read_access_as_user(doctype: str, user: str) -> dict[str, Any]:
+    try:
+        return {
+            "doctype_exists": bool(frappe.db.exists("DocType", doctype)),
+            "has_read": bool(has_permission(doctype, ptype="read", user=user)),
+            "exception": None,
+        }
+    except BaseException as exc:  # noqa: BLE001 - evidence should capture exact exception
+        return {
+            "doctype_exists": bool(frappe.db.exists("DocType", doctype)),
+            "has_read": False,
+            "exception": exc.__class__.__name__,
+            "message": str(exc),
+        }
+
+
+def _finance_execution_filters() -> dict[str, Any]:
+    company = frappe.db.get_single_value("Global Defaults", "default_company")
+    if not company:
+        company = frappe.get_all("Company", pluck="name", limit=1)[0]
+
+    fiscal_year = frappe.get_all(
+        "Fiscal Year",
+        fields=["name", "year_start_date", "year_end_date"],
+        order_by="year_start_date desc",
+        limit=1,
+    )[0]
+
+    return {
+        "company": company,
+        "from_date": str(fiscal_year.year_start_date),
+        "to_date": str(fiscal_year.year_end_date),
+    }
+
+
+def _execute_report_as_user(report_name: str, user: str) -> dict[str, Any]:
+    from frappe.desk.query_report import run as run_report
+
+    previous_user = frappe.session.user
+    try:
+        filters = _finance_execution_filters()
+        frappe.set_user(user)
+        result = run_report(
+            report_name,
+            filters=frappe._dict(filters),
+            ignore_prepared_report=True,
+            are_default_filters=False,
+        )
+        return {
+            "executed": True,
+            "exception": None,
+            "filters": filters,
+            "row_count": len(result.get("result") or []) if isinstance(result, dict) else None,
+        }
+    except BaseException as exc:  # noqa: BLE001 - evidence should capture exact exception
+        return {
+            "executed": False,
             "exception": exc.__class__.__name__,
             "message": str(exc),
         }
@@ -282,6 +432,25 @@ def run(site: str, sites_path: str, evidence_dir: str, finance_report_user: str)
         grants=grants,
     )
 
+    dependency_results = []
+    for doctype in FINANCE_REPORT_DEPENDENCY_DOCTYPES:
+        access_result = _read_access_as_user(doctype, finance_report_user)
+        dependency_results.append({"doctype": doctype, **access_result})
+
+    missing_dependencies = [row for row in dependency_results if not row["doctype_exists"] or not row["has_read"]]
+    _record(
+        results,
+        "finance_viewer_report_dependency_read_access",
+        not missing_dependencies,
+        (
+            f"{FINANCE_REPORT_ROLE} can read all finance report dependency DocTypes as {finance_report_user}."
+            if not missing_dependencies
+            else f"{FINANCE_REPORT_ROLE} is missing read access to one or more finance report dependency DocTypes."
+        ),
+        dependencies=dependency_results,
+        missing=missing_dependencies,
+    )
+
     finance_report_results = []
     for report_name in FINANCE_BUSINESS_REPORTS:
         roles = _report_roles(report_name)
@@ -311,6 +480,55 @@ def run(site: str, sites_path: str, evidence_dir: str, finance_report_user: str)
         ),
         reports=finance_report_results,
         missing=missing_finance_reports,
+    )
+
+    execution_results = []
+    for report_name in FINANCE_EXECUTION_REPORTS:
+        execution_result = _execute_report_as_user(report_name, finance_report_user)
+        execution_results.append({"report": report_name, **execution_result})
+
+    failed_executions = [row for row in execution_results if not row["executed"]]
+    _record(
+        results,
+        "finance_viewer_critical_stock_report_execution",
+        not failed_executions,
+        (
+            f"{FINANCE_REPORT_ROLE} can execute Stock Balance and Stock Ledger as {finance_report_user}."
+            if not failed_executions
+            else f"{FINANCE_REPORT_ROLE} cannot execute one or more critical stock reports."
+        ),
+        executions=execution_results,
+        failed=failed_executions,
+    )
+
+    transaction_dependency_results = []
+    for role, doctype_expectations in TRANSACTION_ROLE_DEPENDENCIES.items():
+        for doctype, expected_bits in doctype_expectations.items():
+            rows = _role_permission_rows_for_doctype(doctype, role)
+            transaction_dependency_results.append(
+                {
+                    "role": role,
+                    "doctype": doctype,
+                    "expected_bits": expected_bits,
+                    "rows": rows,
+                    "passed": _permission_rows_satisfy(rows, expected_bits),
+                }
+            )
+
+    missing_transaction_dependencies = [
+        row for row in transaction_dependency_results if not row["passed"]
+    ]
+    _record(
+        results,
+        "transaction_role_stock_dependency_permissions",
+        not missing_transaction_dependencies,
+        (
+            "Transaction roles have required stock dependency DocPerm bits."
+            if not missing_transaction_dependencies
+            else "One or more transaction roles are missing required stock dependency DocPerm bits."
+        ),
+        dependencies=transaction_dependency_results,
+        missing=missing_transaction_dependencies,
     )
 
     passed_count = sum(1 for row in results if row["passed"])

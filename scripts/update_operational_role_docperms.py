@@ -130,6 +130,8 @@ BUSINESS_READ_DOCS = [
     "Delivery Note",
     "Stock Entry",
     "Stock Ledger Entry",
+    "Serial and Batch Bundle",
+    "Batch",
     "Warehouse",
     "Bin",
     "Serial No",
@@ -139,6 +141,10 @@ BUSINESS_READ_DOCS = [
     "Purchase Invoice",
     "Sales Invoice",
     "Payment Entry",
+    "Company",
+    "Currency",
+    "Territory",
+    "Fiscal Year",
     "Supplier",
     "Customer",
     "Address",
@@ -232,6 +238,24 @@ GRIPPER_READ_DOCS = [
     "Stock Ledger Entry",
 ]
 
+TRANSACTION_ROLE_DEPENDENCIES = {
+    "Operations Manager": {
+        "transaction": ["Serial and Batch Bundle"],
+        "maintain": ["Batch", "Serial No"],
+        "read": ["Company", "Currency", "Fiscal Year", "Territory"],
+    },
+    "Inventory Operator": {
+        "transaction": ["Serial and Batch Bundle"],
+        "maintain": ["Batch", "Serial No"],
+        "read": ["Company", "Currency", "Fiscal Year", "Territory"],
+    },
+    "Gripper Manufacturer": {
+        "transaction": ["Serial and Batch Bundle"],
+        "maintain": ["Batch", "Serial No"],
+        "read": ["Company", "Currency", "Fiscal Year", "Territory"],
+    },
+}
+
 
 # Procurement maintains purchasing/commercial metadata. It can write Item level
 # 0 and pricing/vendor records, but only read Item permlevel 1 so it cannot
@@ -257,6 +281,124 @@ PROCUREMENT_READ_DOCS = [
     "Stock Ledger Entry",
     "Warehouse",
     "Bin",
+]
+
+
+# Link-read dependencies surfaced by the static link dependency audit
+# (scripts/run_static_link_dependency_audit.py, 2026-06-29). Each role can write
+# a DocType that links to these targets but lacked read on the target itself,
+# which breaks link resolution / list lookups on the form.
+#
+# IMPORTANT: only DocTypes ALREADY managed by this fixture are listed here.
+# Adding the *first* Custom DocPerm row to an unmanaged DocType makes Frappe
+# ignore ALL of that DocType's standard DocPerms, stripping access from every
+# other role. The unmanaged live targets (Country, Stock Entry Type, User) are
+# intentionally NOT handled here; see
+# docs/security/downstream-loss-triage-2026-06-29.md for their gameplan.
+LINK_READ_DEPENDENCIES_MANAGED = {
+    # InductOne lifecycle roles read the standard records their own InductOne
+    # DocTypes link to (Build / Configuration Order / Snapshot / Export Package),
+    # so the role is self-sufficient instead of depending on being paired with
+    # Operations Manager.
+    "InductOne Manager": ["Item", "BOM", "Sales Order", "Supplier"],
+    "InductOne Process Architect": ["Item", "BOM", "Sales Order", "Supplier"],
+    # Procurement maintains Price List, whose currency link needs Currency read.
+    "Procurement User": ["Currency"],
+    # Inventory Operator's Delivery Note references a selling Price List.
+    "Inventory Operator": ["Price List"],
+}
+
+
+# Snapshot-managed standard DocTypes.
+#
+# Stock Entry Type was confirmed on 2026-06-29 to block Desk link selection
+# for Operations Manager / Gripper Manufacturer. It previously had no Custom
+# DocPerm rows, so adding a bare curated row would make Frappe ignore these
+# standard DocPerms. We therefore snapshot the complete standard role set first,
+# then add only the curated read rows needed by the hardened transaction roles.
+STOCK_ENTRY_TYPE_STANDARD_DOCPERMS = [
+    {
+        "role": "System Manager",
+        "permlevel": 0,
+        "read": 1,
+        "write": 1,
+        "create": 1,
+        "submit": 0,
+        "cancel": 0,
+        "amend": 0,
+        "delete": 1,
+        "report": 1,
+        "export": 1,
+        "import": 0,
+        "share": 1,
+        "print": 1,
+        "email": 1,
+        "select": 0,
+        "if_owner": 0,
+    },
+    {
+        "role": "Manufacturing Manager",
+        "permlevel": 0,
+        "read": 1,
+        "write": 1,
+        "create": 1,
+        "submit": 0,
+        "cancel": 0,
+        "amend": 0,
+        "delete": 1,
+        "report": 1,
+        "export": 1,
+        "import": 0,
+        "share": 1,
+        "print": 1,
+        "email": 1,
+        "select": 0,
+        "if_owner": 0,
+    },
+    {
+        "role": "Stock Manager",
+        "permlevel": 0,
+        "read": 1,
+        "write": 1,
+        "create": 1,
+        "submit": 0,
+        "cancel": 0,
+        "amend": 0,
+        "delete": 1,
+        "report": 1,
+        "export": 1,
+        "import": 0,
+        "share": 1,
+        "print": 1,
+        "email": 1,
+        "select": 0,
+        "if_owner": 0,
+    },
+    {
+        "role": "Stock User",
+        "permlevel": 0,
+        "read": 1,
+        "write": 0,
+        "create": 0,
+        "submit": 0,
+        "cancel": 0,
+        "amend": 0,
+        "delete": 0,
+        "report": 0,
+        "export": 0,
+        "import": 0,
+        "share": 0,
+        "print": 0,
+        "email": 0,
+        "select": 0,
+        "if_owner": 0,
+    },
+]
+
+STOCK_ENTRY_TYPE_CURATED_READ_ROLES = [
+    "Operations Manager",
+    "Inventory Operator",
+    "Gripper Manufacturer",
 ]
 
 
@@ -305,12 +447,41 @@ def main() -> None:
     for doctype in GRIPPER_READ_DOCS:
         add_perm(rows, doctype, "Gripper Manufacturer", **READ)
 
+    for role, dependency_map in TRANSACTION_ROLE_DEPENDENCIES.items():
+        for doctype in dependency_map["transaction"]:
+            add_perm(rows, doctype, role, **TRANSACTION)
+        for doctype in dependency_map["maintain"]:
+            add_perm(rows, doctype, role, **MAINTAIN)
+        for doctype in dependency_map["read"]:
+            add_perm(rows, doctype, role, **READ)
+
     for doctype in PROCUREMENT_WRITE_DOCS:
         add_perm(rows, doctype, "Procurement User", **LIMITED_WRITE)
     add_perm(rows, "Item Price", "Procurement User", create=1)
     for doctype in PROCUREMENT_READ_DOCS:
         add_perm(rows, doctype, "Procurement User", **READ)
     add_perm(rows, "Item", "Procurement User", permlevel=1, **READ)
+
+    # Managed link-read dependencies. Guard: refuse to add a row to any DocType
+    # that this fixture does not already manage, because that would replace its
+    # standard DocPerm set (see LINK_READ_DEPENDENCIES_MANAGED docstring).
+    managed_parents = {parent for (parent, _role, _lvl) in rows}
+    for role, doctypes in LINK_READ_DEPENDENCIES_MANAGED.items():
+        for doctype in doctypes:
+            if doctype not in managed_parents:
+                raise SystemExit(
+                    f"refusing to add link-read for unmanaged DocType {doctype!r}: "
+                    "adding the first Custom DocPerm would replace its standard perms"
+                )
+            add_perm(rows, doctype, role, **READ)
+
+    for standard_row in STOCK_ENTRY_TYPE_STANDARD_DOCPERMS:
+        role = standard_row["role"]
+        permlevel = standard_row["permlevel"]
+        bits = {field: standard_row.get(field, 0) for field in PERM_FIELDS}
+        add_perm(rows, "Stock Entry Type", role, permlevel=permlevel, **bits)
+    for role in STOCK_ENTRY_TYPE_CURATED_READ_ROLES:
+        add_perm(rows, "Stock Entry Type", role, **READ)
 
     # Fixture Export Control is deliberately restricted to System Manager and
     # InductOne Process Architect. Remove any stale broad-role rows that may

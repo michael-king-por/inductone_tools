@@ -132,6 +132,14 @@ fixtures = [
         ]
     },
     {
+        "dt": "Workspace",
+        "filters": [
+            ["name", "in", [
+                "Operations"
+            ]]
+        ]
+    },
+    {
         "dt": "Custom DocPerm",
         "filters": [
             ["parent", "in", [

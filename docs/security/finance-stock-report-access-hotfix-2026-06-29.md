@@ -56,6 +56,19 @@ ledger review, sales/purchase registers, and accounting ledgers. It deliberately
 does not grant admin diagnostics, manufacturing planning, or operational action
 reports.
 
+The patch also grants read-only access to downstream report dependency DocTypes
+that are required for those reports to execute:
+
+- `Batch`
+- `Company`
+- `Currency`
+- `Fiscal Year`
+- `Serial and Batch Bundle`
+- `Territory`
+
+These are read/report/export/print/select grants only. They do not add create,
+write, submit, cancel, delete, or amend authority.
+
 This fixes the missing report gate without granting Matt stock or accounting
 write authority.
 
@@ -71,6 +84,7 @@ Evidence:
 
 ```text
 C:\hub\frappe-sandbox\validation-evidence\finance_business_report_access_hotfix_20260629.json
+C:\hub\frappe-sandbox\validation-evidence\finance_stock_report_execution_hotfix_20260629.json
 ```
 
 Result:
@@ -78,6 +92,9 @@ Result:
 - Curated Finance Viewer business/audit report set: `Finance Viewer` present on
   Report role table; candidate Finance Viewer persona permitted.
 - Focused hotfix evidence summary: 30/30 curated reports passed.
+- Critical execution evidence summary: 8/8 passed, including read access to
+  `Serial and Batch Bundle` and successful execution of `Stock Balance` and
+  `Stock Ledger` as the candidate Finance Viewer persona.
 
 The full production post-deploy validator was also extended to include these two
 report access checks. Running that full validator against candidate produced an
@@ -94,4 +111,5 @@ path. The production post-deploy validator should then be run with:
 --finance-report-user "matt.speer@plusonerobotics.com"
 ```
 
-Expected post-hotfix production validator result is 8/8 passed.
+Expected post-hotfix production validator result is 11/11 passed after the
+subsequent transaction-role stock dependency validator extension is included.

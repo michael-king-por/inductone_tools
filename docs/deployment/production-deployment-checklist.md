@@ -216,6 +216,11 @@ All items in this phase must be true before touching production.
 
    - Migration completes without traceback.
    - `Executing inductone_tools.patches.v2026_06_23_external_builder_permissions` appears during patch execution if the patch has not previously run.
+   - `Executing inductone_tools.patches.v2026_06_29_finance_stock_report_access` appears during patch execution if the finance/report hotfix patch has not previously run.
+   - `Executing inductone_tools.patches.v2026_06_29_transaction_role_stock_dependencies` appears during patch execution if the transaction-role dependency hotfix patch has not previously run.
+   - `Executing inductone_tools.patches.v2026_06_29_operations_workspace_visibility` appears during patch execution if the Operations workspace visibility patch has not previously run.
+   - `Executing inductone_tools.patches.v2026_06_29_link_dependency_read_grants` appears during patch execution if the managed link-read dependency patch has not previously run.
+   - `Executing inductone_tools.patches.v2026_06_29_snapshot_stock_entry_type_permissions` appears during patch execution if the Stock Entry Type snapshot-management patch has not previously run.
    - If the patch already appears in Patch Log, migrate should still complete cleanly.
 
 2. [ ] Confirm the patch is in Patch Log.
@@ -225,12 +230,22 @@ All items in this phase must be true before touching production.
    ```bash
    cd "$PROD_BENCH"
    bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_06_23_external_builder_permissions%';"
+   bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_06_29_finance_stock_report_access%';"
+   bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_06_29_transaction_role_stock_dependencies%';"
+   bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_06_29_operations_workspace_visibility%';"
+   bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_06_29_link_dependency_read_grants%';"
+   bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_06_29_snapshot_stock_entry_type_permissions%';"
    ```
 
    Expected output:
 
    ```text
    inductone_tools.patches.v2026_06_23_external_builder_permissions
+   inductone_tools.patches.v2026_06_29_finance_stock_report_access
+   inductone_tools.patches.v2026_06_29_transaction_role_stock_dependencies
+   inductone_tools.patches.v2026_06_29_operations_workspace_visibility
+   inductone_tools.patches.v2026_06_29_link_dependency_read_grants
+   inductone_tools.patches.v2026_06_29_snapshot_stock_entry_type_permissions
    ```
 
    Go/no-go:
@@ -327,8 +342,11 @@ Use the automated script as the primary verification method. Manual browser chec
    PASS external_builder_item_denial_lam: lam@plusonerobotics.com cannot read/list Item.
    PASS external_builder_bom_denial_lam: lam@plusonerobotics.com cannot read/list BOM.
    PASS fixture_export_control_viewer_finance_denial: Operations Viewer and Finance Viewer have no read grant on Fixture Export Control.
+   PASS finance_viewer_report_dependency_read_access: Finance Viewer can read all finance report dependency DocTypes as matt.speer@plusonerobotics.com.
    PASS finance_viewer_business_report_access: Finance Viewer can access all curated business/audit reports as matt.speer@plusonerobotics.com.
-   SUMMARY 8/8 passed; evidence=<path>/production_post_deploy_validation_<timestamp>.json
+   PASS finance_viewer_critical_stock_report_execution: Finance Viewer can execute Stock Balance and Stock Ledger as matt.speer@plusonerobotics.com.
+   PASS transaction_role_stock_dependency_permissions: Transaction roles have required stock dependency DocPerm bits.
+   SUMMARY 11/11 passed; evidence=<path>/production_post_deploy_validation_<timestamp>.json
    ```
 
    Go/no-go:
