@@ -313,7 +313,8 @@ Use the automated script as the primary verification method. Manual browser chec
    "$PROD_BENCH/env/bin/python" "$PROD_BENCH/apps/inductone_tools/scripts/run_production_post_deploy_validation.py" \
      --site "$PROD_SITE" \
      --sites-path "$PROD_BENCH/sites" \
-     --evidence-dir "$EVIDENCE_DIR"
+     --evidence-dir "$EVIDENCE_DIR" \
+     --finance-report-user "matt.speer@plusonerobotics.com"
    ```
 
    Expected output:
@@ -326,7 +327,8 @@ Use the automated script as the primary verification method. Manual browser chec
    PASS external_builder_item_denial_lam: lam@plusonerobotics.com cannot read/list Item.
    PASS external_builder_bom_denial_lam: lam@plusonerobotics.com cannot read/list BOM.
    PASS fixture_export_control_viewer_finance_denial: Operations Viewer and Finance Viewer have no read grant on Fixture Export Control.
-   SUMMARY 7/7 passed; evidence=<path>/production_post_deploy_validation_<timestamp>.json
+   PASS finance_viewer_business_report_access: Finance Viewer can access all curated business/audit reports as matt.speer@plusonerobotics.com.
+   SUMMARY 8/8 passed; evidence=<path>/production_post_deploy_validation_<timestamp>.json
    ```
 
    Go/no-go:

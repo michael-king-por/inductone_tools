@@ -36,6 +36,41 @@ EXTERNAL_BUILDER_USERS = [
     ("lam", "lam@plusonerobotics.com"),
 ]
 
+FINANCE_REPORT_ROLE = "Finance Viewer"
+FINANCE_REPORT_USER = "matt.speer@plusonerobotics.com"
+FINANCE_BUSINESS_REPORTS = [
+    "Available Batch Report",
+    "Available Serial No",
+    "Balance Sheet",
+    "Batch Item Expiry Status",
+    "Batch-Wise Balance History",
+    "Billed Items To Be Received",
+    "Customer Ledger Summary",
+    "Delivered Items To Be Billed",
+    "General Ledger",
+    "General and Payment Ledger Comparison",
+    "Item Balance (Simple)",
+    "Item Prices",
+    "Item-wise Purchase History",
+    "Item-wise Purchase Register",
+    "Item-wise Sales History",
+    "Item-wise Sales Register",
+    "Payment Ledger",
+    "Received Items To Be Billed",
+    "Serial No Ledger",
+    "Stock Balance",
+    "Stock Ageing",
+    "Stock and Account Value Comparison",
+    "Stock Ledger",
+    "Supplier Ledger Summary",
+    "Trial Balance",
+    "Trial Balance (Simple)",
+    "Trial Balance for Party",
+    "Voucher-wise Balance",
+    "Warehouse Wise Stock Balance",
+    "Warehouse wise Item Balance Age and Value",
+]
+
 frappe = None
 has_permission = None
 
@@ -142,7 +177,43 @@ def _role_read_grants_for_doctype(doctype: str, roles: list[str]) -> list[dict[s
     return rows
 
 
-def run(site: str, sites_path: str, evidence_dir: str) -> int:
+def _report_roles(report_name: str) -> list[str]:
+    if not frappe.db.exists("Report", report_name):
+        return []
+
+    return frappe.get_all(
+        "Has Role",
+        filters={"parent": report_name, "parenttype": "Report", "parentfield": "roles"},
+        pluck="role",
+        order_by="idx asc",
+    )
+
+
+def _report_access_as_user(report_name: str, user: str) -> dict[str, Any]:
+    previous_user = frappe.session.user
+    try:
+        if not frappe.db.exists("User", user):
+            return {"user_exists": False, "permitted": False, "exception": None}
+
+        frappe.set_user(user)
+        report = frappe.get_doc("Report", report_name)
+        return {
+            "user_exists": True,
+            "permitted": bool(report.is_permitted()),
+            "exception": None,
+        }
+    except BaseException as exc:  # noqa: BLE001 - evidence should capture exact exception
+        return {
+            "user_exists": True,
+            "permitted": False,
+            "exception": exc.__class__.__name__,
+            "message": str(exc),
+        }
+    finally:
+        frappe.set_user(previous_user)
+
+
+def run(site: str, sites_path: str, evidence_dir: str, finance_report_user: str) -> int:
     global frappe, has_permission
     import frappe as frappe_module
     from frappe.permissions import has_permission as has_permission_function
@@ -211,11 +282,43 @@ def run(site: str, sites_path: str, evidence_dir: str) -> int:
         grants=grants,
     )
 
+    finance_report_results = []
+    for report_name in FINANCE_BUSINESS_REPORTS:
+        roles = _report_roles(report_name)
+        role_grant_present = FINANCE_REPORT_ROLE in roles
+        access_result = _report_access_as_user(report_name, finance_report_user)
+        passed = role_grant_present and access_result["permitted"]
+        finance_report_results.append(
+            {
+                "report": report_name,
+                "passed": passed,
+                "required_role": FINANCE_REPORT_ROLE,
+                "report_roles": roles,
+                "finance_report_user": finance_report_user,
+                "access_result": access_result,
+            }
+        )
+
+    missing_finance_reports = [row for row in finance_report_results if not row["passed"]]
+    _record(
+        results,
+        "finance_viewer_business_report_access",
+        not missing_finance_reports,
+        (
+            f"{FINANCE_REPORT_ROLE} can access all curated business/audit reports as {finance_report_user}."
+            if not missing_finance_reports
+            else f"{FINANCE_REPORT_ROLE} is missing access to one or more curated business/audit reports."
+        ),
+        reports=finance_report_results,
+        missing=missing_finance_reports,
+    )
+
     passed_count = sum(1 for row in results if row["passed"])
     failed_count = len(results) - passed_count
     payload = {
         "site": site,
         "sites_path": sites_path,
+        "finance_report_user": finance_report_user,
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "summary": {
             "total": len(results),
@@ -242,10 +345,15 @@ def main() -> int:
         default=os.environ.get("VALIDATION_EVIDENCE_DIR", DEFAULT_EVIDENCE_DIR),
         help="Directory for JSON evidence output. In production, pass the checklist's $EVIDENCE_DIR explicitly. Defaults to VALIDATION_EVIDENCE_DIR or ./deployment-evidence.",
     )
+    parser.add_argument(
+        "--finance-report-user",
+        default=os.environ.get("FINANCE_REPORT_USER", FINANCE_REPORT_USER),
+        help=f"Finance Viewer user used to verify curated business/audit report access. Defaults to {FINANCE_REPORT_USER}.",
+    )
     args = parser.parse_args()
 
     try:
-        return run(args.site, args.sites_path, args.evidence_dir)
+        return run(args.site, args.sites_path, args.evidence_dir, args.finance_report_user)
     finally:
         frappe.destroy()
 

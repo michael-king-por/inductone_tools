@@ -48,6 +48,7 @@ This is the durable progress log for the InductOne permission/workflow hardening
 | Production deployment | Complete | Deployed and signed off 2026-06-25; production automated validation passed 5/5; evidence `production_post_deploy_validation_20260625T203809Z.json` |
 | Post-deployment governance cleanup | Complete | Operations Member Profile users remapped to Operations Viewer; engineering approvers cleaned; `michael.king` trimmed (`Manufacturing User` removed); `david.brain`, `jim.haws`, and `ryan.hannon` stray Project Manager/Operations Member roles removed; full legacy-role sweep returns zero holders across enabled users |
 | Repo-housekeeping gap closure | Complete | `C:\hub\frappe-sandbox\validation-evidence\repo_housekeeping_gap_closure_20260626.txt`; patch legacy role list includes `Engineering - Signoff`; validator covers Motion and LAM builders; validator default evidence path is host-neutral |
+| Finance business report access hotfix | Complete in candidate | Root cause and fix documented in `docs/security/finance-stock-report-access-hotfix-2026-06-29.md`; migration patch `v2026_06_29_finance_stock_report_access` applied in candidate; evidence `C:\hub\frappe-sandbox\validation-evidence\finance_business_report_access_hotfix_20260629.json`; focused finance report validation passed 30/30; production validator extended with aggregate Finance Viewer report check |
 | Durable governance documentation | Complete | `role-governance-audit.md`, `role-effect-map.md`, `role-migration-validation-gameplan.md` |
 
 ## Key automated validation results
@@ -77,6 +78,7 @@ This is the durable progress log for the InductOne permission/workflow hardening
 | Production deployment automated validation | Pass | `production_post_deploy_validation_20260625T203809Z.json`; 5/5 checks passed at production sign-off on 2026-06-25 |
 | Post-deployment legacy role sweep | Pass | Zero holders across all enabled production users after governance cleanup |
 | Repo-housekeeping before/after grep validation | Pass | `repo_housekeeping_gap_closure_20260626.txt`; before gaps confirmed open, after greps confirm all three closed |
+| Finance Viewer access to business/audit reports | Pass in candidate | `finance_business_report_access_hotfix_20260629.json`; 30/30 curated Report records include `Finance Viewer`; candidate Finance Viewer persona permitted |
 
 ## Open gates before production
 
