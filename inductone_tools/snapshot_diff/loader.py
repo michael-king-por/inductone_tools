@@ -36,7 +36,7 @@ from .schema import (
 )
 from .engine import (
     diff_snapshots,
-    ADDED, REMOVED, QTY_CHANGED, REVISION_CHANGED, MOVED, UNCHANGED,
+    ADDED, REMOVED, QTY_CHANGED, REVISION_CHANGED, MOVED, USER_NOTES_CHANGED, UNCHANGED,
 )
 from .tree import (
     diff_snapshots_tree, flatten_tree, CHANGED,
@@ -117,6 +117,7 @@ def get_diff(snapshot_a, snapshot_b, include_unchanged=0):
             "qty_changed": result.qty_changed,
             "revision_changed": result.revision_changed,
             "moved": result.moved,
+            "user_notes_changed": result.user_notes_changed,
             "unchanged": result.unchanged,
             "total_changes": result.total_changes,
         },
@@ -136,6 +137,8 @@ def get_diff(snapshot_a, snapshot_b, include_unchanged=0):
                 "a_parent": ln.a_parent,
                 "b_parent": ln.b_parent,
                 "uom": ln.b_uom or ln.a_uom,
+                "a_user_notes": ln.a_user_notes,
+                "b_user_notes": ln.b_user_notes,
                 "note": ln.note,
             }
             for ln in result.lines
@@ -154,6 +157,7 @@ _FILL_REMOVED = "FEE2E2"      # red    -- gone in B
 _FILL_QTY = "FEF9C3"          # yellow -- quantity changed
 _FILL_REVISION = "E0F2FE"     # blue   -- revision changed
 _FILL_MOVED = "F3E8FF"        # purple -- relocated
+_FILL_USER_NOTES = "FCE7F3"   # pink   -- user notes changed
 _FILL_UNCHANGED = "F9FAFB"    # grey   -- unchanged (only if included)
 _FILL_HEADER = "1794CE"       # brand blue header
 
@@ -165,6 +169,7 @@ def _category_fill(primary_category):
         QTY_CHANGED: _FILL_QTY,
         REVISION_CHANGED: _FILL_REVISION,
         MOVED: _FILL_MOVED,
+        USER_NOTES_CHANGED: _FILL_USER_NOTES,
         UNCHANGED: _FILL_UNCHANGED,
     }.get(primary_category, "FFFFFF")
 
@@ -212,6 +217,7 @@ def download_diff_workbook(snapshot_a, snapshot_b, include_unchanged=0):
         ("Revision changed", result.revision_changed),
         ("Qty changed", result.qty_changed),
         ("Moved", result.moved),
+        ("User notes changed", result.user_notes_changed),
         ("Total changes", result.total_changes),
     ]
     for i, (label, value) in enumerate(meta, start=3):
@@ -228,6 +234,7 @@ def download_diff_workbook(snapshot_a, snapshot_b, include_unchanged=0):
         ("QTY CHANGED — different quantity", _FILL_QTY),
         ("MOVED — different assembly", _FILL_MOVED),
     ]
+    legend.append(("USER NOTES CHANGED - builder-facing note changed", _FILL_USER_NOTES))
     for i, (label, fill) in enumerate(legend):
         c = ws.cell(row=legend_row + i, column=legend_col, value=label)
         c.fill = PatternFill("solid", fgColor=fill)
@@ -468,6 +475,7 @@ def _report_flat(nodes_a, nodes_b, snapshot_a, snapshot_b, context_mode):
             {"label": _("Revision Changed"), "value": res.revision_changed, "indicator": "Blue"},
             {"label": _("Qty Changed"), "value": res.qty_changed, "indicator": "Orange"},
             {"label": _("Moved"), "value": res.moved, "indicator": "Purple"},
+            {"label": _("User Notes Changed"), "value": res.user_notes_changed, "indicator": "Pink"},
             {"label": _("Total Changes"), "value": res.total_changes, "indicator": "Orange"},
         ],
     }

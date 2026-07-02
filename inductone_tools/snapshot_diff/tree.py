@@ -44,7 +44,7 @@ from typing import List, Dict, Optional, Tuple
 from collections import OrderedDict
 
 from .schema import SnapshotNode, node_revision
-from .engine import ADDED, REMOVED, QTY_CHANGED, REVISION_CHANGED, MOVED, UNCHANGED
+from .engine import ADDED, REMOVED, QTY_CHANGED, REVISION_CHANGED, MOVED, USER_NOTES_CHANGED, UNCHANGED
 
 CHANGED = "CHANGED"  # composite status for a node that differs in place
 
@@ -66,6 +66,8 @@ class TreeDiffNode:
     b_revision: Optional[str] = None
     a_bom: Optional[str] = None
     b_bom: Optional[str] = None
+    a_user_notes: Optional[str] = None
+    b_user_notes: Optional[str] = None
     uom: str = ""
     note: str = ""
 
@@ -132,6 +134,8 @@ def _build_path_map(nodes: List[SnapshotNode]) -> "OrderedDict[Tuple[str,...], d
             entry["qty"] += n.qty
             entry["revisions"].add(node_revision(n))
             entry["boms"].add(n.bom_used or n.source_bom)
+            if (n.user_notes or "").strip():
+                entry["user_notes"].add((n.user_notes or "").strip())
         else:
             path_map[p] = {
                 "path": p,
@@ -143,6 +147,7 @@ def _build_path_map(nodes: List[SnapshotNode]) -> "OrderedDict[Tuple[str,...], d
                 "uom": n.uom,
                 "revisions": {node_revision(n)},
                 "boms": {n.bom_used or n.source_bom},
+                "user_notes": {(n.user_notes or "").strip()} if (n.user_notes or "").strip() else set(),
             }
     return path_map
 
@@ -155,6 +160,11 @@ def _rev_str(revs: set) -> str:
 def _bom_str(boms: set) -> str:
     clean = sorted(b for b in boms if b)
     return ", ".join(clean)
+
+
+def _notes_str(notes: set) -> str:
+    clean = sorted(n for n in notes if n)
+    return " | ".join(clean)
 
 
 def diff_snapshots_tree(
@@ -206,10 +216,12 @@ def diff_snapshots_tree(
             tdn.a_qty = a["qty"]
             tdn.a_revision = _rev_str(a["revisions"])
             tdn.a_bom = _bom_str(a["boms"])
+            tdn.a_user_notes = _notes_str(a["user_notes"])
         if b:
             tdn.b_qty = b["qty"]
             tdn.b_revision = _rev_str(b["revisions"])
             tdn.b_bom = _bom_str(b["boms"])
+            tdn.b_user_notes = _notes_str(b["user_notes"])
 
         if a and not b:
             tdn.status = REMOVED
@@ -227,6 +239,8 @@ def diff_snapshots_tree(
                 cats.append(REVISION_CHANGED)
             if abs(a["qty"] - b["qty"]) > 1e-9:
                 cats.append(QTY_CHANGED)
+            if _notes_str(a["user_notes"]) != _notes_str(b["user_notes"]):
+                cats.append(USER_NOTES_CHANGED)
             if cats:
                 tdn.status = CHANGED
                 tdn.categories = cats
@@ -235,6 +249,8 @@ def diff_snapshots_tree(
                     notes.append("Revision {0} → {1}".format(_rev_str(a["revisions"]) or "(none)", _rev_str(b["revisions"]) or "(none)"))
                 if QTY_CHANGED in cats:
                     notes.append("Qty {0} → {1}".format(_fmt(a["qty"]), _fmt(b["qty"])))
+                if USER_NOTES_CHANGED in cats:
+                    notes.append("User notes changed")
                 tdn.note = "; ".join(notes)
                 result.changed += 1
             else:

@@ -51,6 +51,7 @@ REMOVED = "REMOVED"
 QTY_CHANGED = "QTY_CHANGED"
 REVISION_CHANGED = "REVISION_CHANGED"
 MOVED = "MOVED"
+USER_NOTES_CHANGED = "USER_NOTES_CHANGED"
 UNCHANGED = "UNCHANGED"
 
 
@@ -68,6 +69,7 @@ class DiffLine:
     a_bom: Optional[str] = None
     a_parent: Optional[str] = None
     a_uom: Optional[str] = None
+    a_user_notes: Optional[str] = None
 
     # Side B (the newer / target snapshot)
     b_qty: Optional[float] = None
@@ -75,6 +77,7 @@ class DiffLine:
     b_bom: Optional[str] = None
     b_parent: Optional[str] = None
     b_uom: Optional[str] = None
+    b_user_notes: Optional[str] = None
 
     # Convenience for the human reading the diff
     note: str = ""
@@ -86,7 +89,7 @@ class DiffLine:
     @property
     def primary_category(self) -> str:
         """The most operationally significant category, for sorting/coloring."""
-        order = [REMOVED, ADDED, REVISION_CHANGED, QTY_CHANGED, MOVED, UNCHANGED]
+        order = [REMOVED, ADDED, REVISION_CHANGED, QTY_CHANGED, MOVED, USER_NOTES_CHANGED, UNCHANGED]
         for cat in order:
             if cat in self.categories:
                 return cat
@@ -106,11 +109,12 @@ class DiffResult:
     qty_changed: int = 0
     revision_changed: int = 0
     moved: int = 0
+    user_notes_changed: int = 0
     unchanged: int = 0
 
     @property
     def total_changes(self) -> int:
-        return self.added + self.removed + self.qty_changed + self.revision_changed + self.moved
+        return self.added + self.removed + self.qty_changed + self.revision_changed + self.moved + self.user_notes_changed
 
     def changed_lines(self) -> List[DiffLine]:
         return [ln for ln in self.lines if ln.is_change]
@@ -164,6 +168,12 @@ def _parents(nodes: List[SnapshotNode], parent_lookup: Dict[str, str]) -> set:
     return parents
 
 
+def _user_notes(nodes: List[SnapshotNode]) -> str:
+    """Distinct per-line user notes across occurrences, joined for display."""
+    notes = sorted({(n.user_notes or "").strip() for n in nodes if (n.user_notes or "").strip()})
+    return " | ".join(notes)
+
+
 def diff_snapshots(
     nodes_a: List[SnapshotNode],
     nodes_b: List[SnapshotNode],
@@ -212,12 +222,14 @@ def diff_snapshots(
             line.a_bom = _boms(a_nodes)
             line.a_uom = rep.uom
             line.a_parent = ", ".join(sorted(p for p in _parents(a_nodes, parent_lookup_a) if p)) or "(top)"
+            line.a_user_notes = _user_notes(a_nodes)
         if in_b:
             line.b_qty = _aggregate_qty(b_nodes)
             line.b_revision = _revisions(b_nodes)
             line.b_bom = _boms(b_nodes)
             line.b_uom = rep.uom
             line.b_parent = ", ".join(sorted(p for p in _parents(b_nodes, parent_lookup_b) if p)) or "(top)"
+            line.b_user_notes = _user_notes(b_nodes)
 
         # ---- categorize ----
         if in_a and not in_b:
@@ -256,6 +268,12 @@ def diff_snapshots(
                 result.moved += 1
                 changed = True
 
+            # Per-line user notes changed.
+            if (line.a_user_notes or "") != (line.b_user_notes or ""):
+                line.categories.append(USER_NOTES_CHANGED)
+                result.user_notes_changed += 1
+                changed = True
+
             if not changed:
                 line.categories.append(UNCHANGED)
                 result.unchanged += 1
@@ -274,13 +292,15 @@ def diff_snapshots(
                     )
                 if MOVED in line.categories:
                     notes.append("Moved to a different assembly")
+                if USER_NOTES_CHANGED in line.categories:
+                    notes.append("User notes changed")
                 line.note = "; ".join(notes)
 
         if line.is_change or include_unchanged:
             result.lines.append(line)
 
     # Sort: changes first by significance, then by item code
-    sig = {REMOVED: 0, ADDED: 1, REVISION_CHANGED: 2, QTY_CHANGED: 3, MOVED: 4, UNCHANGED: 5}
+    sig = {REMOVED: 0, ADDED: 1, REVISION_CHANGED: 2, QTY_CHANGED: 3, MOVED: 4, USER_NOTES_CHANGED: 5, UNCHANGED: 6}
     result.lines.sort(key=lambda ln: (sig.get(ln.primary_category, 9), ln.item_code))
 
     return result

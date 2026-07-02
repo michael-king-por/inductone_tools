@@ -184,7 +184,8 @@ fixtures = [
                 "InductOne Configuration Order",
                 "InductOne Configuration Order Delta Line",
                 "InductOne Configuration Order Selected Option",
-                "InductOne Configuration Order Document Index"
+                "InductOne Configuration Order Document Index",
+                "BOM Item"
             ]]
         ]
     },

@@ -71,7 +71,41 @@ All items in this phase must be true before touching production.
    - GO if the command exits 0.
    - NO-GO if any JSON parse error occurs.
 
-4. [ ] Confirm Python compiles without error.
+4. [ ] Confirm BOM Item Custom Field fixture parity against production.
+
+   This is a read-only production check. It prevents fixture sync from
+   unintentionally overwriting a live `BOM Item` Custom Field definition during
+   `bench migrate`.
+
+   Run on the production host from the production bench:
+
+   ```bash
+   cd "$PROD_BENCH"
+   "$PROD_BENCH/env/bin/python" "$PROD_BENCH/apps/inductone_tools/scripts/run_custom_field_fixture_parity_check.py" \
+     --site "$PROD_SITE" \
+     --sites-path "$PROD_BENCH/sites" \
+     --fixture-path "$PROD_BENCH/apps/inductone_tools/inductone_tools/fixtures/custom_field.json" \
+     --evidence-dir "$EVIDENCE_DIR"
+   ```
+
+   Expected output:
+
+   ```text
+   Custom Field fixture parity: BOM Item
+     WOULD_OVERWRITE: 0
+   ```
+
+   Go/no-go:
+
+   - GO if the command exits 0 and reports zero `WOULD_OVERWRITE` fields.
+   - NO-GO if any field is classified as `WOULD_OVERWRITE`. Stop before
+     deployment and either update the fixture to match production's live
+     definition or explicitly approve the fixture as an intentional definition
+     change.
+   - If any field is classified as `UNMANAGED_ON_SITE`, decide before deployment
+     whether to add it to the fixture too or leave it manual and document why.
+
+5. [ ] Confirm Python compiles without error.
 
    Run locally from the repo root:
 
@@ -89,7 +123,7 @@ All items in this phase must be true before touching production.
    - GO if compileall exits 0.
    - NO-GO if any Python syntax error occurs.
 
-5. [ ] Confirm a production backup has been taken within the last 24 hours and is verified restorable.
+6. [ ] Confirm a production backup has been taken within the last 24 hours and is verified restorable.
 
    Required evidence:
 
@@ -103,7 +137,7 @@ All items in this phase must be true before touching production.
    - GO if backup is recent and restorable.
    - NO-GO if backup freshness or restoreability is uncertain.
 
-6. [ ] Confirm production bench access.
+7. [ ] Confirm production bench access.
 
    Run on the production host:
 
@@ -123,7 +157,7 @@ All items in this phase must be true before touching production.
    - GO if bench access and site resolution work.
    - NO-GO if the user cannot access bench or the site.
 
-7. [ ] Confirm sandbox restore freshness and preparation.
+8. [ ] Confirm sandbox restore freshness and preparation.
 
    This is a standing validation step for every future permission/deployment
    cycle. The local environment currently has **no configured automated Frappe
@@ -172,7 +206,7 @@ All items in this phase must be true before touching production.
    - NO-GO if either site is stale, baseline has candidate-only patches applied,
      or candidate has not been migrated with the staged changes.
 
-8. [ ] Pass the pre-deploy permission gate on the candidate site.
+9. [ ] Pass the pre-deploy permission gate on the candidate site.
 
    This gate exists so the regression classes already fixed (lost report/link
    dependencies, orphaned internal workspaces, weakened high-risk denials) cannot
@@ -318,6 +352,7 @@ All items in this phase must be true before touching production.
    - `Executing inductone_tools.patches.v2026_06_29_operations_workspace_visibility` appears during patch execution if the Operations workspace visibility patch has not previously run.
    - `Executing inductone_tools.patches.v2026_06_29_link_dependency_read_grants` appears during patch execution if the managed link-read dependency patch has not previously run.
    - `Executing inductone_tools.patches.v2026_06_29_snapshot_stock_entry_type_permissions` appears during patch execution if the Stock Entry Type snapshot-management patch has not previously run.
+   - Fixtures import cleanly, including the BOM Item `User Notes` Custom Field and the app-owned `user_notes` DocFields on `Configured BOM Snapshot Hierarchy` and `BOM Export Package Item`.
    - If the patch already appears in Patch Log, migrate should still complete cleanly.
 
 2. [ ] Confirm the patch is in Patch Log.

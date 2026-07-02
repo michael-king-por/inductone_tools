@@ -18,7 +18,7 @@ def node(node_id, item_code, qty=1.0, bom_used="", parent_node_id=None,
         description="", qty=qty, uom="Nos", bom_used=bom_used, node_type="Leaf",
         is_leaf=True, effect_origin="BASELINE", source_option_code="",
         excluded=excluded, source_bom=bom_used, balloon_numbers="",
-        electrical_unit="", source_electrical_bom_rev="",
+        electrical_unit="", source_electrical_bom_rev="", user_notes="",
     )
 
 

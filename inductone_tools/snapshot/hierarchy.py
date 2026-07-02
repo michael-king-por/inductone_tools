@@ -475,6 +475,7 @@ def _assign_node_ids_and_parents(resolved_rows):
             "balloon_numbers": row.get("balloon_numbers") or "",
             "electrical_unit": row.get("electrical_unit") or "",
             "source_electrical_bom_rev": row.get("source_electrical_bom_rev") or "",
+            "user_notes": row.get("user_notes") or "",
         }
 
         out.append(hierarchy_node)
@@ -574,6 +575,7 @@ def _insert_hierarchy_rows(snapshot_name, hierarchy_rows):
             "balloon_numbers": row.get("balloon_numbers") or "",
             "electrical_unit": row.get("electrical_unit") or "",
             "source_electrical_bom_rev": row.get("source_electrical_bom_rev") or "",
+            "user_notes": row.get("user_notes") or "",
         })
         doc.insert(ignore_permissions=True)
 
@@ -589,6 +591,7 @@ COLUMNS = [
     ("Balloon #",            "balloon_numbers",            14),
     ("Electrical Unit",      "electrical_unit",            16),
     ("Source Rev",           "source_electrical_bom_rev",  14),
+    ("User Notes",           "user_notes",                 36),
     ("BOM",                  "bom_used",                   28),
     ("Qty",                  "qty",                         8),
     ("UOM",                  "uom",                         8),
@@ -662,6 +665,7 @@ def _render_hierarchy_workbook(snap):
             "balloon_numbers": getattr(h, "balloon_numbers", None) or "",
             "electrical_unit": getattr(h, "electrical_unit", None) or "",
             "source_electrical_bom_rev": getattr(h, "source_electrical_bom_rev", None) or "",
+            "user_notes": getattr(h, "user_notes", None) or "",
             "bom_used": h.bom_used or "",
             "qty": h.qty,
             "uom": h.uom or "",
@@ -779,6 +783,7 @@ def _build_root_row(snap):
         "balloon_numbers": "",
         "electrical_unit": "",
         "source_electrical_bom_rev": "",
+        "user_notes": "",
     }
 
 

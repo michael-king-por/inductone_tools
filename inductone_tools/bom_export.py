@@ -255,6 +255,7 @@ def explode_bom_tree(root_bom: str, explosion_mode: str, max_depth=None, include
                 "bom_used": child_bom,
                 "node_type": "Assembly" if child_bom else "Leaf",
                 "is_leaf": 0 if child_bom else 1,
+                "user_notes": getattr(bi, "custom_user_notes", None) or "",
             })
 
             if child_bom:
@@ -807,6 +808,7 @@ def explode_bom_tree_structured(root_bom: str, explosion_mode: str, max_depth=No
             "balloon_numbers": getattr(bi, "custom_balloon_numbers", None) or "",
             "electrical_unit": getattr(bi, "custom_electrical_unit", None) or "",
             "source_electrical_bom_rev": getattr(bi, "custom_source_electrical_bom_rev", None) or "",
+            "user_notes": getattr(bi, "custom_user_notes", None) or "",
             }
 
             if child_bom:
@@ -1369,6 +1371,7 @@ def update_results_and_missing_summary(package_name, package_doc, rows, attachme
                 "bom_used": r.get("bom_used"),
                 "bom_level": r.get("bom_level"),
                 "qty": r.get("qty"),
+                "user_notes": r.get("user_notes") or "",
                 "has_pdf": 1 if availability.get(".pdf") else 0,
                 "has_stl": 1 if availability.get(".stl") else 0,
                 "has_dxf": 1 if availability.get(".dxf") else 0,

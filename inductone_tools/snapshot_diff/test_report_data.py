@@ -31,7 +31,7 @@ def node(nid, ic, qty=1.0, bom="", pid=None, lvl=1, grp="Test", uom="Nos"):
         item_name=ic, item_group=grp, description="", qty=qty, uom=uom, bom_used=bom,
         node_type="Leaf", is_leaf=True, effect_origin="BASELINE", source_option_code="",
         excluded=False, source_bom=bom, balloon_numbers="", electrical_unit="",
-        source_electrical_bom_rev="")
+        source_electrical_bom_rev="", user_notes="")
 
 SNAPS = {
     "A": [node("a1","TOP",1,"BOM-TOP-003",None,0), node("a4","2000010",1,"BOM-TOP-003","a1",1),

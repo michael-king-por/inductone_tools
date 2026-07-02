@@ -53,6 +53,7 @@ CURRENT CONTRACT  --  Configured BOM Snapshot Hierarchy  (as of 2026-06)
   balloon_numbers              Data
   electrical_unit              Data
   source_electrical_bom_rev    Data
+  user_notes                   Small Text
 
 REVISION DETECTION NOTE
 -----------------------
@@ -70,7 +71,7 @@ import re
 
 # Bump this whenever the contract below changes. The diff report stamps it into
 # its output so any saved diff is traceable to the schema it was produced under.
-SNAPSHOT_SCHEMA_VERSION = "1.0"
+SNAPSHOT_SCHEMA_VERSION = "1.1"
 
 # The child table the hierarchy lives in, and the parent field on the snapshot.
 HIERARCHY_CHILD_DOCTYPE = "Configured BOM Snapshot Hierarchy"
@@ -99,6 +100,7 @@ HIERARCHY_FIELDS = {
     "balloon_numbers": "balloon_numbers",
     "electrical_unit": "electrical_unit",
     "source_electrical_bom_rev": "source_electrical_bom_rev",
+    "user_notes": "user_notes",
 }
 
 
@@ -128,6 +130,7 @@ class SnapshotNode:
     balloon_numbers: str
     electrical_unit: str
     source_electrical_bom_rev: str
+    user_notes: str
 
     # Derived, filled in after construction:
     parent_item_code: Optional[str] = None  # resolved via parent_node_id
@@ -187,6 +190,7 @@ def normalize_row(row: dict) -> SnapshotNode:
         balloon_numbers=g(f["balloon_numbers"]) or "",
         electrical_unit=g(f["electrical_unit"]) or "",
         source_electrical_bom_rev=g(f["source_electrical_bom_rev"]) or "",
+        user_notes=g(f["user_notes"]) or "",
     )
 
 
@@ -285,4 +289,6 @@ def revision_identity(item_code: str) -> str:
 #                as built in Release 1.5. Revision parsed from bom_used / 
 #                source_bom trailing token. Item code is the part identity;
 #                LH/RH never stripped.
+#  1.1  2026-07  Added per-line user_notes to track builder-facing electrical
+#                notes from BOM Item through hierarchy snapshots and diffs.
 # ============================================================================
