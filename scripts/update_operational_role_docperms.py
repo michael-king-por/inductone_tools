@@ -399,6 +399,10 @@ STOCK_ENTRY_TYPE_CURATED_READ_ROLES = [
     "Operations Manager",
     "Inventory Operator",
     "Gripper Manufacturer",
+    # Read-only viewer tier: they can read Stock Entry, so the stock_entry_type
+    # label should resolve for them once this DocType is Custom-DocPerm-managed.
+    "Operations Viewer",
+    "Finance Viewer",
 ]
 
 

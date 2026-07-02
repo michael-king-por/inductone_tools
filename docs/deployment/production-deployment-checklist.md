@@ -12,6 +12,10 @@ export PROD_SITE="plusonerobotics.v.frappe.cloud"                 # Example: plu
 export INDUCTONE_BRANCH="main"        # Example: main
 export EXPECTED_COMMIT="406d80a437ab934f9adfdb2a11e599c00cce3ca3"
 export EVIDENCE_DIR="$PROD_BENCH/sites/$PROD_SITE/private/deployment-evidence"
+export CANDIDATE_BENCH="/home/michaelplusone/frappe-sandbox/benches/candidate-bench"
+export CANDIDATE_SITE="inductone-candidate.localhost"
+export BASELINE_BENCH="/home/michaelplusone/frappe-sandbox/benches/baseline-bench"
+export BASELINE_SITE="inductone-baseline.localhost"
 ```
 
 `EVIDENCE_DIR` is the authoritative evidence path for the post-deployment validation script. Keep it on the production host during deployment, then copy the generated JSON evidence file into the durable validation evidence archive after verification if needed.
@@ -118,6 +122,99 @@ All items in this phase must be true before touching production.
 
    - GO if bench access and site resolution work.
    - NO-GO if the user cannot access bench or the site.
+
+7. [ ] Confirm sandbox restore freshness and preparation.
+
+   This is a standing validation step for every future permission/deployment
+   cycle. The local environment currently has **no configured automated Frappe
+   Cloud / Press backup-pull path**. Unless a Press API/CLI credential is
+   deliberately added later, the system owner must download the latest production
+   backup set from the Frappe Cloud dashboard and place it in:
+
+   ```text
+   C:\hub\frappe-sandbox\production-refresh
+   ```
+
+   Required preparation:
+
+   - Baseline: restore the latest production backup, check the app out to the
+     current deployed production commit, and leave it pristine. Do not sync
+     staged repo changes or run candidate migrations against baseline.
+   - Candidate: restore the same latest production backup, sync the staged local
+     repo changes, run `bench migrate`, and sync candidate user roles to the
+     verified production assignment map.
+
+   Run freshness checks for both sites:
+
+   ```bash
+   "$CANDIDATE_BENCH/env/bin/python" \
+     "$CANDIDATE_BENCH/apps/inductone_tools/scripts/run_backup_freshness_check.py" \
+     --bench "$CANDIDATE_BENCH" \
+     --site "$CANDIDATE_SITE" \
+     --sites-path "$CANDIDATE_BENCH/sites" \
+     --max-age-hours 48 \
+     --expected-prod-backup-iso "<latest-production-backup-ISO>"
+
+   "$CANDIDATE_BENCH/env/bin/python" \
+     "$CANDIDATE_BENCH/apps/inductone_tools/scripts/run_backup_freshness_check.py" \
+     --bench "$BASELINE_BENCH" \
+     --site "$BASELINE_SITE" \
+     --sites-path "$BASELINE_BENCH/sites" \
+     --max-age-hours 48 \
+     --expected-prod-backup-iso "<latest-production-backup-ISO>"
+   ```
+
+   Go/no-go:
+
+   - GO if both sites are fresh, baseline is on the deployed production commit,
+     baseline does not contain the new staged patch(es), and candidate has the
+     staged patch(es) applied after migrate.
+   - NO-GO if either site is stale, baseline has candidate-only patches applied,
+     or candidate has not been migrated with the staged changes.
+
+8. [ ] Pass the pre-deploy permission gate on the candidate site.
+
+   This gate exists so the regression classes already fixed (lost report/link
+   dependencies, orphaned internal workspaces, weakened high-risk denials) cannot
+   ship again. Run it on the candidate site (which must be synced to the current
+   repo and to production role assignments first):
+
+   ```bash
+   "$CANDIDATE_BENCH/env/bin/python" \
+     "$CANDIDATE_BENCH/apps/inductone_tools/scripts/run_pre_deploy_permission_gate.py" \
+     --site "$CANDIDATE_SITE" \
+     --sites-path "$CANDIDATE_BENCH/sites" \
+     --evidence-dir "$EVIDENCE_DIR"
+   ```
+
+   The gate runs the post-deploy validator, the static link-dependency audit, and
+   the workspace-visibility audit, and applies the owner-accepted exceptions
+   (`Country`/`User` link reads; `Builder Portal` external page). It exits 0 only
+   when no non-accepted issue remains.
+
+   Then run the effective-permission regression diff against a candidate synced to
+   production roles (the final "nobody lost needed access" check):
+
+   ```bash
+   "$CANDIDATE_BENCH/env/bin/python" \
+     "$CANDIDATE_BENCH/apps/inductone_tools/scripts/sync_candidate_production_role_assignments.py" \
+     --site "$CANDIDATE_SITE" \
+     --sites-path "$CANDIDATE_BENCH/sites" \
+     --confirm-candidate
+
+   "$CANDIDATE_BENCH/env/bin/python" \
+     "$CANDIDATE_BENCH/apps/inductone_tools/scripts/run_effective_permission_regression_diff.py" \
+     --baseline-site "$BASELINE_SITE" --baseline-sites-path "$BASELINE_BENCH/sites" \
+     --candidate-site "$CANDIDATE_SITE" --candidate-sites-path "$CANDIDATE_BENCH/sites" \
+     --evidence-dir "$EVIDENCE_DIR"
+   ```
+
+   Go/no-go:
+
+   - GO if `run_pre_deploy_permission_gate.py` prints `GATE: PASS` and the regression
+     diff shows no unexpected losses beyond owner-accepted Bucket A downgrades.
+   - NO-GO if the gate fails or the diff surfaces a new unclassified loss. Resolve in
+     candidate before deploying.
 
 ## Phase 1 — Take a fresh production backup
 

@@ -55,7 +55,7 @@ def run(site: str, sites_path: str, evidence_dir: str) -> int:
                     **dict(row),
                     "roles": roles,
                     "visible_to_any_internal_role": not roles or bool(set(roles) & INTERNAL_ROLES),
-                    "orphaned_from_internal_roles": bool(roles) and not bool(set(roles) & INTERNAL_ROLES),
+                    "orphaned_from_internal_roles": bool(roles) and not bool(set(roles) & INTERNAL_ROLES) and not row.get("is_hidden"),
                 }
             )
 
@@ -74,7 +74,7 @@ def run(site: str, sites_path: str, evidence_dir: str) -> int:
                         **dict(row),
                         "roles": roles,
                         "visible_to_any_internal_role": not roles or bool(set(roles) & INTERNAL_ROLES),
-                        "orphaned_from_internal_roles": bool(roles) and not bool(set(roles) & INTERNAL_ROLES),
+                        "orphaned_from_internal_roles": bool(roles) and not bool(set(roles) & INTERNAL_ROLES) and not row.get("is_hidden"),
                     }
                 )
 

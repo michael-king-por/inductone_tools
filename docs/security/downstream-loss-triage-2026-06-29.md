@@ -196,15 +196,86 @@ used internally, replace `Builder` with internal roles appropriate to quality
 review (`Operations Manager`, `Operations Viewer`, and optionally `Engineering User`
 for read visibility). No change has been made.
 
-## Still pending (separate task — needs candidate)
+## Owner decisions (2026-06-29) — review closed
 
-- **Bucket B fix:** sync the regression-diff candidate's user→role assignments to
-  the true production state, then re-run
-  `scripts/run_effective_permission_regression_diff.py`. The ~792 Bucket B losses
-  should collapse toward zero. Until then the full diff is **not** a clean
-  sign-off — only the static link audit and execution smokes are trustworthy.
-- **Workspace audit follow-up:** `Quality` workspace is still restricted to the
-  retired `Builder` role (orphaned). Owner decision needed on its intended roles.
+- **Operations Viewer read scope confirmed NARROW (no expansion).** The trustworthy
+  post-sync diff showed the Operations Viewer cohort losing read on ~44
+  sales/manufacturing doctypes (Quotation, RFQ, Pricing Rule, Routing, Operation,
+  BOM Creator, POS, CRM, etc.). Owner confirmed the org does **not** do purchasing
+  through ERPNext or real manufacturing apart from grippers, so these doctypes are
+  unused. The read losses are therefore **Bucket A (intended)**, not regressions.
+  Operations Viewer's current ~40-doctype core stock/sales scope is correct. This
+  closes the regression-diff review.
+- **`Stock Entry Type` read extended to the viewer tier.** Because Stock Entry Type
+  is now Custom-DocPerm-managed and viewers read Stock Entry, `Operations Viewer`
+  and `Finance Viewer` were added as read-only so the `stock_entry_type` label
+  resolves when they view a Stock Entry. Safe append to an already-managed DocType.
+  Fixture: 259 → 261 rows. Standard roles (System Manager, Manufacturing Manager,
+  Stock Manager, Stock User) retain full access; no regression.
+- **`Country` / `User`** remain unmanaged and ungranted — Desk probe proved neither
+  blocks (Country via standard `All` read; User is cosmetic display). Accepted.
+
+## Resolved this round
+
+- **Bucket B fixed.** `scripts/sync_candidate_production_role_assignments.py` synced
+  the candidate to the verified production role map (0 missing users, 2 expected
+  disabled), and the regression diff was re-run
+  (`effective_permission_regression_diff_20260629T194445Z.json`). The diff is now a
+  trustworthy sign-off; residual losses are intended Bucket A downgrades (confirmed
+  by owner above). `hana.macinnis` remains the only undecided user.
+
+## Closed since (2026-06-29, later)
+
+- **`Quality` workspace pruned.** Owner confirmed the ERPNext Quality module is
+  unused. The orphaned workspace is hidden via idempotent patch
+  `v2026_06_29_hide_unused_quality_workspace` (`is_hidden=1`; reversible, no content
+  deleted). The workspace audit now ignores hidden workspaces.
+- **`hana.macinnis`** to be deleted by owner (no curated role).
+- **Pre-deploy permission gate added** (`scripts/run_pre_deploy_permission_gate.py`):
+  aggregates the post-deploy validator + static link audit + workspace audit into a
+  single PASS/FAIL with an owner-accepted exception allowlist, wired into the
+  deployment checklist Phase 0. This makes the regression sweep a repeatable gate.
+
+## Candidate validation refresh (2026-06-30)
+
+- **Automated backup pull feasibility:** no configured Press/Frappe Cloud CLI/API
+  path exists in the local environment. Standing process remains owner download
+  from the Frappe Cloud dashboard into `C:\hub\frappe-sandbox\production-refresh`.
+- **Backup freshness:** candidate and baseline were refreshed from the owner-provided
+  `20260630_112423` production backup set and passed
+  `scripts/run_backup_freshness_check.py`.
+  Evidence: `backup_freshness_inductone-candidate_localhost_20260630T191829Z.json`
+  and `backup_freshness_inductone-baseline_localhost_20260630T191831Z.json`.
+- **Baseline/candidate preparation:** baseline app was checked out to production
+  reference `ba776aa` from the 2026-06-30 Frappe Cloud screenshot and does not
+  contain the new hide-Quality patch; candidate was restored from the same backup,
+  synced to staged repo changes, migrated, and production-role-synced. Evidence:
+  `sandbox_preparation_20260630T1922Z.json`.
+- **Quality workspace patch:** `v2026_06_29_hide_unused_quality_workspace` applied
+  in candidate; `Workspace` `Quality` remained `is_hidden=1` after a second migrate,
+  so standard workspace sync does not unhide it. Evidence:
+  `candidate_migrate_20260630_quality_gate.txt`,
+  `candidate_migrate_20260630_quality_idempotency_second.txt`.
+- **Workspace audit:** hidden `Quality` is no longer orphaned. Only `Builder Portal`
+  remains orphaned by internal-role criteria, which is accepted because it is
+  intentionally external-builder-only. Evidence:
+  `workspace_visibility_audit_20260630T192054Z.json`.
+- **Pre-deploy permission gate:** candidate dry-run exited 0 and printed
+  `GATE: PASS`. It executed the post-deploy validator, static link-dependency audit,
+  and workspace visibility audit; accepted exceptions were exactly `Country`/`User`
+  link-read findings and `Builder Portal`. Evidence:
+  `pre_deploy_permission_gate_20260630_console.txt`,
+  `production_post_deploy_validation_20260630T192115Z.json`,
+  `static_link_dependency_audit_20260630T192200Z.json`,
+  `workspace_visibility_audit_20260630T192201Z.json`.
+
+## Still pending
+
+- **Deploy queue:** six hotfix patches are staged locally and not yet on
+  production (finance report access, transaction-role stock deps, operations
+  workspace visibility, link-dependency read grants, snapshot Stock Entry Type,
+  hide Quality workspace). Until deployed, the live submit-time/Desk gaps persist.
+  Run the pre-deploy permission gate + regression diff on candidate first.
 
 ## Reversal
 
