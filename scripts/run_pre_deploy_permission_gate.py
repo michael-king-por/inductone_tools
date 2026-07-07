@@ -12,6 +12,7 @@ own frappe.init/connect/destroy):
   - run_production_post_deploy_validation.py  (high-risk denials + finance exec)
   - run_static_link_dependency_audit.py       (write-without-link-read gaps)
   - run_workspace_visibility_audit.py          (orphaned internal pages)
+  - run_balloon_report_validation.py           (Electrical Balloon Callouts)
 
 The effective-permission regression diff needs a baseline + candidate and is run
 separately; this gate reports whether it was run, not its full contents.
@@ -124,6 +125,10 @@ def main() -> int:
             for o in unexpected:
                 print(f"  ORPHAN {o.get('type')} {o.get('name')} roles={o.get('roles')}")
 
+    # 4) Electrical Balloon Callouts report execution and role validation.
+    if _run_audit("run_balloon_report_validation.py", args.site, args.sites_path, args.evidence_dir) != 0:
+        failures.append("balloon_report_validation: report data/access check FAILED")
+
     print("\n==================== PRE-DEPLOY PERMISSION GATE ====================")
     if failures:
         print("GATE: FAIL")
@@ -132,7 +137,7 @@ def main() -> int:
         print("Reminder: also run run_effective_permission_regression_diff.py against a")
         print("candidate synced to production roles before deploying.")
         return 1
-    print("GATE: PASS (post-deploy validation, link-dependency audit, workspace audit)")
+    print("GATE: PASS (post-deploy validation, link-dependency audit, workspace audit, balloon report validation)")
     print("Reminder: also run the effective-permission regression diff against a")
     print("production-synced candidate as the final 'nobody lost needed access' check.")
     return 0

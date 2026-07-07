@@ -140,6 +140,14 @@ fixtures = [
         ]
     },
     {
+        "dt": "Report",
+        "filters": [
+            ["name", "in", [
+                "Electrical Balloon Callouts"
+            ]]
+        ]
+    },
+    {
         "dt": "Custom DocPerm",
         "filters": [
             ["parent", "in", [

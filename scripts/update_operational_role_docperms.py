@@ -296,6 +296,9 @@ PROCUREMENT_READ_DOCS = [
 # intentionally NOT handled here; see
 # docs/security/downstream-loss-triage-2026-06-29.md for their gameplan.
 LINK_READ_DEPENDENCIES_MANAGED = {
+    # Engineering signoff users review BOMs and need report access to BOM-backed
+    # engineering reports such as Electrical Balloon Callouts.
+    "Engineering User": ["BOM"],
     # InductOne lifecycle roles read the standard records their own InductOne
     # DocTypes link to (Build / Configuration Order / Snapshot / Export Package),
     # so the role is self-sufficient instead of depending on being paired with

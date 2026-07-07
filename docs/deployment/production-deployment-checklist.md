@@ -209,9 +209,10 @@ All items in this phase must be true before touching production.
 9. [ ] Pass the pre-deploy permission gate on the candidate site.
 
    This gate exists so the regression classes already fixed (lost report/link
-   dependencies, orphaned internal workspaces, weakened high-risk denials) cannot
-   ship again. Run it on the candidate site (which must be synced to the current
-   repo and to production role assignments first):
+   dependencies, orphaned internal workspaces, weakened high-risk denials, and
+   stale Query Report role tables) cannot ship again. Run it on the candidate
+   site (which must be synced to the current repo and to production role
+   assignments first):
 
    ```bash
    "$CANDIDATE_BENCH/env/bin/python" \
@@ -221,10 +222,11 @@ All items in this phase must be true before touching production.
      --evidence-dir "$EVIDENCE_DIR"
    ```
 
-   The gate runs the post-deploy validator, the static link-dependency audit, and
-   the workspace-visibility audit, and applies the owner-accepted exceptions
-   (`Country`/`User` link reads; `Builder Portal` external page). It exits 0 only
-   when no non-accepted issue remains.
+   The gate runs the post-deploy validator, the static link-dependency audit, the
+   workspace-visibility audit, and the Electrical Balloon Callouts report
+   validation. It applies the owner-accepted exceptions (`Country`/`User` link
+   reads; `Builder Portal` external page). It exits 0 only when no non-accepted
+   issue remains.
 
    Then run the effective-permission regression diff against a candidate synced to
    production roles (the final "nobody lost needed access" check):
@@ -352,7 +354,9 @@ All items in this phase must be true before touching production.
    - `Executing inductone_tools.patches.v2026_06_29_operations_workspace_visibility` appears during patch execution if the Operations workspace visibility patch has not previously run.
    - `Executing inductone_tools.patches.v2026_06_29_link_dependency_read_grants` appears during patch execution if the managed link-read dependency patch has not previously run.
    - `Executing inductone_tools.patches.v2026_06_29_snapshot_stock_entry_type_permissions` appears during patch execution if the Stock Entry Type snapshot-management patch has not previously run.
+   - `Executing inductone_tools.patches.v2026_07_06_balloon_report_access` appears during patch execution if the Electrical Balloon Callouts report access patch has not previously run.
    - Fixtures import cleanly, including the BOM Item `User Notes` Custom Field and the app-owned `user_notes` DocFields on `Configured BOM Snapshot Hierarchy` and `BOM Export Package Item`.
+   - Fixtures import the app-owned `Electrical Balloon Callouts` Report record.
    - If the patch already appears in Patch Log, migrate should still complete cleanly.
 
 2. [ ] Confirm the patch is in Patch Log.
