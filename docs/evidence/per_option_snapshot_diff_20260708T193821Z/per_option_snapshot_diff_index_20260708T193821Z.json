@@ -1,0 +1,651 @@
+{
+  "site": "inductone-candidate.localhost",
+  "build": "SAL-ORD-2026-00054-BLD-0225",
+  "top_bom_expected": "BOM-1611 027 0020-002",
+  "generated_at_utc": "20260708T193821Z",
+  "production_caveat": "Running this tool creates real Configured BOM Snapshot records attached to the requested build. Confirm whether the production deliverable should run on the real sales-order build or a scratch build.",
+  "baseline": {
+    "snapshot": "SAL-ORD-2026-00054-BLD-0225-SNAP-0384",
+    "snapshot_rev": 18700,
+    "structural_effect_count": 17,
+    "resolved_row_count": 1307,
+    "hierarchy_count": 1307,
+    "hierarchy_result": {
+      "ok": true,
+      "snapshot_name": "SAL-ORD-2026-00054-BLD-0225-SNAP-0384",
+      "hierarchy_rows": 1307,
+      "assemblies": 136,
+      "leaves": 1171
+    },
+    "selected_options": [
+      "JB3-ADD",
+      "5G-REMOVE",
+      "STCK-2-REMOVE",
+      "ROB-PEN-REMOVE",
+      "RISER-MEZ-30.5",
+      "DEV-BASELINE",
+      "DEV-PANEL-MCP-STD",
+      "DEV-PANEL-IPC-STD",
+      "DEV-COMP-HMI-STD",
+      "DEV-COMP-STACK-STD",
+      "DEV-COMP-FORTRESS-STD",
+      "DEV-COMP-MAGLOCK-STD"
+    ],
+    "oracle_check": {
+      "passed": true,
+      "expected": {
+        "137": [
+          {
+            "item_code": "MCVP-19MFP-5M",
+            "qty": 2.0
+          }
+        ],
+        "140": [
+          {
+            "item_code": "1407378",
+            "qty": 1.0
+          }
+        ],
+        "141": [
+          {
+            "item_code": "1407485",
+            "qty": 1.0
+          }
+        ],
+        "143": [],
+        "144": [
+          {
+            "item_code": "1407362",
+            "qty": 1.0
+          }
+        ],
+        "145": [],
+        "149": [],
+        "154": [
+          {
+            "item_code": "1417891",
+            "qty": 1.0
+          }
+        ],
+        "156": [],
+        "159": [
+          {
+            "item_code": "WKC 8T-4-RSC 8T",
+            "qty": 2.0
+          }
+        ],
+        "172": [
+          {
+            "item_code": "11245",
+            "qty": 3.0
+          }
+        ],
+        "173": [
+          {
+            "item_code": "11283",
+            "qty": 2.0
+          }
+        ],
+        "190": [
+          {
+            "item_code": "1425016",
+            "qty": 1.0
+          }
+        ],
+        "191": [
+          {
+            "item_code": "1007-300-0002-02",
+            "qty": 4.0
+          }
+        ],
+        "193": [
+          {
+            "item_code": "1417902",
+            "qty": 1.0
+          }
+        ]
+      },
+      "observed": {
+        "137": [
+          {
+            "item_code": "MCVP-19MFP-5M",
+            "qty": 2.0
+          }
+        ],
+        "140": [
+          {
+            "item_code": "1407378",
+            "qty": 1.0
+          }
+        ],
+        "141": [
+          {
+            "item_code": "1407485",
+            "qty": 1.0
+          }
+        ],
+        "143": [],
+        "144": [
+          {
+            "item_code": "1407362",
+            "qty": 1.0
+          }
+        ],
+        "145": [],
+        "149": [],
+        "154": [
+          {
+            "item_code": "1417891",
+            "qty": 1.0
+          }
+        ],
+        "156": [],
+        "159": [
+          {
+            "item_code": "WKC 8T-4-RSC 8T",
+            "qty": 2.0
+          }
+        ],
+        "172": [
+          {
+            "item_code": "11245",
+            "qty": 3.0
+          }
+        ],
+        "173": [
+          {
+            "item_code": "11283",
+            "qty": 2.0
+          }
+        ],
+        "190": [
+          {
+            "item_code": "1425016",
+            "qty": 1.0
+          }
+        ],
+        "191": [
+          {
+            "item_code": "1007-300-0002-02",
+            "qty": 4.0
+          }
+        ],
+        "193": [
+          {
+            "item_code": "1417902",
+            "qty": 1.0
+          }
+        ]
+      }
+    }
+  },
+  "deviations": [
+    {
+      "snapshot": "SAL-ORD-2026-00054-BLD-0225-SNAP-0385",
+      "snapshot_rev": 18701,
+      "structural_effect_count": 21,
+      "resolved_row_count": 1311,
+      "hierarchy_count": 1311,
+      "hierarchy_result": {
+        "ok": true,
+        "snapshot_name": "SAL-ORD-2026-00054-BLD-0225-SNAP-0385",
+        "hierarchy_rows": 1311,
+        "assemblies": 136,
+        "leaves": 1175
+      },
+      "label": "mcp_relocated",
+      "moved_options": [
+        "DEV-PANEL-MCP"
+      ],
+      "selected_options": [
+        "JB3-ADD",
+        "5G-REMOVE",
+        "STCK-2-REMOVE",
+        "ROB-PEN-REMOVE",
+        "RISER-MEZ-30.5",
+        "DEV-BASELINE",
+        "DEV-PANEL-MCP",
+        "DEV-PANEL-IPC-STD",
+        "DEV-COMP-HMI-STD",
+        "DEV-COMP-STACK-STD",
+        "DEV-COMP-FORTRESS-STD",
+        "DEV-COMP-MAGLOCK-STD"
+      ],
+      "xlsx": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_mcp_relocated_20260708T193821Z.xlsx",
+      "json": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_mcp_relocated_20260708T193821Z.json",
+      "oracle_passed": true,
+      "sentinel_checks": [],
+      "snapshot_diff_summary": {
+        "added": 4,
+        "removed": 0,
+        "qty_changed": 0,
+        "revision_changed": 0,
+        "moved": 0,
+        "user_notes_changed": 0,
+        "unchanged": 713,
+        "total_changes": 4
+      }
+    },
+    {
+      "snapshot": "SAL-ORD-2026-00054-BLD-0225-SNAP-0386",
+      "snapshot_rev": 18702,
+      "structural_effect_count": 30,
+      "resolved_row_count": 1309,
+      "hierarchy_count": 1309,
+      "hierarchy_result": {
+        "ok": true,
+        "snapshot_name": "SAL-ORD-2026-00054-BLD-0225-SNAP-0386",
+        "hierarchy_rows": 1309,
+        "assemblies": 136,
+        "leaves": 1173
+      },
+      "label": "ipc_relocated",
+      "moved_options": [
+        "DEV-PANEL-IPC"
+      ],
+      "selected_options": [
+        "JB3-ADD",
+        "5G-REMOVE",
+        "STCK-2-REMOVE",
+        "ROB-PEN-REMOVE",
+        "RISER-MEZ-30.5",
+        "DEV-BASELINE",
+        "DEV-PANEL-MCP-STD",
+        "DEV-PANEL-IPC",
+        "DEV-COMP-HMI-STD",
+        "DEV-COMP-STACK-STD",
+        "DEV-COMP-FORTRESS-STD",
+        "DEV-COMP-MAGLOCK-STD"
+      ],
+      "xlsx": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_ipc_relocated_20260708T193821Z.xlsx",
+      "json": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_ipc_relocated_20260708T193821Z.json",
+      "oracle_passed": true,
+      "sentinel_checks": [
+        {
+          "label": "IPC sentinel 172: 11245->11283",
+          "passed": true,
+          "details": {
+            "from": [
+              {
+                "item_code": "11245",
+                "qty": 3.0
+              }
+            ],
+            "to": [
+              {
+                "item_code": "11283",
+                "qty": 3.0
+              }
+            ]
+          }
+        },
+        {
+          "label": "IPC sentinel 173: 11283->11351",
+          "passed": true,
+          "details": {
+            "from": [
+              {
+                "item_code": "11283",
+                "qty": 2.0
+              }
+            ],
+            "to": [
+              {
+                "item_code": "11351",
+                "qty": 2.0
+              }
+            ]
+          }
+        }
+      ],
+      "snapshot_diff_summary": {
+        "added": 12,
+        "removed": 8,
+        "qty_changed": 3,
+        "revision_changed": 2,
+        "moved": 1,
+        "user_notes_changed": 3,
+        "unchanged": 702,
+        "total_changes": 29
+      }
+    },
+    {
+      "snapshot": "SAL-ORD-2026-00054-BLD-0225-SNAP-0387",
+      "snapshot_rev": 18703,
+      "structural_effect_count": 20,
+      "resolved_row_count": 1307,
+      "hierarchy_count": 1307,
+      "hierarchy_result": {
+        "ok": true,
+        "snapshot_name": "SAL-ORD-2026-00054-BLD-0225-SNAP-0387",
+        "hierarchy_rows": 1307,
+        "assemblies": 136,
+        "leaves": 1171
+      },
+      "label": "hmi_relocated",
+      "moved_options": [
+        "DEV-COMP-HMI"
+      ],
+      "selected_options": [
+        "JB3-ADD",
+        "5G-REMOVE",
+        "STCK-2-REMOVE",
+        "ROB-PEN-REMOVE",
+        "RISER-MEZ-30.5",
+        "DEV-BASELINE",
+        "DEV-PANEL-MCP-STD",
+        "DEV-PANEL-IPC-STD",
+        "DEV-COMP-HMI",
+        "DEV-COMP-STACK-STD",
+        "DEV-COMP-FORTRESS-STD",
+        "DEV-COMP-MAGLOCK-STD"
+      ],
+      "xlsx": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_hmi_relocated_20260708T193821Z.xlsx",
+      "json": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_hmi_relocated_20260708T193821Z.json",
+      "oracle_passed": true,
+      "sentinel_checks": [],
+      "snapshot_diff_summary": {
+        "added": 3,
+        "removed": 2,
+        "qty_changed": 1,
+        "revision_changed": 1,
+        "moved": 1,
+        "user_notes_changed": 1,
+        "unchanged": 710,
+        "total_changes": 9
+      }
+    },
+    {
+      "snapshot": "SAL-ORD-2026-00054-BLD-0225-SNAP-0388",
+      "snapshot_rev": 18704,
+      "structural_effect_count": 18,
+      "resolved_row_count": 1307,
+      "hierarchy_count": 1307,
+      "hierarchy_result": {
+        "ok": true,
+        "snapshot_name": "SAL-ORD-2026-00054-BLD-0225-SNAP-0388",
+        "hierarchy_rows": 1307,
+        "assemblies": 136,
+        "leaves": 1171
+      },
+      "label": "stacklight_relocated",
+      "moved_options": [
+        "DEV-COMP-STACK"
+      ],
+      "selected_options": [
+        "JB3-ADD",
+        "5G-REMOVE",
+        "STCK-2-REMOVE",
+        "ROB-PEN-REMOVE",
+        "RISER-MEZ-30.5",
+        "DEV-BASELINE",
+        "DEV-PANEL-MCP-STD",
+        "DEV-PANEL-IPC-STD",
+        "DEV-COMP-HMI-STD",
+        "DEV-COMP-STACK",
+        "DEV-COMP-FORTRESS-STD",
+        "DEV-COMP-MAGLOCK-STD"
+      ],
+      "xlsx": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_stacklight_relocated_20260708T193821Z.xlsx",
+      "json": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_stacklight_relocated_20260708T193821Z.json",
+      "oracle_passed": true,
+      "sentinel_checks": [],
+      "snapshot_diff_summary": {
+        "added": 1,
+        "removed": 0,
+        "qty_changed": 1,
+        "revision_changed": 0,
+        "moved": 0,
+        "user_notes_changed": 1,
+        "unchanged": 712,
+        "total_changes": 3
+      }
+    },
+    {
+      "snapshot": "SAL-ORD-2026-00054-BLD-0225-SNAP-0389",
+      "snapshot_rev": 18705,
+      "structural_effect_count": 18,
+      "resolved_row_count": 1307,
+      "hierarchy_count": 1307,
+      "hierarchy_result": {
+        "ok": true,
+        "snapshot_name": "SAL-ORD-2026-00054-BLD-0225-SNAP-0389",
+        "hierarchy_rows": 1307,
+        "assemblies": 136,
+        "leaves": 1171
+      },
+      "label": "fortress_relocated",
+      "moved_options": [
+        "DEV-COMP-FORTRESS"
+      ],
+      "selected_options": [
+        "JB3-ADD",
+        "5G-REMOVE",
+        "STCK-2-REMOVE",
+        "ROB-PEN-REMOVE",
+        "RISER-MEZ-30.5",
+        "DEV-BASELINE",
+        "DEV-PANEL-MCP-STD",
+        "DEV-PANEL-IPC-STD",
+        "DEV-COMP-HMI-STD",
+        "DEV-COMP-STACK-STD",
+        "DEV-COMP-FORTRESS",
+        "DEV-COMP-MAGLOCK-STD"
+      ],
+      "xlsx": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_fortress_relocated_20260708T193821Z.xlsx",
+      "json": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_fortress_relocated_20260708T193821Z.json",
+      "oracle_passed": true,
+      "sentinel_checks": [],
+      "snapshot_diff_summary": {
+        "added": 1,
+        "removed": 1,
+        "qty_changed": 0,
+        "revision_changed": 0,
+        "moved": 0,
+        "user_notes_changed": 0,
+        "unchanged": 712,
+        "total_changes": 2
+      }
+    },
+    {
+      "snapshot": "SAL-ORD-2026-00054-BLD-0225-SNAP-0390",
+      "snapshot_rev": 18706,
+      "structural_effect_count": 18,
+      "resolved_row_count": 1307,
+      "hierarchy_count": 1307,
+      "hierarchy_result": {
+        "ok": true,
+        "snapshot_name": "SAL-ORD-2026-00054-BLD-0225-SNAP-0390",
+        "hierarchy_rows": 1307,
+        "assemblies": 136,
+        "leaves": 1171
+      },
+      "label": "maglock_relocated",
+      "moved_options": [
+        "DEV-COMP-MAGLOCK"
+      ],
+      "selected_options": [
+        "JB3-ADD",
+        "5G-REMOVE",
+        "STCK-2-REMOVE",
+        "ROB-PEN-REMOVE",
+        "RISER-MEZ-30.5",
+        "DEV-BASELINE",
+        "DEV-PANEL-MCP-STD",
+        "DEV-PANEL-IPC-STD",
+        "DEV-COMP-HMI-STD",
+        "DEV-COMP-STACK-STD",
+        "DEV-COMP-FORTRESS-STD",
+        "DEV-COMP-MAGLOCK"
+      ],
+      "xlsx": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_maglock_relocated_20260708T193821Z.xlsx",
+      "json": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_maglock_relocated_20260708T193821Z.json",
+      "oracle_passed": true,
+      "sentinel_checks": [],
+      "snapshot_diff_summary": {
+        "added": 1,
+        "removed": 1,
+        "qty_changed": 0,
+        "revision_changed": 0,
+        "moved": 0,
+        "user_notes_changed": 0,
+        "unchanged": 712,
+        "total_changes": 2
+      }
+    },
+    {
+      "snapshot": "SAL-ORD-2026-00054-BLD-0225-SNAP-0391",
+      "snapshot_rev": 18707,
+      "structural_effect_count": 40,
+      "resolved_row_count": 1311,
+      "hierarchy_count": 1311,
+      "hierarchy_result": {
+        "ok": true,
+        "snapshot_name": "SAL-ORD-2026-00054-BLD-0225-SNAP-0391",
+        "hierarchy_rows": 1311,
+        "assemblies": 136,
+        "leaves": 1175
+      },
+      "label": "everything_moved",
+      "moved_options": [
+        "DEV-PANEL-MCP",
+        "DEV-PANEL-IPC",
+        "DEV-COMP-HMI",
+        "DEV-COMP-STACK",
+        "DEV-COMP-FORTRESS",
+        "DEV-COMP-MAGLOCK"
+      ],
+      "selected_options": [
+        "JB3-ADD",
+        "5G-REMOVE",
+        "STCK-2-REMOVE",
+        "ROB-PEN-REMOVE",
+        "RISER-MEZ-30.5",
+        "DEV-BASELINE",
+        "DEV-PANEL-MCP",
+        "DEV-PANEL-IPC",
+        "DEV-COMP-HMI",
+        "DEV-COMP-STACK",
+        "DEV-COMP-FORTRESS",
+        "DEV-COMP-MAGLOCK"
+      ],
+      "xlsx": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_everything_moved_20260708T193821Z.xlsx",
+      "json": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_everything_moved_20260708T193821Z.json",
+      "oracle_passed": true,
+      "sentinel_checks": [
+        {
+          "label": "IPC sentinel 172: 11245->11283",
+          "passed": true,
+          "details": {
+            "from": [
+              {
+                "item_code": "11245",
+                "qty": 3.0
+              }
+            ],
+            "to": [
+              {
+                "item_code": "11283",
+                "qty": 3.0
+              }
+            ]
+          }
+        },
+        {
+          "label": "IPC sentinel 173: 11283->11351",
+          "passed": true,
+          "details": {
+            "from": [
+              {
+                "item_code": "11283",
+                "qty": 2.0
+              }
+            ],
+            "to": [
+              {
+                "item_code": "11351",
+                "qty": 2.0
+              }
+            ]
+          }
+        }
+      ],
+      "snapshot_diff_summary": {
+        "added": 14,
+        "removed": 8,
+        "qty_changed": 3,
+        "revision_changed": 2,
+        "moved": 1,
+        "user_notes_changed": 3,
+        "unchanged": 702,
+        "total_changes": 31
+      }
+    }
+  ],
+  "outputs": {
+    "summary_json": "/mnt/c/hub/frappe-sandbox/validation-evidence/per_option_snapshot_diff_index_20260708T193821Z.json",
+    "manifest": "/mnt/c/hub/frappe-sandbox/validation-evidence/per_option_snapshot_diff_manifest_20260708T193821Z.md"
+  },
+  "failures": [],
+  "preconditions": {
+    "checks": [
+      {
+        "label": "BLD-0225 exists",
+        "passed": true,
+        "details": "SAL-ORD-2026-00054-BLD-0225"
+      },
+      {
+        "label": "REV E master active submitted",
+        "passed": true,
+        "details": {
+          "docstatus": 1,
+          "is_active": 1
+        }
+      },
+      {
+        "label": "REV E configurable balloon fingerprint",
+        "passed": true,
+        "details": {
+          "found": 26,
+          "expected": 26,
+          "missing": []
+        }
+      },
+      {
+        "label": "0921 fixed 1417891 balloon 315 present",
+        "passed": true,
+        "details": [
+          {
+            "name": "8hkcssjfn2",
+            "idx": 78,
+            "qty": 3.0
+          }
+        ]
+      },
+      {
+        "label": "InductOne Build Script has balloon carry-through",
+        "passed": true,
+        "details": {
+          "length": 63495,
+          "pre_branch_length": 63230
+        }
+      },
+      {
+        "label": "target_balloon fields fixture-managed on candidate",
+        "passed": true,
+        "details": [
+          {
+            "name": "InductOne Configuration Option Mapping-target_balloon",
+            "dt": "InductOne Configuration Option Mapping",
+            "insert_after": "target_item"
+          },
+          {
+            "name": "Configured BOM Snapshot Structural Effect-target_balloon",
+            "dt": "Configured BOM Snapshot Structural Effect",
+            "insert_after": "target_item"
+          }
+        ]
+      }
+    ]
+  }
+}

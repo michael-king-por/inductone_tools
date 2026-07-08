@@ -22,6 +22,7 @@ load* a snapshot changes (e.g. the parentfield name, or the snapshot doctype).
 """
 
 import io
+from pathlib import Path
 
 import frappe
 from frappe import _
@@ -327,6 +328,112 @@ def download_diff_workbook(snapshot_a, snapshot_b, include_unchanged=0):
     frappe.local.response.filename = fname
     frappe.local.response.filecontent = buf.read()
     frappe.local.response.type = "download"
+
+
+def save_report_workbook(snapshot_a, snapshot_b, output_path, context_mode="Changes only"):
+    """
+    Save the Snapshot Diff report views to an XLSX file.
+
+    This is intentionally a thin headless wrapper around the existing report
+    data methods. It does not introduce a second diff implementation; the
+    Hierarchical sheet is generated from ``_report_tree`` and the Flat
+    Procurement sheet is generated from ``_report_flat``.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    fills = {
+        ADDED: _FILL_ADDED,
+        REMOVED: _FILL_REMOVED,
+        QTY_CHANGED: _FILL_QTY,
+        REVISION_CHANGED: _FILL_REVISION,
+        MOVED: _FILL_MOVED,
+        USER_NOTES_CHANGED: _FILL_USER_NOTES,
+        CHANGED: _FILL_QTY,
+        UNCHANGED: _FILL_UNCHANGED,
+    }
+    header_fill = PatternFill("solid", fgColor=_FILL_HEADER)
+    thin = Border(bottom=Side(style="thin", color="E0E0E0"))
+
+    for view_mode, sheet_name in [
+        ("Hierarchical", "Hierarchical"),
+        ("Flat Procurement", "Flat Procurement"),
+    ]:
+        payload = get_report_data(
+            snapshot_a=snapshot_a,
+            snapshot_b=snapshot_b,
+            view_mode=view_mode,
+            context_mode=context_mode,
+        )
+        ws = wb.create_sheet(sheet_name)
+        ws.cell(row=1, column=1, value="Configured Snapshot Diff").font = Font(
+            bold=True, size=16, color="1F2A44"
+        )
+        ws.cell(row=2, column=1, value="View").font = Font(bold=True)
+        ws.cell(row=2, column=2, value=view_mode)
+        ws.cell(row=3, column=1, value="Snapshot A").font = Font(bold=True)
+        ws.cell(row=3, column=2, value=_snapshot_label(snapshot_a))
+        ws.cell(row=4, column=1, value="Snapshot B").font = Font(bold=True)
+        ws.cell(row=4, column=2, value=_snapshot_label(snapshot_b))
+        ws.cell(row=5, column=1, value="Generated").font = Font(bold=True)
+        ws.cell(row=5, column=2, value=str(now_datetime()))
+
+        summary_col = 4
+        for idx, item in enumerate(payload.get("report_summary") or [], start=2):
+            ws.cell(row=idx, column=summary_col, value=item.get("label")).font = Font(
+                bold=True, color="555555"
+            )
+            ws.cell(row=idx, column=summary_col + 1, value=item.get("value"))
+
+        columns = payload.get("columns") or []
+        header_row = 8
+        for col_idx, col in enumerate(columns, start=1):
+            cell = ws.cell(row=header_row, column=col_idx, value=col.get("label"))
+            cell.fill = header_fill
+            cell.font = Font(bold=True, color="FFFFFF", size=11)
+            cell.alignment = Alignment(vertical="center")
+            cell.border = thin
+            ws.column_dimensions[get_column_letter(col_idx)].width = max(
+                12, int((col.get("width") or 120) / 7)
+            )
+        ws.freeze_panes = ws.cell(row=header_row + 1, column=1)
+
+        row_idx = header_row + 1
+        fieldnames = [col.get("fieldname") for col in columns]
+        for row in payload.get("data") or []:
+            fill = PatternFill(
+                "solid",
+                fgColor=fills.get(row.get("_status_raw"), "FFFFFF"),
+            )
+            for col_idx, fieldname in enumerate(fieldnames, start=1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=row.get(fieldname, ""))
+                cell.fill = fill
+                cell.border = thin
+                cell.alignment = Alignment(vertical="center", wrap_text=True)
+                cell.font = Font(size=10, color="333333")
+            row_idx += 1
+
+        if row_idx > header_row + 1 and columns:
+            ws.auto_filter.ref = "A{0}:{1}{2}".format(
+                header_row, get_column_letter(len(columns)), row_idx - 1
+            )
+
+    wb.save(output_path)
+    return {
+        "ok": True,
+        "file_path": str(output_path),
+        "snapshot_a": snapshot_a,
+        "snapshot_b": snapshot_b,
+        "context_mode": context_mode,
+        "sheets": ["Hierarchical", "Flat Procurement"],
+    }
 
 
 def _fmt_qty(q):

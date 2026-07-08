@@ -674,3 +674,44 @@ The candidate proof ran against all 13 recreated Draft options as `michael.king@
 ### Final balloon-scoped ladder
 
 After the signoff proof left candidate options Released, the full 12-case balloon-scoped validation passed again. Flat, hierarchy, and workbook outputs still matched the independent oracle, including the collision sentinel rows.
+
+## Per-option snapshot diff deliverable
+
+Candidate generated a reusable engineering evidence set from build `SAL-ORD-2026-00054-BLD-0225` on `inductone-candidate.localhost`. The run created one baseline Configured BOM Snapshot plus seven deviation snapshots, then diffed every deviation against the same baseline using the Snapshot Diff report engine.
+
+Command:
+
+```bash
+cd /home/michaelplusone/frappe-sandbox/benches/candidate-bench
+env/bin/python /mnt/c/Users/MichaelKing/OneDrive\ -\ Plus\ One\ Robotics/Documents/GitHub/inductone_tools/scripts/run_per_option_snapshot_diff_reports.py \
+  --site inductone-candidate.localhost \
+  --sites-path /home/michaelplusone/frappe-sandbox/benches/candidate-bench/sites \
+  --evidence-dir /mnt/c/hub/frappe-sandbox/validation-evidence \
+  --build SAL-ORD-2026-00054-BLD-0225 \
+  --top-bom "BOM-1611 027 0020-002"
+```
+
+Candidate run: `20260708T193821Z`
+
+- Baseline snapshot: `SAL-ORD-2026-00054-BLD-0225-SNAP-0384`
+- Summary JSON: `/mnt/c/hub/frappe-sandbox/validation-evidence/per_option_snapshot_diff_index_20260708T193821Z.json`
+- Manifest: `/mnt/c/hub/frappe-sandbox/validation-evidence/per_option_snapshot_diff_manifest_20260708T193821Z.md`
+
+| Deviation | Snapshot | Oracle result | Managed balloon delta | Evidence |
+|---|---:|---|---|---|
+| MCP relocated | `SAL-ORD-2026-00054-BLD-0225-SNAP-0385` | PASS | `143`, `145`, `149`, `156` | `snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_mcp_relocated_20260708T193821Z.xlsx` / `.json` |
+| IPC relocated | `SAL-ORD-2026-00054-BLD-0225-SNAP-0386` | PASS | `137`, `140`, `141`, `144`, `145`, `154`, `156`, `159`, `172`, `173`, `190`, `191`, `193` | `snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_ipc_relocated_20260708T193821Z.xlsx` / `.json` |
+| HMI relocated | `SAL-ORD-2026-00054-BLD-0225-SNAP-0387` | PASS | `140`, `141`, `154` | `snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_hmi_relocated_20260708T193821Z.xlsx` / `.json` |
+| Stacklight relocated | `SAL-ORD-2026-00054-BLD-0225-SNAP-0388` | PASS | `193` | `snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_stacklight_relocated_20260708T193821Z.xlsx` / `.json` |
+| Fortress relocated | `SAL-ORD-2026-00054-BLD-0225-SNAP-0389` | PASS | `137` | `snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_fortress_relocated_20260708T193821Z.xlsx` / `.json` |
+| Maglock relocated | `SAL-ORD-2026-00054-BLD-0225-SNAP-0390` | PASS | `159` | `snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_maglock_relocated_20260708T193821Z.xlsx` / `.json` |
+| Everything moved | `SAL-ORD-2026-00054-BLD-0225-SNAP-0391` | PASS | `137`, `140`, `141`, `143`, `144`, `145`, `149`, `154`, `156`, `159`, `172`, `173`, `190`, `191`, `193` | `snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_everything_moved_20260708T193821Z.xlsx` / `.json` |
+
+Sentinel confirmations:
+
+- IPC relocated: balloon `172` changed `11245 -> 11283`; balloon `173` changed `11283 -> 11351`.
+- Everything moved: balloon `172` changed `11245 -> 11283`; balloon `173` changed `11283 -> 11351`.
+
+Each XLSX contains the Snapshot Diff report views (`Hierarchical` and `Flat Procurement`). Each JSON file contains the structured Snapshot Diff output, the report-view payloads, the balloon-keyed observed delta, and the oracle expected delta.
+
+Production-run note: this tool is safe to run read/write only on an approved target, but it does create real `Configured BOM Snapshot` records attached to the selected build. Before producing the final Engineering deliverable on production, the system owner must decide whether those real snapshot records are acceptable on `SAL-ORD-2026-00054-BLD-0225` or whether the production run should point the tool at a scratch/throwaway build instead.

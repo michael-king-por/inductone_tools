@@ -1,0 +1,465 @@
+{
+  "site": "inductone-candidate.localhost",
+  "build": "SAL-ORD-2026-00054-BLD-0225",
+  "label": "stacklight_relocated",
+  "generated_at_utc": "20260708T193821Z",
+  "baseline_snapshot": "SAL-ORD-2026-00054-BLD-0225-SNAP-0384",
+  "deviation_snapshot": "SAL-ORD-2026-00054-BLD-0225-SNAP-0388",
+  "selected_options": [
+    "JB3-ADD",
+    "5G-REMOVE",
+    "STCK-2-REMOVE",
+    "ROB-PEN-REMOVE",
+    "RISER-MEZ-30.5",
+    "DEV-BASELINE",
+    "DEV-PANEL-MCP-STD",
+    "DEV-PANEL-IPC-STD",
+    "DEV-COMP-HMI-STD",
+    "DEV-COMP-STACK",
+    "DEV-COMP-FORTRESS-STD",
+    "DEV-COMP-MAGLOCK-STD"
+  ],
+  "moved_options": [
+    "DEV-COMP-STACK"
+  ],
+  "snapshot_diff": {
+    "snapshot_a": "SAL-ORD-2026-00054-BLD-0225-SNAP-0384",
+    "snapshot_b": "SAL-ORD-2026-00054-BLD-0225-SNAP-0388",
+    "snapshot_a_label": "SAL-ORD-2026-00054-BLD-0225-SNAP-0384 | build SAL-ORD-2026-00054-BLD-0225 | 2026-07-08 14:38:27.551337",
+    "snapshot_b_label": "SAL-ORD-2026-00054-BLD-0225-SNAP-0388 | build SAL-ORD-2026-00054-BLD-0225 | 2026-07-08 14:39:13.588209",
+    "schema_version": "1.1",
+    "summary": {
+      "added": 1,
+      "removed": 0,
+      "qty_changed": 1,
+      "revision_changed": 0,
+      "moved": 0,
+      "user_notes_changed": 1,
+      "unchanged": 712,
+      "total_changes": 3
+    },
+    "lines": [
+      {
+        "item_code": "1417903",
+        "item_name": "CABLE, M12 A-CODE M-F, 5-PIN, PVC, YELLOW, 10M",
+        "item_group": "Electrical Components",
+        "categories": [
+          "ADDED"
+        ],
+        "primary_category": "ADDED",
+        "a_qty": null,
+        "b_qty": 1.0,
+        "a_revision": null,
+        "b_revision": "",
+        "a_bom": null,
+        "b_bom": "",
+        "a_parent": null,
+        "b_parent": "1611 027 0931 ELEC",
+        "uom": "Unit",
+        "a_user_notes": null,
+        "b_user_notes": "",
+        "note": "NEW in this build; was not in the previous one. Must be added."
+      },
+      {
+        "item_code": "1417902",
+        "item_name": "CABLE, M12 A-CODE M-F, 5-PIN, PVC, YELLOW, 5M",
+        "item_group": "Electrical Components",
+        "categories": [
+          "QTY_CHANGED",
+          "USER_NOTES_CHANGED"
+        ],
+        "primary_category": "QTY_CHANGED",
+        "a_qty": 3.0,
+        "b_qty": 2.0,
+        "a_revision": "004",
+        "b_revision": "004",
+        "a_bom": "BOM-1611 027 0931 ELEC-004",
+        "b_bom": "BOM-1611 027 0931 ELEC-004",
+        "a_parent": "1611 027 0931 ELEC",
+        "b_parent": "1611 027 0931 ELEC",
+        "uom": "Unit",
+        "a_user_notes": "- | Standard",
+        "b_user_notes": "-",
+        "note": "Qty changed 3.0 -> 2.0; User notes changed"
+      }
+    ]
+  },
+  "report_views": {
+    "hierarchical": {
+      "columns": [
+        {
+          "label": "Change",
+          "fieldname": "status",
+          "fieldtype": "Data",
+          "width": 110
+        },
+        {
+          "label": "Item (indented by level)",
+          "fieldname": "item_display",
+          "fieldtype": "Data",
+          "width": 360
+        },
+        {
+          "label": "Item Name",
+          "fieldname": "item_name",
+          "fieldtype": "Data",
+          "width": 220
+        },
+        {
+          "label": "Qty A to B",
+          "fieldname": "qty_change",
+          "fieldtype": "Data",
+          "width": 110
+        },
+        {
+          "label": "Revision A to B",
+          "fieldname": "rev_change",
+          "fieldtype": "Data",
+          "width": 140
+        },
+        {
+          "label": "Level",
+          "fieldname": "bom_level",
+          "fieldtype": "Int",
+          "width": 60
+        },
+        {
+          "label": "What changed",
+          "fieldname": "note",
+          "fieldtype": "Data",
+          "width": 360
+        }
+      ],
+      "data": [
+        {
+          "status": "Unchanged",
+          "item_display": "    \u00a0\u00a0\u00a0\u00a01611 027 0931 ELEC",
+          "item_name": "IPC - IFF",
+          "qty_change": "1",
+          "rev_change": "004",
+          "bom_level": 1,
+          "note": "",
+          "_status_raw": "UNCHANGED"
+        },
+        {
+          "status": "Changed",
+          "item_display": "[~] \u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a01417902",
+          "item_name": "CABLE, M12 A-CODE M-F, 5-PIN, PVC, YELLOW, 5M",
+          "qty_change": "3 -> 2",
+          "rev_change": "004",
+          "bom_level": 2,
+          "note": "Qty 3 \u2192 2; User notes changed",
+          "_status_raw": "CHANGED"
+        },
+        {
+          "status": "Added",
+          "item_display": "[+] \u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a01417903",
+          "item_name": "CABLE, M12 A-CODE M-F, 5-PIN, PVC, YELLOW, 10M",
+          "qty_change": "(none) -> 1",
+          "rev_change": "",
+          "bom_level": 2,
+          "note": "New in this build \u2014 must be added.",
+          "_status_raw": "ADDED"
+        }
+      ],
+      "message": "<div style='margin-bottom:8px;'><b>Hierarchical view</b> &mdash; comparing <b>SAL-ORD-2026-00054-BLD-0225-SNAP-0384</b> (previous build) against <b>SAL-ORD-2026-00054-BLD-0225-SNAP-0388</b> (this build). <span style='color:#667085;'>Context: Changes only.</span></div><div style='margin-bottom:10px;color:#475467;'>This is a comparison of two configured builds. It exists so that knowledge from the previous build can be <b>amended, not blindly reused</b> &mdash; only the lines below are different between the two builds. Everything not shown is unchanged and can be built the same way as before.</div><div style='margin-bottom:8px;'><span style='display:inline-block;padding:2px 10px;margin:2px 4px;border-radius:4px;background:#DCFCE7;color:#1f2a44;font-size:0.85em;white-space:nowrap;'>Added</span><span style='display:inline-block;padding:2px 10px;margin:2px 4px;border-radius:4px;background:#FEE2E2;color:#1f2a44;font-size:0.85em;white-space:nowrap;'>Removed</span><span style='display:inline-block;padding:2px 10px;margin:2px 4px;border-radius:4px;background:#E0F2FE;color:#1f2a44;font-size:0.85em;white-space:nowrap;'>Revision changed</span><span style='display:inline-block;padding:2px 10px;margin:2px 4px;border-radius:4px;background:#FEF9C3;color:#1f2a44;font-size:0.85em;white-space:nowrap;'>Qty changed</span><span style='display:inline-block;padding:2px 10px;margin:2px 4px;border-radius:4px;background:#F3E8FF;color:#1f2a44;font-size:0.85em;white-space:nowrap;'>Moved</span></div><details style='margin-top:4px;'><summary style='cursor:pointer;color:#1794ce;font-weight:600;'>What do these mean? (click to expand)</summary><table style='margin-top:8px;border-collapse:collapse;width:100%;'><tr style='background:#f9fafb;'><td style='padding:6px 10px;vertical-align:top;font-weight:600;white-space:nowrap;border-bottom:1px solid #eaecf0;'>&#10133; Added</td><td style='padding:6px 10px;vertical-align:top;color:#475467;border-bottom:1px solid #eaecf0;'>This node is new in this build &mdash; it did not exist at this position in the previous build's tree.</td></tr><tr style='background:#ffffff;'><td style='padding:6px 10px;vertical-align:top;font-weight:600;white-space:nowrap;border-bottom:1px solid #eaecf0;'>&#10134; Removed</td><td style='padding:6px 10px;vertical-align:top;color:#475467;border-bottom:1px solid #eaecf0;'>This node was in the previous build at this position and is gone in this one.</td></tr><tr style='background:#f9fafb;'><td style='padding:6px 10px;vertical-align:top;font-weight:600;white-space:nowrap;border-bottom:1px solid #eaecf0;'>&#9999; Changed</td><td style='padding:6px 10px;vertical-align:top;color:#475467;border-bottom:1px solid #eaecf0;'>This node exists in both builds at the same position, but its quantity and/or its BOM revision changed. The What-changed column spells out which.</td></tr><tr style='background:#ffffff;'><td style='padding:6px 10px;vertical-align:top;font-weight:600;white-space:nowrap;border-bottom:1px solid #eaecf0;'>Indentation / Level</td><td style='padding:6px 10px;vertical-align:top;color:#475467;border-bottom:1px solid #eaecf0;'>Rows are indented by their depth in the assembly. A change shown under a parent assembly means that change happens <i>inside</i> that assembly. Parent rows are kept (even when unchanged) so you can see where in the structure each change lives.</td></tr><tr style='background:#f9fafb;'><td style='padding:6px 10px;vertical-align:top;font-weight:600;white-space:nowrap;border-bottom:1px solid #eaecf0;'>Revision changed</td><td style='padding:6px 10px;vertical-align:top;color:#475467;border-bottom:1px solid #eaecf0;'>The part is sourced from a different BOM revision than before. Per the rule we use: a row is flagged only when <b>its own</b> sourcing BOM revision changes. A parent assembly's revision bumping does NOT flag its children unless the child itself actually changed &mdash; so if a child is unflagged, its use is genuinely unchanged and prior knowledge still applies.</td></tr></table></details><div style='margin-top:8px;color:#667085;font-size:0.85em;'>Switch <b>View Mode</b> for the engineering tree vs. the flat procurement list. Use <b>Download Diff Workbook</b> for a color-coded export you can send to the builder.</div>",
+      "report_summary": [
+        {
+          "label": "Added",
+          "value": 1,
+          "indicator": "Green"
+        },
+        {
+          "label": "Removed",
+          "value": 0,
+          "indicator": "Red"
+        },
+        {
+          "label": "Changed",
+          "value": 1,
+          "indicator": "Blue"
+        },
+        {
+          "label": "Unchanged",
+          "value": 1282,
+          "indicator": "Grey"
+        },
+        {
+          "label": "Total Changes",
+          "value": 2,
+          "indicator": "Orange"
+        }
+      ]
+    },
+    "flat_procurement": {
+      "columns": [
+        {
+          "label": "Change",
+          "fieldname": "category",
+          "fieldtype": "Data",
+          "width": 150
+        },
+        {
+          "label": "Item Code",
+          "fieldname": "item_code",
+          "fieldtype": "Link",
+          "options": "Item",
+          "width": 160
+        },
+        {
+          "label": "Item Name",
+          "fieldname": "item_name",
+          "fieldtype": "Data",
+          "width": 240
+        },
+        {
+          "label": "Item Group",
+          "fieldname": "item_group",
+          "fieldtype": "Data",
+          "width": 150
+        },
+        {
+          "label": "Total Qty A to B",
+          "fieldname": "qty_change",
+          "fieldtype": "Data",
+          "width": 130
+        },
+        {
+          "label": "Revision A to B",
+          "fieldname": "rev_change",
+          "fieldtype": "Data",
+          "width": 150
+        },
+        {
+          "label": "UOM",
+          "fieldname": "uom",
+          "fieldtype": "Data",
+          "width": 70
+        },
+        {
+          "label": "What to do",
+          "fieldname": "note",
+          "fieldtype": "Data",
+          "width": 380
+        }
+      ],
+      "data": [
+        {
+          "category": "Added",
+          "item_code": "1417903",
+          "item_name": "CABLE, M12 A-CODE M-F, 5-PIN, PVC, YELLOW, 10M",
+          "item_group": "Electrical Components",
+          "qty_change": "(none) -> 1",
+          "rev_change": "",
+          "uom": "Unit",
+          "note": "NEW in this build; was not in the previous one. Must be added.",
+          "_status_raw": "ADDED"
+        },
+        {
+          "category": "Qty Changed",
+          "item_code": "1417902",
+          "item_name": "CABLE, M12 A-CODE M-F, 5-PIN, PVC, YELLOW, 5M",
+          "item_group": "Electrical Components",
+          "qty_change": "3 -> 2",
+          "rev_change": "004",
+          "uom": "Unit",
+          "note": "Qty changed 3.0 -> 2.0; User notes changed",
+          "_status_raw": "QTY_CHANGED"
+        }
+      ],
+      "message": "<div style='margin-bottom:8px;'><b>Flat Procurement view</b> &mdash; comparing <b>SAL-ORD-2026-00054-BLD-0225-SNAP-0384</b> (previous build) against <b>SAL-ORD-2026-00054-BLD-0225-SNAP-0388</b> (this build). <span style='color:#667085;'>Context: Changes only.</span></div><div style='margin-bottom:10px;color:#475467;'>This is a comparison of two configured builds. It exists so that knowledge from the previous build can be <b>amended, not blindly reused</b> &mdash; only the lines below are different between the two builds. Everything not shown is unchanged and can be built the same way as before.</div><div style='margin-bottom:8px;'><span style='display:inline-block;padding:2px 10px;margin:2px 4px;border-radius:4px;background:#DCFCE7;color:#1f2a44;font-size:0.85em;white-space:nowrap;'>Added</span><span style='display:inline-block;padding:2px 10px;margin:2px 4px;border-radius:4px;background:#FEE2E2;color:#1f2a44;font-size:0.85em;white-space:nowrap;'>Removed</span><span style='display:inline-block;padding:2px 10px;margin:2px 4px;border-radius:4px;background:#E0F2FE;color:#1f2a44;font-size:0.85em;white-space:nowrap;'>Revision changed</span><span style='display:inline-block;padding:2px 10px;margin:2px 4px;border-radius:4px;background:#FEF9C3;color:#1f2a44;font-size:0.85em;white-space:nowrap;'>Qty changed</span><span style='display:inline-block;padding:2px 10px;margin:2px 4px;border-radius:4px;background:#F3E8FF;color:#1f2a44;font-size:0.85em;white-space:nowrap;'>Moved</span></div><details style='margin-top:4px;'><summary style='cursor:pointer;color:#1794ce;font-weight:600;'>What do these mean? (click to expand)</summary><table style='margin-top:8px;border-collapse:collapse;width:100%;'><tr style='background:#f9fafb;'><td style='padding:6px 10px;vertical-align:top;font-weight:600;white-space:nowrap;border-bottom:1px solid #eaecf0;'>Added</td><td style='padding:6px 10px;vertical-align:top;color:#475467;border-bottom:1px solid #eaecf0;'>A part that was NOT on the previous build and IS on this one. You must source/buy it for this build.</td></tr><tr style='background:#ffffff;'><td style='padding:6px 10px;vertical-align:top;font-weight:600;white-space:nowrap;border-bottom:1px solid #eaecf0;'>Removed</td><td style='padding:6px 10px;vertical-align:top;color:#475467;border-bottom:1px solid #eaecf0;'>A part that WAS on the previous build and is NOT on this one. Do not buy or include it this time.</td></tr><tr style='background:#f9fafb;'><td style='padding:6px 10px;vertical-align:top;font-weight:600;white-space:nowrap;border-bottom:1px solid #eaecf0;'>Revision changed</td><td style='padding:6px 10px;vertical-align:top;color:#475467;border-bottom:1px solid #eaecf0;'>The same part, but it is now sourced from a different BOM revision than before. The part number may be identical &mdash; what changed is the revision of the bill of materials it comes from. Treat it as: re-verify this part against the new revision.</td></tr><tr style='background:#ffffff;'><td style='padding:6px 10px;vertical-align:top;font-weight:600;white-space:nowrap;border-bottom:1px solid #eaecf0;'>Qty changed</td><td style='padding:6px 10px;vertical-align:top;color:#475467;border-bottom:1px solid #eaecf0;'>The same part, but the <b>total</b> quantity needed across the whole build is different. The Total Qty column shows <i>previous &rarr; this build</i>.</td></tr><tr style='background:#f9fafb;'><td style='padding:6px 10px;vertical-align:top;font-weight:600;white-space:nowrap;border-bottom:1px solid #eaecf0;'>Revision A &rarr; B column</td><td style='padding:6px 10px;vertical-align:top;color:#475467;border-bottom:1px solid #eaecf0;'>Shows the BOM revision(s) the part is sourced from, previous build on the left, this build on the right. If a part is used in more than one BOM, you may see more than one revision listed &mdash; that means the part lives in multiple bills of material, each at its own revision. That is normal for shared/common parts.</td></tr></table></details><div style='margin-top:8px;color:#667085;font-size:0.85em;'>Switch <b>View Mode</b> for the engineering tree vs. the flat procurement list. Use <b>Download Diff Workbook</b> for a color-coded export you can send to the builder.</div>",
+      "report_summary": [
+        {
+          "label": "Added",
+          "value": 1,
+          "indicator": "Green"
+        },
+        {
+          "label": "Removed",
+          "value": 0,
+          "indicator": "Red"
+        },
+        {
+          "label": "Revision Changed",
+          "value": 0,
+          "indicator": "Blue"
+        },
+        {
+          "label": "Qty Changed",
+          "value": 1,
+          "indicator": "Orange"
+        },
+        {
+          "label": "Moved",
+          "value": 0,
+          "indicator": "Purple"
+        },
+        {
+          "label": "User Notes Changed",
+          "value": 1,
+          "indicator": "Pink"
+        },
+        {
+          "label": "Total Changes",
+          "value": 3,
+          "indicator": "Orange"
+        }
+      ]
+    }
+  },
+  "balloon_delta": {
+    "changed": {
+      "193": {
+        "from": [
+          {
+            "item_code": "1417902",
+            "qty": 1.0
+          }
+        ],
+        "to": [
+          {
+            "item_code": "1417903",
+            "qty": 1.0
+          }
+        ]
+      }
+    },
+    "unchanged": [
+      "137",
+      "140",
+      "141",
+      "143",
+      "144",
+      "145",
+      "149",
+      "154",
+      "156",
+      "159",
+      "172",
+      "173",
+      "190",
+      "191"
+    ]
+  },
+  "expected_balloon_delta": {
+    "changed": {
+      "193": {
+        "from": [
+          {
+            "item_code": "1417902",
+            "qty": 1.0
+          }
+        ],
+        "to": [
+          {
+            "item_code": "1417903",
+            "qty": 1.0
+          }
+        ]
+      }
+    },
+    "unchanged": [
+      "137",
+      "140",
+      "141",
+      "143",
+      "144",
+      "145",
+      "149",
+      "154",
+      "156",
+      "159",
+      "172",
+      "173",
+      "190",
+      "191"
+    ]
+  },
+  "oracle_check": {
+    "passed": true,
+    "baseline_matches_oracle": true,
+    "deviation_matches_oracle": true,
+    "changed_sets_match": true,
+    "changed_payloads_match": true,
+    "expected_delta": {
+      "changed": {
+        "193": {
+          "from": [
+            {
+              "item_code": "1417902",
+              "qty": 1.0
+            }
+          ],
+          "to": [
+            {
+              "item_code": "1417903",
+              "qty": 1.0
+            }
+          ]
+        }
+      },
+      "unchanged": [
+        "137",
+        "140",
+        "141",
+        "143",
+        "144",
+        "145",
+        "149",
+        "154",
+        "156",
+        "159",
+        "172",
+        "173",
+        "190",
+        "191"
+      ]
+    },
+    "observed_delta": {
+      "changed": {
+        "193": {
+          "from": [
+            {
+              "item_code": "1417902",
+              "qty": 1.0
+            }
+          ],
+          "to": [
+            {
+              "item_code": "1417903",
+              "qty": 1.0
+            }
+          ]
+        }
+      },
+      "unchanged": [
+        "137",
+        "140",
+        "141",
+        "143",
+        "144",
+        "145",
+        "149",
+        "154",
+        "156",
+        "159",
+        "172",
+        "173",
+        "190",
+        "191"
+      ]
+    },
+    "sentinel_checks": []
+  },
+  "workbook": {
+    "ok": true,
+    "file_path": "/mnt/c/hub/frappe-sandbox/validation-evidence/snapshot_diff_SAL-ORD-2026-00054-BLD-0225_baseline_vs_stacklight_relocated_20260708T193821Z.xlsx",
+    "snapshot_a": "SAL-ORD-2026-00054-BLD-0225-SNAP-0384",
+    "snapshot_b": "SAL-ORD-2026-00054-BLD-0225-SNAP-0388",
+    "context_mode": "Changes only",
+    "sheets": [
+      "Hierarchical",
+      "Flat Procurement"
+    ]
+  }
+}
