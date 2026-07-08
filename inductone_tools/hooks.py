@@ -5,6 +5,11 @@ app_description = "InductOne configuration and BOM tooling"
 app_email = ""
 app_license = "MIT"
 
+# Frappe's `bench version` first checks for a branch-specific hook version
+# (for this deployment branch, `main_version`) and then falls back to
+# inductone_tools.__version__. Keep this in sync with pyproject.toml.
+main_version = "3.0.0"
+
 doc_events = {
     "InductOne Configuration Order": {
         "after_insert": "inductone_tools.inductone_tools.doctype.inductone_configuration_order.inductone_configuration_order.enqueue_flat_bom_generation"
