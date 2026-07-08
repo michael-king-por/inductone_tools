@@ -11,7 +11,7 @@ The manifest is descriptive, not yet a final approval of every row. It is the st
 | `client_script.json` | 26 | Client-side ERPNext form/list behavior. | Current `hooks.py` exports all Client Scripts. Narrow to allowlist. |
 | `doctype.json` | 31 | Custom DocType schema/configuration. | Spans `Operations - POR` and `InductOne Tools`; document ownership before restructuring. |
 | `custom_docperm.json` | 12 | Permission rows for selected custom DocTypes. | Needs alignment with formal permission matrix. |
-| `custom_field.json` | 0 | No custom fields currently exported. | Keep intentionally empty unless deploy-critical fields are added. |
+| `custom_field.json` | 8 | Deploy-critical Custom Fields, including BOM Item electrical metadata and balloon-scoped option fields. | Any addition can overwrite live Custom Field definitions on migrate; run fixture parity checks before deploy. |
 | `property_setter.json` | 0 | No property setters currently exported. | Keep intentionally empty unless deploy-critical setters are added. |
 
 ## Client Script rows
@@ -90,6 +90,16 @@ Current local `doctype.json` rows:
 | Part Number Allocation Request | Part number request object |
 | InductOne Instance Serial | Child table |
 | Configured BOM Snapshot Hierarchy | Snapshot hierarchy support |
+
+## Custom Field fixture rows
+
+`custom_field.json` now includes:
+
+- six `BOM Item` electrical/user-note fields;
+- `InductOne Configuration Option Mapping-target_balloon`;
+- `Configured BOM Snapshot Structural Effect-target_balloon`.
+
+The two `target_balloon` rows are required for balloon-scoped configuration options. They are optional Data fields inserted after `target_item`; empty value preserves legacy item-wide behavior.
 
 ## Immediate fixture hardening recommendations
 

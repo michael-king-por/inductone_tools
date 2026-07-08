@@ -312,6 +312,18 @@ def build_configured_rows(package_doc):
 
     structural_sets = load_snapshot_structural_effect_sets(snap)
 
+    suppressed_item_set = set()
+    suppressed_item_set.update(structural_sets.get("suppressed_node_items", set()))
+    suppressed_item_set.update(structural_sets.get("suppressed_branch_items", set()))
+
+    suppressed_balloon_item_set = set()
+    suppressed_balloon_item_set.update(structural_sets.get("suppressed_node_balloon_items", set()))
+    suppressed_balloon_item_set.update(structural_sets.get("suppressed_branch_balloon_items", set()))
+
+    suppressed_bom_set = set()
+    suppressed_bom_set.update(structural_sets.get("suppressed_node_boms", set()))
+    suppressed_bom_set.update(structural_sets.get("suppressed_branch_boms", set()))
+
     # Server-authoritative re-resolution of ADD effects.
     #
     # The client emits a provisional mode, but only the server has the fully
@@ -328,8 +340,19 @@ def build_configured_rows(package_doc):
 
     for eff in structural_sets.get("additive_effects", []):
         target = eff.get("target_item")
+        target_balloon = (eff.get("target_balloon") or "").strip()
         mode = (eff.get("effect_mode") or "")
-        if mode == "ADD_BRANCH" and target in baseline_item_codes_all:
+        # Balloon-scoped extension rows are intentionally pruned from the
+        # 150%-master by the always-on baseline option, then re-added by a
+        # moved-panel option. Even though the item exists in the raw baseline,
+        # the exact (balloon, item) row no longer exists in the configured tree,
+        # so this must remain an ADD rather than becoming an increment.
+        target_was_balloon_pruned = (
+            bool(target_balloon)
+            and bool(target)
+            and (target_balloon, target) in suppressed_balloon_item_set
+        )
+        if mode == "ADD_BRANCH" and target in baseline_item_codes_all and not target_was_balloon_pruned:
             # Target already in tree: this is an increment, not a new branch.
             forced = dict(eff)
             forced["effect_mode"] = "INCREMENT_NODE_QTY"
@@ -353,14 +376,6 @@ def build_configured_rows(package_doc):
     structural_sets["additive_effects"] = reclassified_additive
     structural_sets["increment_effects"] = final_increment
 
-    suppressed_item_set = set()
-    suppressed_item_set.update(structural_sets.get("suppressed_node_items", set()))
-    suppressed_item_set.update(structural_sets.get("suppressed_branch_items", set()))
-
-    suppressed_bom_set = set()
-    suppressed_bom_set.update(structural_sets.get("suppressed_node_boms", set()))
-    suppressed_bom_set.update(structural_sets.get("suppressed_branch_boms", set()))
-
     # --- Positional REPLACE resolution ---------------------------------------
     #
     # Replacement is positional and scoped. Item-level suppression is NOT used
@@ -380,8 +395,15 @@ def build_configured_rows(package_doc):
     #   REPLACE_TARGET_NODE   -> in-place LEAF swap (same parent, same depth)
     #   REPLACE_TARGET_BRANCH -> in-place BRANCH swap (assembly + exploded
     #                            subtree, re-parented onto the occurrence path)
+    def _balloon_of(row):
+        return (row.get("balloon_numbers") or "").strip()
+
     def _occ_key(row):
-        return (tuple(row.get("ancestor_item_codes") or []), row.get("item_code"))
+        return (
+            tuple(row.get("ancestor_item_codes") or []),
+            row.get("item_code"),
+            _balloon_of(row),
+        )
 
     positional_suppressed_occ = set()
     positional_replacement_rows = []
@@ -402,9 +424,17 @@ def build_configured_rows(package_doc):
                 f"has no replace_with_item."
             )
         repl_bom = eff.get("resolved_replace_with_bom") or eff.get("replace_with_bom")
+        eff_balloon = (eff.get("target_balloon") or "").strip()
 
         # All positioned occurrences of the target, deterministically ordered.
-        occurrences = [r for r in baseline_rows if r.get("item_code") == target]
+        # When target_balloon is present, limit the replacement to the specific
+        # electrical callout row. This keeps repeated item codes on separate
+        # balloons independent.
+        occurrences = [
+            r for r in baseline_rows
+            if r.get("item_code") == target
+            and (not eff_balloon or _balloon_of(r) == eff_balloon)
+        ]
         occurrences.sort(key=lambda r: (
             " > ".join(r.get("ancestor_item_codes") or []),
             int(r.get("bom_level") or 0),
@@ -451,6 +481,7 @@ def build_configured_rows(package_doc):
                     "uom": meta.get("stock_uom") or "",
                     "description": meta.get("description") or "",
                     "bom_used": None,
+                    "balloon_numbers": _balloon_of(occ),
                     "node_type": "Leaf",
                     "is_leaf": 1,
                     "ancestor_item_codes": anc_items,
@@ -468,6 +499,7 @@ def build_configured_rows(package_doc):
                     "uom": meta.get("stock_uom") or "",
                     "description": meta.get("description") or "",
                     "bom_used": repl_bom,
+                    "balloon_numbers": _balloon_of(occ),
                     "node_type": "Assembly",
                     "is_leaf": 0,
                     "ancestor_item_codes": anc_items,
@@ -487,6 +519,26 @@ def build_configured_rows(package_doc):
                     srow["bom_level"] = level + int(srow.get("bom_level") or 0)
                     positional_replacement_rows.append(srow)
 
+    # Idempotence: multiple independent options may request the same
+    # balloon-scoped replacement (for example IPC + HMI both affect balloon
+    # 154). Those options must collapse to one replacement row, even when the
+    # caller has asked us to preserve genuine duplicate BOM occurrences.
+    deduped_replacement_rows = []
+    seen_replacement_keys = set()
+    for row in positional_replacement_rows:
+        key = (
+            row.get("item_code") or "",
+            row.get("bom_used") or "",
+            row.get("node_type") or "",
+            tuple(row.get("ancestor_item_codes") or []),
+            (row.get("balloon_numbers") or "").strip(),
+        )
+        if key in seen_replacement_keys:
+            continue
+        seen_replacement_keys.add(key)
+        deduped_replacement_rows.append(row)
+    positional_replacement_rows = deduped_replacement_rows
+
     filtered = []
     for row in baseline_rows:
         row_item = row.get("item_code")
@@ -499,6 +551,13 @@ def build_configured_rows(package_doc):
         # occurrences of the same item intact.
         if _occ_key(row) in positional_suppressed_occ:
             continue
+
+        # Balloon-scoped REMOVE: suppress only the specific electrical callout
+        # row identified by (balloon, item). Empty target_balloon effects still
+        # flow through the legacy item-wide suppression sets.
+        if row_item and suppressed_balloon_item_set:
+            if (_balloon_of(row), row_item) in suppressed_balloon_item_set:
+                continue
 
         # Primary structural suppression rules (REMOVE options; item-level)
         if row_item and row_item in suppressed_item_set:
@@ -593,6 +652,7 @@ def build_configured_rows(package_doc):
                 row.get("bom_used") or "",
                 row.get("node_type") or "",
                 tuple(row.get("ancestor_item_codes") or []),
+                (row.get("balloon_numbers") or "").strip(),
             )
             if key in seen:
                 continue
@@ -972,6 +1032,7 @@ def fetch_option_actions_server(option_name):
             "qty_fixed": getattr(row, "qty_fixed", None),
             "row_order": getattr(row, "row_order", None),
             "structural_effect_mode": getattr(row, "structural_effect_mode", None),
+            "target_balloon": getattr(row, "target_balloon", None),
             "preserve_target_item_identity": getattr(row, "preserve_target_item_identity", None),
             "variant_artifact_key": getattr(row, "variant_artifact_key", None),
         })
@@ -982,6 +1043,10 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
     """
     Normalize snapshot.structural_effects into export-friendly sets/lists.
     Snapshot structural effects are the primary structural truth for configured export.
+    Balloon-scoped REMOVE/REPLACE effects use (target_balloon, target_item) to
+    affect one electrical callout row without touching another occurrence of the
+    same item elsewhere in the BOM tree. Empty target_balloon keeps legacy
+    item-wide behavior.
     """
     removed_target_items = set()
     removed_target_boms = set()
@@ -989,6 +1054,8 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
     suppressed_node_boms = set()
     suppressed_branch_items = set()
     suppressed_branch_boms = set()
+    suppressed_node_balloon_items = set()
+    suppressed_branch_balloon_items = set()
     replacement_effects = []
     additive_effects = []
     increment_effects = []
@@ -1009,6 +1076,7 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
         expand_mode = getattr(row, "expand_mode", None)
         row_order = int(getattr(row, "row_order", 100) or 100)
         reason = getattr(row, "reason", None)
+        target_balloon = (getattr(row, "target_balloon", None) or "").strip()
 
         effective_target_bom = resolved_target_bom or target_bom
         effective_replace_with_bom = resolved_replace_with_bom or replace_with_bom
@@ -1021,13 +1089,19 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
 
             if effect_mode == "SUPPRESS_TARGET_NODE":
                 if target_item:
-                    suppressed_node_items.add(target_item)
+                    if target_balloon:
+                        suppressed_node_balloon_items.add((target_balloon, target_item))
+                    else:
+                        suppressed_node_items.add(target_item)
                 if effective_target_bom:
                     suppressed_node_boms.add(effective_target_bom)
 
             elif effect_mode == "SUPPRESS_TARGET_BRANCH":
                 if target_item:
-                    suppressed_branch_items.add(target_item)
+                    if target_balloon:
+                        suppressed_branch_balloon_items.add((target_balloon, target_item))
+                    else:
+                        suppressed_branch_items.add(target_item)
                 if effective_target_bom:
                     suppressed_branch_boms.add(effective_target_bom)
 
@@ -1036,6 +1110,7 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
                 "action": action,
                 "effect_mode": effect_mode,        # REPLACE_TARGET_NODE or _BRANCH
                 "target_item": target_item,
+                "target_balloon": target_balloon,
                 "target_bom": target_bom,
                 "resolved_target_bom": effective_target_bom,
                 "replace_with_item": replace_with_item,
@@ -1056,6 +1131,7 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
                 "effect_mode": effect_mode,
                 "effect_qty": float(getattr(row, "effect_qty", 0) or 0) or 1.0,
                 "target_item": target_item,
+                "target_balloon": target_balloon,
                 "target_bom": target_bom,
                 "resolved_target_bom": effective_target_bom,
                 "replace_with_item": replace_with_item,
@@ -1081,6 +1157,7 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
                 "action": action,
                 "effect_mode": effect_mode,
                 "target_item": target_item,
+                "target_balloon": target_balloon,
                 "target_bom": target_bom,
                 "resolved_target_bom": effective_target_bom,
                 "source_option": source_option,
@@ -1095,8 +1172,10 @@ def load_snapshot_structural_effect_sets(snapshot_doc):
         "removed_target_items": removed_target_items,
         "removed_target_boms": removed_target_boms,
         "suppressed_node_items": suppressed_node_items,
+        "suppressed_node_balloon_items": suppressed_node_balloon_items,
         "suppressed_node_boms": suppressed_node_boms,
         "suppressed_branch_items": suppressed_branch_items,
+        "suppressed_branch_balloon_items": suppressed_branch_balloon_items,
         "suppressed_branch_boms": suppressed_branch_boms,
         "replacement_effects": sorted(replacement_effects, key=lambda r: (int(r.get("row_order") or 100), r.get("target_item") or "")),
         "additive_effects": sorted(additive_effects, key=lambda r: (int(r.get("row_order") or 100), r.get("target_item") or "")),
@@ -1120,6 +1199,7 @@ def build_structure_rows_from_structural_effects(structural_sets, explosion_mode
             r.get("bom_used") or "",
             r.get("node_type") or "",
             tuple(r.get("ancestor_item_codes") or []),
+            (r.get("balloon_numbers") or "").strip(),
         ))
 
     out = []
@@ -1130,13 +1210,14 @@ def build_structure_rows_from_structural_effects(structural_sets, explosion_mode
             row.get("bom_used") or "",
             row.get("node_type") or "",
             tuple(row.get("ancestor_item_codes") or []),
+            (row.get("balloon_numbers") or "").strip(),
         )
         if key in baseline_keys:
             return
         baseline_keys.add(key)
         out.append(row)
 
-    def _append_item_or_bom_branch(item_code, bom_name):
+    def _append_item_or_bom_branch(item_code, bom_name, target_balloon="", effect_qty=1.0):
         if not item_code:
             return
 
@@ -1152,10 +1233,11 @@ def build_structure_rows_from_structural_effects(structural_sets, explosion_mode
                 "bom_level": 1,
                 "item_code": item_code,
                 "item_name": meta.get("item_name") or "",
-                "qty": 1.0,
+                "qty": float(effect_qty or 1.0),
                 "uom": meta.get("stock_uom") or "",
                 "description": meta.get("description") or "",
                 "bom_used": bom_name,
+                "balloon_numbers": target_balloon or "",
                 "node_type": "Assembly",
                 "is_leaf": 0,
                 "ancestor_item_codes": [],
@@ -1187,10 +1269,11 @@ def build_structure_rows_from_structural_effects(structural_sets, explosion_mode
                 "bom_level": 1,
                 "item_code": item_code,
                 "item_name": meta.get("item_name") or "",
-                "qty": 1.0,
+                "qty": float(effect_qty or 1.0),
                 "uom": meta.get("stock_uom") or "",
                 "description": meta.get("description") or "",
                 "bom_used": None,
+                "balloon_numbers": target_balloon or "",
                 "node_type": "Leaf",
                 "is_leaf": 1,
                 "ancestor_item_codes": [],
@@ -1204,7 +1287,12 @@ def build_structure_rows_from_structural_effects(structural_sets, explosion_mode
 
         add_item = eff.get("target_item")
         add_bom = eff.get("resolved_target_bom") or eff.get("target_bom")
-        _append_item_or_bom_branch(add_item, add_bom)
+        _append_item_or_bom_branch(
+            add_item,
+            add_bom,
+            (eff.get("target_balloon") or "").strip(),
+            float(eff.get("effect_qty") or 1.0),
+        )
 
     return out
 
