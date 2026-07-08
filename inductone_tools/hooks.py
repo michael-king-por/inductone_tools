@@ -193,7 +193,8 @@ fixtures = [
                 "InductOne Configuration Order Delta Line",
                 "InductOne Configuration Order Selected Option",
                 "InductOne Configuration Order Document Index",
-                "BOM Item"
+                "BOM Item",
+                "Configured BOM Snapshot Structural Effect"
             ]]
         ]
     },

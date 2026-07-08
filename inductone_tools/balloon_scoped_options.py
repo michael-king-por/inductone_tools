@@ -1,0 +1,370 @@
+"""Balloon-scoped InductOne electrical configuration option catalog.
+
+The REV E electrical BOMs are 150% masters: configurable callouts carry both
+the Standard row and the Option row in the source BOM. The option resolver must
+therefore address rows by the occurrence-local key ``(target_balloon,
+target_item)`` when pruning or replacing material. Empty ``target_balloon``
+keeps the pre-existing item-wide behavior.
+
+This module deliberately keeps the reviewed catalog and the independent
+expected-value oracle together so loader and validation scripts do not drift.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Iterable
+
+
+MASTER_ELECTRICAL_BOM = "BOM-1611 027 0931 ELEC-004"
+COLLISION_REFERENCE_BOM = "BOM-1611 027 0921 ELEC-006"
+
+
+@dataclass(frozen=True)
+class Substitution:
+    balloon: str
+    standard_item: str
+    option_items: tuple[str, ...]
+    moved_by: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class Extension:
+    balloon: str
+    item: str
+    added_by: tuple[str, ...]
+    partner_balloon: str
+    partner_item_note: str
+
+
+SUBSTITUTIONS: tuple[Substitution, ...] = (
+    Substitution("137", "MCVP-19MFP-5M", ("MCVP-19MFP-10M",), ("DEV-PANEL-IPC", "DEV-COMP-FORTRESS")),
+    Substitution("140", "1407378", ("1407379",), ("DEV-PANEL-IPC", "DEV-COMP-HMI")),
+    Substitution("141", "1407485", ("1407486",), ("DEV-PANEL-IPC", "DEV-COMP-HMI")),
+    Substitution("144", "1407362", ("1407363",), ("DEV-PANEL-IPC",)),
+    Substitution("154", "1417891", ("1417892",), ("DEV-PANEL-IPC", "DEV-COMP-HMI")),
+    # The release-note prose describes balloon 159 as two coupled PNs, but the
+    # ERPNext BOM stores the option as one combined Item code. The BOM row is
+    # the validation/deployment ground truth.
+    Substitution("159", "WKC 8T-4-RSC 8T", ("MDCM-8FP-10M-R  & MDC-8MP-FW11",), ("DEV-PANEL-IPC", "DEV-COMP-MAGLOCK")),
+    Substitution("172", "11245", ("11283",), ("DEV-PANEL-IPC",)),
+    Substitution("173", "11283", ("11351",), ("DEV-PANEL-IPC",)),
+    Substitution("190", "1425016", ("1291280",), ("DEV-PANEL-IPC",)),
+    Substitution("191", "1007-300-0002-02", ("1000517",), ("DEV-PANEL-IPC",)),
+    Substitution("193", "1417902", ("1417903",), ("DEV-PANEL-IPC", "DEV-COMP-STACK")),
+)
+
+EXTENSIONS: tuple[Extension, ...] = (
+    Extension("143", "1407402", ("DEV-PANEL-MCP",), "142", "1192150"),
+    Extension("145", "MCVP-12MMFP-5M", ("DEV-PANEL-MCP", "DEV-PANEL-IPC"), "146", "MCVP-12MFP-15M"),
+    Extension("149", "1276573", ("DEV-PANEL-MCP",), "150", "1292210/U60/15"),
+    Extension("156", "RSM RKM 30-5M/S101", ("DEV-PANEL-MCP", "DEV-PANEL-IPC"), "155", "RSM RKM 36-15M/S3059"),
+)
+
+STANDARD_OPTION_CODES: tuple[str, ...] = (
+    "DEV-PANEL-MCP-STD",
+    "DEV-PANEL-IPC-STD",
+    "DEV-COMP-HMI-STD",
+    "DEV-COMP-STACK-STD",
+    "DEV-COMP-FORTRESS-STD",
+    "DEV-COMP-MAGLOCK-STD",
+)
+
+MOVED_OPTION_CODES: tuple[str, ...] = (
+    "DEV-PANEL-MCP",
+    "DEV-PANEL-IPC",
+    "DEV-COMP-HMI",
+    "DEV-COMP-STACK",
+    "DEV-COMP-FORTRESS",
+    "DEV-COMP-MAGLOCK",
+)
+
+OPTION_GROUPS = {
+    "DEV-BASELINE": "Electrical Cable Baseline",
+    "DEV-PANEL-MCP-STD": "MCP Panel Position",
+    "DEV-PANEL-MCP": "MCP Panel Position",
+    "DEV-PANEL-IPC-STD": "IPC Panel Position",
+    "DEV-PANEL-IPC": "IPC Panel Position",
+    "DEV-COMP-HMI-STD": "HMI Position",
+    "DEV-COMP-HMI": "HMI Position",
+    "DEV-COMP-STACK-STD": "Stacklight Position",
+    "DEV-COMP-STACK": "Stacklight Position",
+    "DEV-COMP-FORTRESS-STD": "Fortress Position",
+    "DEV-COMP-FORTRESS": "Fortress Position",
+    "DEV-COMP-MAGLOCK-STD": "Maglock Position",
+    "DEV-COMP-MAGLOCK": "Maglock Position",
+}
+
+OPTION_NAMES = {
+    "DEV-BASELINE": "Deviation — All Standard (Baseline)",
+    "DEV-PANEL-MCP-STD": "MCP Panel — Standard",
+    "DEV-PANEL-MCP": "Deviation — MCP Panel Relocated",
+    "DEV-PANEL-IPC-STD": "IPC Panel — Standard",
+    "DEV-PANEL-IPC": "Deviation — IPC Panel Relocated",
+    "DEV-COMP-HMI-STD": "HMI — Standard",
+    "DEV-COMP-HMI": "Deviation — HMI Relocated",
+    "DEV-COMP-STACK-STD": "Stacklight — Standard",
+    "DEV-COMP-STACK": "Deviation — Stacklight Relocated",
+    "DEV-COMP-FORTRESS-STD": "Fortress — Standard",
+    "DEV-COMP-FORTRESS": "Deviation — Fortress Relocated",
+    "DEV-COMP-MAGLOCK-STD": "Magnet Lock — Standard",
+    "DEV-COMP-MAGLOCK": "Deviation — Magnet Lock Relocated",
+}
+
+
+def option_codes() -> list[str]:
+    return list(OPTION_NAMES)
+
+
+def _baseline_remove_mappings() -> list[dict]:
+    rows: list[dict] = []
+    order = 10
+    for sub in SUBSTITUTIONS:
+        for item in sub.option_items:
+            rows.append(_mapping_remove(sub.balloon, item, order))
+            order += 10
+    for ext in EXTENSIONS:
+        rows.append(_mapping_remove(ext.balloon, ext.item, order))
+        order += 10
+    return rows
+
+
+def _moved_option_mappings(code: str) -> list[dict]:
+    rows: list[dict] = []
+    order = 10
+    for sub in SUBSTITUTIONS:
+        if code in sub.moved_by:
+            for option_item in sub.option_items:
+                rows.append(_mapping_replace(sub.balloon, sub.standard_item, option_item, order))
+                order += 10
+    for ext in EXTENSIONS:
+        if code in ext.added_by:
+            rows.append(_mapping_add(ext.balloon, ext.item, order))
+            order += 10
+    return rows
+
+
+def _mapping_remove(balloon: str, item: str, row_order: int) -> dict:
+    return {
+        "action": "REMOVE",
+        "target_item": item,
+        "target_balloon": balloon,
+        "replace_with_item": "",
+        "replace_scope": "ALL_OCCURRENCES",
+        "replace_count": 1,
+        "structural_effect_mode": "SUPPRESS_TARGET_NODE",
+        "preserve_target_item_identity": 1,
+        "expand_mode": "AS_ITEM_ONLY",
+        "qty_source": "FIXED",
+        "qty_fixed": 1,
+        "required_for_release": 1,
+        "row_order": row_order,
+    }
+
+
+def _mapping_replace(balloon: str, standard_item: str, option_item: str, row_order: int) -> dict:
+    return {
+        "action": "REPLACE",
+        "target_item": standard_item,
+        "target_balloon": balloon,
+        "replace_with_item": option_item,
+        "replace_scope": "ALL_OCCURRENCES",
+        "replace_count": 1,
+        # The mapping DocType does not allow REPLACE_TARGET_NODE directly.
+        # The InductOne Build client script resolves AUTO + REPLACE +
+        # AS_ITEM_ONLY into REPLACE_TARGET_NODE when freezing snapshot effects.
+        "structural_effect_mode": "AUTO",
+        "preserve_target_item_identity": 1,
+        "expand_mode": "AS_ITEM_ONLY",
+        "qty_source": "FIXED",
+        "qty_fixed": 1,
+        "required_for_release": 1,
+        "row_order": row_order,
+    }
+
+
+def _mapping_add(balloon: str, item: str, row_order: int) -> dict:
+    return {
+        "action": "ADD",
+        "target_item": item,
+        "target_balloon": balloon,
+        "replace_with_item": "",
+        "replace_scope": "ALL_OCCURRENCES",
+        "replace_count": 1,
+        "structural_effect_mode": "ADD_BRANCH",
+        "preserve_target_item_identity": 1,
+        "expand_mode": "AS_ITEM_ONLY",
+        "qty_source": "FIXED",
+        "qty_fixed": 1,
+        "required_for_release": 1,
+        "row_order": row_order,
+    }
+
+
+def catalog_specs() -> list[dict]:
+    specs = []
+    for idx, code in enumerate(option_codes(), start=1):
+        if code == "DEV-BASELINE":
+            mappings = _baseline_remove_mappings()
+            is_default = 1
+        elif code in STANDARD_OPTION_CODES:
+            mappings = []
+            is_default = 1
+        else:
+            mappings = _moved_option_mappings(code)
+            is_default = 0
+
+        specs.append({
+            "option_code": code,
+            "option_name": OPTION_NAMES[code],
+            "option_category": "Electrical",
+            "option_group": OPTION_GROUPS[code],
+            "option_group_required": 1,
+            "is_default_selection": is_default,
+            "is_active": 1,
+            "status": "Defined-Ops",
+            "mapping_status": "Complete",
+            "owner_role": "Ops",
+            "sort_order": idx * 10,
+            "internal_notes": "Managed by inductone_tools balloon-scoped option loader.",
+            "builder_description": OPTION_NAMES[code],
+            "mappings_table": mappings,
+        })
+    return specs
+
+
+def upsert_catalog(frappe_module=None) -> list[dict]:
+    """Create/update the reviewed option catalog in the connected Frappe site."""
+
+    if frappe_module is None:
+        import frappe as frappe_module  # type: ignore
+
+    frappe = frappe_module
+    results = []
+    for spec in catalog_specs():
+        option_code = spec["option_code"]
+        existing = frappe.db.get_value("InductOne Configuration Option", {"option_code": option_code}, "name")
+        if existing:
+            doc = frappe.get_doc("InductOne Configuration Option", existing)
+            action = "updated"
+        else:
+            doc = frappe.new_doc("InductOne Configuration Option")
+            action = "created"
+
+        for field in [
+            "option_code",
+            "option_name",
+            "option_category",
+            "option_group",
+            "option_group_required",
+            "is_default_selection",
+            "is_active",
+            "status",
+            "mapping_status",
+            "owner_role",
+            "sort_order",
+            "internal_notes",
+            "builder_description",
+        ]:
+            doc.set(field, spec[field])
+
+        doc.set("mappings_table", [])
+        for mapping in spec["mappings_table"]:
+            doc.append("mappings_table", mapping)
+
+        if existing:
+            doc.save(ignore_permissions=True)
+        else:
+            doc.insert(ignore_permissions=True)
+        results.append({
+            "option_code": option_code,
+            "name": doc.name,
+            "action": action,
+            "mapping_count": len(spec["mappings_table"]),
+        })
+
+    frappe.db.commit()
+    return results
+
+
+def selected_moved_codes(selected_option_codes: Iterable[str]) -> set[str]:
+    selected = set(selected_option_codes)
+    return {code for code in MOVED_OPTION_CODES if code in selected}
+
+
+def expected_resolution(selected_option_codes: Iterable[str], frappe_module=None) -> dict:
+    """Return expected configurable-balloon and collision rollup values.
+
+    This oracle does not call ``build_configured_rows`` and does not read a
+    snapshot. When connected to Frappe, it reads the master BOM Item rows for
+    quantities so the table stays tied to the production BOM data rather than a
+    copied spreadsheet.
+    """
+
+    frappe = frappe_module
+    moved = selected_moved_codes(selected_option_codes)
+    by_balloon: dict[str, list[dict]] = {}
+
+    for sub in SUBSTITUTIONS:
+        use_option = any(code in moved for code in sub.moved_by)
+        if use_option:
+            by_balloon[sub.balloon] = [
+                {
+                    "item_code": item,
+                    "qty": _bom_qty(frappe, MASTER_ELECTRICAL_BOM, sub.balloon, item),
+                }
+                for item in sub.option_items
+            ]
+        else:
+            by_balloon[sub.balloon] = [{
+                "item_code": sub.standard_item,
+                "qty": _bom_qty(frappe, MASTER_ELECTRICAL_BOM, sub.balloon, sub.standard_item),
+            }]
+
+    for ext in EXTENSIONS:
+        present = any(code in moved for code in ext.added_by)
+        by_balloon[ext.balloon] = []
+        if present:
+            by_balloon[ext.balloon].append({
+                "item_code": ext.item,
+                "qty": _bom_qty(frappe, MASTER_ELECTRICAL_BOM, ext.balloon, ext.item),
+            })
+
+    flat: dict[str, float] = {}
+    for rows in by_balloon.values():
+        for row in rows:
+            flat[row["item_code"]] = flat.get(row["item_code"], 0.0) + float(row["qty"] or 0)
+
+    # Fixed collision occurrences outside the configurable rows.
+    for bom, balloon, item in [
+        (MASTER_ELECTRICAL_BOM, "188", "1417902"),
+        (COLLISION_REFERENCE_BOM, "315", "1417891"),
+    ]:
+        qty = _bom_qty(frappe, bom, balloon, item)
+        flat[item] = flat.get(item, 0.0) + float(qty or 0)
+
+    return {
+        "selected_moved_options": sorted(moved),
+        "by_balloon": by_balloon,
+        "flat": flat,
+    }
+
+
+def _bom_qty(frappe, bom: str, balloon: str, item_code: str) -> float:
+    if frappe is None:
+        return 1.0
+    rows = frappe.get_all(
+        "BOM Item",
+        filters={
+            "parent": bom,
+            "item_code": item_code,
+            "custom_balloon_numbers": balloon,
+        },
+        fields=["qty"],
+        limit=2,
+    )
+    if not rows:
+        raise ValueError(f"Expected BOM Item not found: {bom} balloon {balloon} item {item_code}")
+    if len(rows) > 1:
+        raise ValueError(f"Ambiguous BOM Item rows: {bom} balloon {balloon} item {item_code}")
+    return float(rows[0].qty or 0)
