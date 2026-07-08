@@ -158,3 +158,108 @@ This report intentionally does **not** claim BOM Export Package ZIP byte-for-byt
 ## Readiness verdict
 
 READY TO MERGE for code review, subject to the normal human review/push/deploy process. Production was not touched.
+
+## Option fixture tracking
+
+Addendum 2 result: PASS / READY.
+
+The reviewed `DEV-*` option catalog is now fixture-managed as configuration, not operational data.
+
+### Fixture scope
+
+`hooks.py` now exports only the reviewed development catalog:
+
+```python
+{
+    "dt": "InductOne Configuration Option",
+    "filters": [["option_code", "like", "DEV-%"]]
+}
+```
+
+The child `InductOne Configuration Option Mapping` rows ride inside each parent option document. The child DocType is not exported as a separate record fixture.
+
+### Portability check
+
+Candidate parent naming is portable:
+
+| Count | Result |
+|---:|---|
+| 13 `DEV-*` options | `name == option_code` for all 13 |
+| 13 `DEV-*` options | `status == Defined-Ops` for all 13 |
+
+The exported child mapping rows omit child-row `name` values and carry semantic fields: action, target item, target balloon, replacement item, quantity, and row order.
+
+### Exported fixture
+
+New fixture:
+
+```text
+inductone_tools/fixtures/inductone_configuration_option.json
+```
+
+Export result:
+
+| Check | Result |
+|---|---|
+| Fixture option count | 13 |
+| Non-`DEV-*` option leakage | None |
+| Parent names | stable / deterministic |
+| Mapping rows include `target_balloon` where expected | PASS |
+| Fixture ↔ candidate DB ↔ oracle parity | PASS |
+
+Option list:
+
+- `DEV-BASELINE`
+- `DEV-PANEL-MCP-STD`
+- `DEV-PANEL-MCP`
+- `DEV-PANEL-IPC-STD`
+- `DEV-PANEL-IPC`
+- `DEV-COMP-HMI-STD`
+- `DEV-COMP-HMI`
+- `DEV-COMP-STACK-STD`
+- `DEV-COMP-STACK`
+- `DEV-COMP-FORTRESS-STD`
+- `DEV-COMP-FORTRESS`
+- `DEV-COMP-MAGLOCK-STD`
+- `DEV-COMP-MAGLOCK`
+
+### Parity evidence
+
+Candidate parity evidence:
+
+```text
+C:\hub\frappe-sandbox\validation-evidence\balloon_closeout_static_checks_20260708T141107Z.json
+```
+
+The close-out checker now validates:
+
+- Client Script parity.
+- Custom Field fixture shape.
+- `DEV-*` option fixture parity against candidate DB and `inductone_tools.balloon_scoped_options`.
+- Build-page group/default/exclusivity behavior.
+
+All checks passed.
+
+### Migrate round-trip evidence
+
+Round-trip procedure on candidate:
+
+1. Deleted all 13 `DEV-*` `InductOne Configuration Option` records.
+2. Confirmed candidate count was 0.
+3. Ran `bench --site inductone-candidate.localhost migrate`.
+4. Confirmed migrate recreated all 13 records from fixture, all at `Defined-Ops`.
+5. Reran fixture parity.
+6. Reran the full 12-case candidate resolver matrix without `--load-options`.
+
+Post-round-trip validation evidence:
+
+```text
+C:\hub\frappe-sandbox\validation-evidence\balloon_closeout_static_checks_20260708T141107Z.json
+C:\hub\frappe-sandbox\validation-evidence\balloon_scoped_options_validation_20260708T141108Z.json
+```
+
+All 12 resolver cases passed after fixture recreation.
+
+### Operational note
+
+`scripts/load_balloon_scoped_options.py` remains the authoring/bootstrap tool for fresh candidate instances. Production and deployed environments receive these reviewed options through `bench migrate` from the scoped fixture. The options intentionally ship as `Defined-Ops`; release to `Released` remains a governed human action.

@@ -19,6 +19,7 @@ from pathlib import Path
 DEFAULT_EVIDENCE_DIR = Path("/mnt/c/hub/frappe-sandbox/validation-evidence")
 CLIENT_SCRIPT_FIXTURE = Path("inductone_tools/fixtures/client_script.json")
 CUSTOM_FIELD_FIXTURE = Path("inductone_tools/fixtures/custom_field.json")
+CONFIGURATION_OPTION_FIXTURE = Path("inductone_tools/fixtures/inductone_configuration_option.json")
 
 EXPECTED_CUSTOM_FIELDS = {
     "BOM Item-custom_orientation",
@@ -75,7 +76,7 @@ def main() -> int:
     evidence_path = args.evidence_dir / f"balloon_closeout_static_checks_{timestamp}.json"
 
     import frappe
-    from inductone_tools.balloon_scoped_options import expected_resolution
+    from inductone_tools.balloon_scoped_options import catalog_specs, expected_resolution
 
     payload = {
         "generated_at_utc": timestamp,
@@ -83,12 +84,14 @@ def main() -> int:
         "repo_root": str(repo_root),
         "client_script_parity": run_client_script_parity(repo_root),
         "custom_field_fixture": run_custom_field_check(repo_root),
+        "option_fixture_parity": None,
         "group_logic": None,
     }
 
     frappe.init(site=args.site, sites_path=args.sites_path)
     frappe.connect()
     try:
+        payload["option_fixture_parity"] = run_option_fixture_parity(frappe, repo_root, catalog_specs)
         payload["group_logic"] = run_group_logic(frappe, expected_resolution)
     finally:
         frappe.destroy()
@@ -96,6 +99,7 @@ def main() -> int:
     verdicts = [
         payload["client_script_parity"]["passed"],
         payload["custom_field_fixture"]["passed"],
+        payload["option_fixture_parity"]["passed"],
         payload["group_logic"]["passed"],
     ]
     payload["passed"] = all(verdicts)
@@ -106,6 +110,9 @@ def main() -> int:
         status = "identical" if row["identical"] else row["note"]
         print(f"  {row['script_name']}: {status}")
     print("Custom Field fixture:", "PASS" if payload["custom_field_fixture"]["passed"] else "BLOCKER")
+    print("Option fixture parity:", "PASS" if payload["option_fixture_parity"]["passed"] else "BLOCKER")
+    for row in payload["option_fixture_parity"]["table"]:
+        print(f"  {row['option_code']}: {row['status']}")
     print("Group logic:", "PASS" if payload["group_logic"]["passed"] else "BLOCKER")
     print(f"Evidence: {evidence_path}")
     return 0 if payload["passed"] else 1
@@ -153,11 +160,13 @@ def run_client_script_parity(repo_root: Path) -> dict:
             "note": note,
         })
 
-    passed = (
-        set(basis) == set(repo)
-        and differing == ["InductOne Build Script"]
-        and next(row for row in table if row["script_name"] == "InductOne Build Script")["note"] == "PASS: only W1/W2 target_balloon carry-through additions"
+    build_script_note = next(row for row in table if row["script_name"] == "InductOne Build Script")["note"]
+    expected_diff_from_pre_addendum_basis = (
+        differing == ["InductOne Build Script"]
+        and build_script_note == "PASS: only W1/W2 target_balloon carry-through additions"
     )
+    already_merged_into_basis = differing == []
+    passed = set(basis) == set(repo) and (expected_diff_from_pre_addendum_basis or already_merged_into_basis)
     return {
         "basis": "git HEAD:inductone_tools/fixtures/client_script.json",
         "repo": str(CLIENT_SCRIPT_FIXTURE),
@@ -199,6 +208,143 @@ def run_custom_field_check(repo_root: Path) -> dict:
         "extra_unexpected": sorted(names - EXPECTED_CUSTOM_FIELDS),
         "passed": names == EXPECTED_CUSTOM_FIELDS and len(rows) == 8,
     }
+
+
+def run_option_fixture_parity(frappe, repo_root: Path, catalog_specs) -> dict:
+    fixture_path = repo_root / CONFIGURATION_OPTION_FIXTURE
+    fixture_rows = json.loads(fixture_path.read_text(encoding="utf-8")) if fixture_path.exists() else []
+    fixture = {row.get("option_code"): normalize_option(row) for row in fixture_rows}
+
+    db_rows = frappe.get_all(
+        "InductOne Configuration Option",
+        filters={"option_code": ["like", "DEV-%"]},
+        fields=["name", "option_code"],
+        order_by="option_code asc",
+    )
+    db = {}
+    naming_table = []
+    for row in db_rows:
+        doc = frappe.get_doc("InductOne Configuration Option", row.name)
+        db[row.option_code] = normalize_option(doc.as_dict())
+        naming_table.append({
+            "name": row.name,
+            "option_code": row.option_code,
+            "portable_parent_name": row.name == row.option_code,
+        })
+
+    oracle = {spec["option_code"]: normalize_option(spec) for spec in catalog_specs()}
+
+    all_codes = sorted(set(fixture) | set(db) | set(oracle))
+    table = []
+    for code in all_codes:
+        issues = []
+        if code not in fixture:
+            issues.append("missing_from_fixture")
+        if code not in db:
+            issues.append("missing_from_candidate_db")
+        if code not in oracle:
+            issues.append("unexpected_not_in_oracle")
+        if code in fixture and code in db and fixture[code] != db[code]:
+            issues.append("fixture_db_drift")
+        if code in fixture and code in oracle and fixture[code] != oracle[code]:
+            issues.append("fixture_oracle_drift")
+        if code in db and code in oracle and db[code] != oracle[code]:
+            issues.append("db_oracle_drift")
+        table.append({
+            "option_code": code,
+            "status": "PASS" if not issues else "BLOCKER: " + ", ".join(issues),
+            "mapping_count_fixture": len(fixture.get(code, {}).get("mappings_table", [])),
+            "mapping_count_db": len(db.get(code, {}).get("mappings_table", [])),
+            "mapping_count_oracle": len(oracle.get(code, {}).get("mappings_table", [])),
+            "issues": issues,
+            "diffs": diff_option_triplet(fixture.get(code), db.get(code), oracle.get(code)),
+        })
+
+    no_non_dev_leak = all((row.get("option_code") or "").startswith("DEV-") for row in fixture_rows)
+    target_balloon_rows = [
+        {
+            "option_code": code,
+            "row_order": row.get("row_order"),
+            "action": row.get("action"),
+            "target_item": row.get("target_item"),
+            "target_balloon": row.get("target_balloon"),
+            "replace_with_item": row.get("replace_with_item"),
+        }
+        for code, option in fixture.items()
+        for row in option.get("mappings_table", [])
+        if row.get("target_balloon")
+    ]
+    portability = {
+        "parent_names_stable": all(row["portable_parent_name"] for row in naming_table) and len(naming_table) == 13,
+        "naming_table": naming_table,
+        "semantic_child_fields_only": all(
+            "name" not in row
+            for option in fixture_rows
+            for row in option.get("mappings_table", [])
+        ),
+        "note": "Parent names are keyed by option_code. Exported child mappings omit child row names and use semantic fields such as item codes, balloons, action, replacement item, and quantity.",
+    }
+
+    return {
+        "fixture": str(CONFIGURATION_OPTION_FIXTURE),
+        "fixture_count": len(fixture_rows),
+        "candidate_db_count": len(db_rows),
+        "oracle_count": len(oracle),
+        "option_codes": [row.get("option_code") for row in fixture_rows],
+        "no_non_dev_leak": no_non_dev_leak,
+        "target_balloon_row_count": len(target_balloon_rows),
+        "target_balloon_rows": target_balloon_rows,
+        "portability": portability,
+        "table": table,
+        "passed": len(fixture_rows) == 13
+        and len(db_rows) == 13
+        and len(oracle) == 13
+        and no_non_dev_leak
+        and portability["parent_names_stable"]
+        and portability["semantic_child_fields_only"]
+        and all(not row["issues"] for row in table),
+    }
+
+
+def normalize_option(row: dict) -> dict:
+    return {
+        "option_code": row.get("option_code") or "",
+        "option_name": row.get("option_name") or "",
+        "option_group": row.get("option_group") or "",
+        "option_group_required": int(row.get("option_group_required") or 0),
+        "is_default_selection": int(row.get("is_default_selection") or 0),
+        "is_active": int(row.get("is_active") or 0),
+        "status": row.get("status") or "",
+        "mapping_status": row.get("mapping_status") or "",
+        "owner_role": row.get("owner_role") or "",
+        "sort_order": int(row.get("sort_order") or 0),
+        "mappings_table": normalize_mappings(row.get("mappings_table") or []),
+    }
+
+
+def normalize_mappings(rows: list[dict]) -> list[dict]:
+    normalized = []
+    for row in rows:
+        normalized.append({
+            "action": row.get("action") or "",
+            "target_item": row.get("target_item") or "",
+            "target_balloon": row.get("target_balloon") or "",
+            "replace_with_item": row.get("replace_with_item") or "",
+            "qty_fixed": float(row.get("qty_fixed") or 0),
+            "row_order": int(row.get("row_order") or 0),
+        })
+    return sorted(normalized, key=lambda r: (r["row_order"], r["action"], r["target_balloon"], r["target_item"], r["replace_with_item"]))
+
+
+def diff_option_triplet(fixture: dict | None, db: dict | None, oracle: dict | None) -> dict:
+    diffs = {}
+    if fixture is not None and db is not None and fixture != db:
+        diffs["fixture_vs_db"] = {"fixture": fixture, "db": db}
+    if fixture is not None and oracle is not None and fixture != oracle:
+        diffs["fixture_vs_oracle"] = {"fixture": fixture, "oracle": oracle}
+    if db is not None and oracle is not None and db != oracle:
+        diffs["db_vs_oracle"] = {"db": db, "oracle": oracle}
+    return diffs
 
 
 def run_group_logic(frappe, expected_resolution) -> dict:
@@ -344,4 +490,3 @@ def validate_required_groups(selected: set[str], options: list[dict]) -> dict:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
