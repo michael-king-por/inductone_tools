@@ -12,6 +12,7 @@ The manifest is descriptive, not yet a final approval of every row. It is the st
 | `doctype.json` | 31 | Custom DocType schema/configuration. | Spans `Operations - POR` and `InductOne Tools`; document ownership before restructuring. |
 | `custom_docperm.json` | 12 | Permission rows for selected custom DocTypes. | Needs alignment with formal permission matrix. |
 | `custom_field.json` | 8 | Deploy-critical Custom Fields, including BOM Item electrical metadata and balloon-scoped option fields. | Any addition can overwrite live Custom Field definitions on migrate; run fixture parity checks before deploy. |
+| `inductone_configuration_option.json` | 13 | Reviewed `DEV-*` balloon-scoped option catalog. | Scoped by `option_code like DEV-%`; future operational/non-DEV options must not be swept into version control accidentally. |
 | `property_setter.json` | 0 | No property setters currently exported. | Keep intentionally empty unless deploy-critical setters are added. |
 
 ## Client Script rows
@@ -100,6 +101,21 @@ Current local `doctype.json` rows:
 - `Configured BOM Snapshot Structural Effect-target_balloon`.
 
 The two `target_balloon` rows are required for balloon-scoped configuration options. They are optional Data fields inserted after `target_item`; empty value preserves legacy item-wide behavior.
+
+## InductOne Configuration Option fixture rows
+
+`inductone_configuration_option.json` is intentionally scoped in `hooks.py`:
+
+```python
+{
+    "dt": "InductOne Configuration Option",
+    "filters": [["option_code", "like", "DEV-%"]]
+}
+```
+
+The fixture contains exactly the 13 reviewed `DEV-*` options for the balloon-scoped electrical cable feature. Child `InductOne Configuration Option Mapping` rows are exported as part of each parent option document; the child DocType is not exported as a separate record fixture.
+
+The options are exported at `status = "Defined-Ops"` so they are loadable and reproducible on migrate, but still require a governed human release to `Released` before production use.
 
 ## Immediate fixture hardening recommendations
 

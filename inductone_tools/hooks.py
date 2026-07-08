@@ -148,6 +148,10 @@ fixtures = [
         ]
     },
     {
+        "dt": "InductOne Configuration Option",
+        "filters": [["option_code", "like", "DEV-%"]]
+    },
+    {
         "dt": "Custom DocPerm",
         "filters": [
             ["parent", "in", [
