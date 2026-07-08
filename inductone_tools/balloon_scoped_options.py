@@ -111,6 +111,187 @@ OPTION_NAMES = {
     "DEV-COMP-MAGLOCK": "Deviation — Magnet Lock Relocated",
 }
 
+INTERNAL_NOTES = {
+    "DEV-BASELINE": (
+        "Use for the standard electrical cable configuration when no electrical panel "
+        "or component relocation deviations are required."
+    ),
+    "DEV-PANEL-MCP-STD": (
+        "Use when the MCP panel remains in its standard location. Select the paired "
+        "relocated option only when the MCP panel is moved from standard."
+    ),
+    "DEV-PANEL-MCP": (
+        "Use when the MCP panel is relocated and the standard cable set needs the "
+        "relocation extension cabling."
+    ),
+    "DEV-PANEL-IPC-STD": (
+        "Use when the IPC panel remains in its standard location. Select the paired "
+        "relocated option only when the IPC panel is moved from standard."
+    ),
+    "DEV-PANEL-IPC": (
+        "Use when the IPC panel is relocated and the electrical cable package needs "
+        "the longer relocated-panel cable set."
+    ),
+    "DEV-COMP-HMI-STD": (
+        "Use when the HMI remains in its standard location. Select the paired relocated "
+        "option only when the HMI is moved from standard."
+    ),
+    "DEV-COMP-HMI": (
+        "Use when the HMI is relocated and only the HMI-related electrical cables need "
+        "the relocated lengths."
+    ),
+    "DEV-COMP-STACK-STD": (
+        "Use when the stacklight remains in its standard location. Select the paired "
+        "relocated option only when the stacklight is moved from standard."
+    ),
+    "DEV-COMP-STACK": (
+        "Use when the stacklight is relocated and only the stacklight electrical cable "
+        "needs the relocated length."
+    ),
+    "DEV-COMP-FORTRESS-STD": (
+        "Use when the Fortress safety component remains in its standard location. "
+        "Select the paired relocated option only when Fortress is moved from standard."
+    ),
+    "DEV-COMP-FORTRESS": (
+        "Use when Fortress is relocated and only the Fortress electrical cable needs "
+        "the relocated length."
+    ),
+    "DEV-COMP-MAGLOCK-STD": (
+        "Use when the magnet lock remains in its standard location. Select the paired "
+        "relocated option only when the magnet lock is moved from standard."
+    ),
+    "DEV-COMP-MAGLOCK": (
+        "Use when the magnet lock is relocated and only the magnet-lock electrical "
+        "cable needs the relocated length."
+    ),
+}
+
+STANDARD_BUILDER_NOTES = (
+    "Default selection for this required option group. Mutually exclusive with "
+    "the paired relocated option."
+)
+
+MOVED_BUILDER_NOTES = (
+    "Paired with the standard option in the same required group; select only one. "
+    "If this overlaps with the IPC panel relocation or a component relocation, the "
+    "balloon-scoped resolver applies the same moved row once and prevents double "
+    "cabling."
+)
+
+BUILDER_DESCRIPTIONS = {
+    "DEV-BASELINE": (
+        "Standard electrical cable baseline for the InductOne REV E electrical BOM.\n\n"
+        "Configuration effect:\n"
+        "All managed balloon callouts resolve to the standard BOM rows, and option/"
+        "extension rows are pruned from the configurable electrical cable balloons.\n\n"
+        "Notes:\n"
+        "Always applied as the single-member required baseline group and not "
+        "independently deselectable. Every other DEV option layers on this baseline."
+    ),
+    "DEV-PANEL-MCP-STD": (
+        "MCP panel remains in the standard location.\n\n"
+        "Configuration effect:\n"
+        "No change. Baseline standard cabling applies.\n\n"
+        "Notes:\n"
+        f"{STANDARD_BUILDER_NOTES}"
+    ),
+    "DEV-PANEL-MCP": (
+        "MCP panel relocated from the standard electrical layout.\n\n"
+        "Configuration effect:\n"
+        "Adds extension rows: balloon 143 -> 1407402 (M12 D-CODE 5M extension); "
+        "balloon 145 -> MCVP-12MMFP-5M (M23 12-pole 5M); balloon 149 -> 1276573 "
+        "(M12 L-CODE 5M); balloon 156 -> RSM RKM 30-5M/S101 (7/8 in 3-pin 5M). "
+        "No standard-row substitutions are made by this option.\n\n"
+        "Notes:\n"
+        f"{MOVED_BUILDER_NOTES}"
+    ),
+    "DEV-PANEL-IPC-STD": (
+        "IPC panel remains in the standard location.\n\n"
+        "Configuration effect:\n"
+        "No change. Baseline standard cabling applies.\n\n"
+        "Notes:\n"
+        f"{STANDARD_BUILDER_NOTES}"
+    ),
+    "DEV-PANEL-IPC": (
+        "IPC panel relocated from the standard electrical layout.\n\n"
+        "Configuration effect:\n"
+        "Replaces balloon 137 with MCVP-19MFP-10M x2 (M23 x19 10M); balloon 140 "
+        "with 1407379 (M12 D-CODE 10M); balloon 141 with 1407486 (M12 X-CODE 10M); "
+        "balloon 144 with 1407363 (RJ45-M12 D 10M); balloon 154 with 1417892 "
+        "(M12 A 4-pin 10M); balloon 159 with MDCM-8FP-10M-R  & MDC-8MP-FW11 x2 "
+        "(M12 8-pin 10M combined item); balloon 172 with 11283 x3 (RJ45 6M); "
+        "balloon 173 with 11351 x2 (RJ45 15M); balloon 190 with 1291280 "
+        "(M12 L 10M); balloon 191 with 1000517 x4 (USB-A 10M extension plus "
+        "1M locking lead); balloon 193 with 1417903 (M12 A 5-pin 10M). Adds "
+        "extension rows: balloon 145 -> MCVP-12MMFP-5M and balloon 156 -> "
+        "RSM RKM 30-5M/S101.\n\n"
+        "Notes:\n"
+        f"{MOVED_BUILDER_NOTES}"
+    ),
+    "DEV-COMP-HMI-STD": (
+        "HMI remains in the standard location.\n\n"
+        "Configuration effect:\n"
+        "No change. Baseline standard cabling applies.\n\n"
+        "Notes:\n"
+        f"{STANDARD_BUILDER_NOTES}"
+    ),
+    "DEV-COMP-HMI": (
+        "HMI relocated from the standard electrical layout.\n\n"
+        "Configuration effect:\n"
+        "Replaces balloon 140 with 1407379 (M12 D-CODE 10M); balloon 141 with "
+        "1407486 (M12 X-CODE 10M); balloon 154 with 1417892 (M12 A 4-pin 10M). "
+        "No other managed balloons are changed by this option.\n\n"
+        "Notes:\n"
+        f"{MOVED_BUILDER_NOTES}"
+    ),
+    "DEV-COMP-STACK-STD": (
+        "Stacklight remains in the standard location.\n\n"
+        "Configuration effect:\n"
+        "No change. Baseline standard cabling applies.\n\n"
+        "Notes:\n"
+        f"{STANDARD_BUILDER_NOTES}"
+    ),
+    "DEV-COMP-STACK": (
+        "Stacklight relocated from the standard electrical layout.\n\n"
+        "Configuration effect:\n"
+        "Replaces balloon 193 with 1417903 (M12 A 5-pin 10M). No other managed "
+        "balloons are changed by this option.\n\n"
+        "Notes:\n"
+        f"{MOVED_BUILDER_NOTES}"
+    ),
+    "DEV-COMP-FORTRESS-STD": (
+        "Fortress safety component remains in the standard location.\n\n"
+        "Configuration effect:\n"
+        "No change. Baseline standard cabling applies.\n\n"
+        "Notes:\n"
+        f"{STANDARD_BUILDER_NOTES}"
+    ),
+    "DEV-COMP-FORTRESS": (
+        "Fortress safety component relocated from the standard electrical layout.\n\n"
+        "Configuration effect:\n"
+        "Replaces balloon 137 with MCVP-19MFP-10M x2 (M23 x19 10M). No other "
+        "managed balloons are changed by this option.\n\n"
+        "Notes:\n"
+        f"{MOVED_BUILDER_NOTES}"
+    ),
+    "DEV-COMP-MAGLOCK-STD": (
+        "Magnet lock remains in the standard location.\n\n"
+        "Configuration effect:\n"
+        "No change. Baseline standard cabling applies.\n\n"
+        "Notes:\n"
+        f"{STANDARD_BUILDER_NOTES}"
+    ),
+    "DEV-COMP-MAGLOCK": (
+        "Magnet lock relocated from the standard electrical layout.\n\n"
+        "Configuration effect:\n"
+        "Replaces balloon 159 with MDCM-8FP-10M-R  & MDC-8MP-FW11 x2 "
+        "(M12 8-pin 10M combined item). No other managed balloons are changed "
+        "by this option.\n\n"
+        "Notes:\n"
+        f"{MOVED_BUILDER_NOTES}"
+    ),
+}
+
 
 def option_codes() -> list[str]:
     return list(OPTION_NAMES)
@@ -222,12 +403,12 @@ def catalog_specs() -> list[dict]:
             "option_group_required": 1,
             "is_default_selection": is_default,
             "is_active": 1,
-            "status": "Defined-Ops",
+            "status": "Draft",
             "mapping_status": "Complete",
             "owner_role": "Ops",
             "sort_order": idx * 10,
-            "internal_notes": "Managed by inductone_tools balloon-scoped option loader.",
-            "builder_description": OPTION_NAMES[code],
+            "internal_notes": INTERNAL_NOTES[code],
+            "builder_description": BUILDER_DESCRIPTIONS[code],
             "mappings_table": mappings,
         })
     return specs

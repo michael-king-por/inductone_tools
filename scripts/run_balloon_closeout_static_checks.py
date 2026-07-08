@@ -361,7 +361,7 @@ def run_group_logic(frappe, expected_resolution) -> dict:
             "status",
             "sort_order",
         ],
-        filters={"is_active": 1, "status": ["in", ["Defined-Ops", "Released"]]},
+        filters={"is_active": 1, "status": ["in", ["Draft", "Released"]]},
         order_by="sort_order asc",
     )
     dev_options = [row for row in options if row.option_code in {code for codes in EXPECTED_GROUPS.values() for code in codes}]

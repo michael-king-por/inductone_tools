@@ -115,7 +115,7 @@ The two `target_balloon` rows are required for balloon-scoped configuration opti
 
 The fixture contains exactly the 13 reviewed `DEV-*` options for the balloon-scoped electrical cable feature. Child `InductOne Configuration Option Mapping` rows are exported as part of each parent option document; the child DocType is not exported as a separate record fixture.
 
-The options are exported at `status = "Defined-Ops"` so they are loadable and reproducible on migrate, but still require a governed human release to `Released` before production use.
+The options are exported at `status = "Draft"` so they are reproducible on migrate and can enter the Engineering Signoff flow. They are not loadable on builds until a governed Engineering Signoff approval promotes them to `Released`.
 
 ## Immediate fixture hardening recommendations
 

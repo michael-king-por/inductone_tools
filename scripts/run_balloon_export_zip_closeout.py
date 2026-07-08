@@ -29,7 +29,7 @@ from types import SimpleNamespace
 
 DEFAULT_EVIDENCE_DIR = Path("/mnt/c/hub/frappe-sandbox/validation-evidence")
 DEFAULT_BUILD = "SAL-ORD-2026-00054-BLD-0225"
-ZIP_CASE_IDS = {1, 3, 11}  # baseline_only, ipc, everything_moved
+ZIP_CASE_IDS = {1, 3, 12}  # baseline_only, ipc, everything_moved
 
 
 def parse_args() -> argparse.Namespace:

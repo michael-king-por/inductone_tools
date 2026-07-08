@@ -22,7 +22,12 @@ Design notes:
     snapshot insert succeeds. No doc_events, no after_insert magic.
   - We use bom_export.build_configured_rows directly (Path B2 from the
     discussion): a stub BOM Export Package doc is constructed in memory
-    and passed in. The export-package code path is unchanged.
+    and passed in. The export-package code path is unchanged. This is a
+    hard invariant: hierarchy snapshots, hierarchy workbooks, and
+    builder-facing configured exports must resolve from the same
+    balloon-aware resolver. The balloon-blind snapshot `lines` child
+    table is not structural truth and must not be used to decide which
+    configured BOM rows survive.
   - Item Name, Description, UOM, Item Group are copied from live Item
     records at hierarchy-population time. Once written, they are frozen
     on the hierarchy child rows and never re-read. This is the whole

@@ -33,6 +33,11 @@ This documentation is written for ownership handoff. It should let a future main
 
 - [Hardening roadmap](audit/hardening-roadmap.md)
 
+## Validation suites
+
+- `scripts/run_balloon_scoped_options_validation.py` — candidate-only 12-configuration validation for balloon-scoped electrical options. It generates real `Configured BOM Snapshot` records for build `SAL-ORD-2026-00054-BLD-0225`, materializes hierarchy rows, generates the hierarchy workbook, and asserts flat/hierarchy/workbook output against the independent oracle. This is the permanent guard for the baseline `173 → 11283 qty 2` hierarchy regression.
+- `scripts/run_balloon_export_zip_closeout.py` — candidate-only package closeout for baseline, IPC, and everything-moved cable configurations. It references the stage-4 hierarchy evidence and asserts that the part-documentation payload remains stable across cable-only configurations.
+
 ## Documentation maintenance rule
 
 When code or fixtures change behavior, update the relevant documentation in the same commit. If a change affects a button, status transition, permission boundary, whitelisted method, fixture ownership rule, deployment step, or operator workflow, it is documentation-relevant.

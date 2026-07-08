@@ -39,7 +39,7 @@ The deployed catalog is fixture-managed through `inductone_tools/fixtures/induct
 
 This deliberately exports only the reviewed `DEV-*` feature catalog. Future operational options authored outside this feature should not be swept into version control unless explicitly reviewed.
 
-The fixture creates 13 `Defined-Ops` options:
+The fixture creates 13 `Draft` options:
 
 - `DEV-BASELINE`
 - six standard/default no-op options
@@ -47,7 +47,7 @@ The fixture creates 13 `Defined-Ops` options:
 
 The groups are intentionally independent binary groups so selecting HMI, Stacklight, Fortress, Maglock, IPC, and MCP deviations does not accidentally deselect unrelated decisions.
 
-`scripts/load_balloon_scoped_options.py` remains the authoring/bootstrap tool for fresh candidate instances and for regenerating the reviewed catalog from code. Deployed instances receive the reviewed options via `bench migrate` from the scoped fixture. The options intentionally ship at `Defined-Ops`; promoting them to `Released` remains a governed human step.
+`scripts/load_balloon_scoped_options.py` remains the authoring/bootstrap tool for fresh candidate instances and for regenerating the reviewed catalog from code. Deployed instances receive the reviewed options via `bench migrate` from the scoped fixture. The options intentionally ship at `Draft`; promoting them to `Released` happens only through governed Engineering Signoff approval.
 
 ## BOM-ground-truth corrections found during validation
 
@@ -70,5 +70,43 @@ The 12-case candidate matrix passed, including the three collision assertions:
 - `1417902`: balloon 193 replacement does not remove the fixed balloon 188 occurrence.
 - `1417891`: balloon 154 replacement does not remove the fixed balloon 315 occurrence in `0921`.
 
-Fixture round-trip validation deleted all 13 `DEV-*` candidate records, ran `bench migrate`, confirmed all 13 were recreated from `inductone_configuration_option.json` with `name == option_code` and `status == Defined-Ops`, then reran parity and the full 12-case resolver matrix without using the loader.
+Fixture round-trip validation deleted all 13 `DEV-*` candidate records, ran `bench migrate`, confirmed all 13 were recreated from `inductone_configuration_option.json` with `name == option_code`, `status == Draft`, complete descriptions, and complete mappings, then reran parity and the full 12-case resolver matrix without using the loader.
 
+## Hierarchy regression and permanent guard
+
+Follow-up production-data validation found that the deployed hierarchy path could drop the baseline balloon `173` row for item `11283`, qty `2`, while correctly moving balloon `172` to `11283` under IPC. That is the core repeated-item collision for this feature:
+
+- Balloon `172`: `11245` standard, `11283` option.
+- Balloon `173`: `11283` standard, `11351` option.
+
+The corrected invariant is single resolution, multiple presentations:
+
+- `bom_export.build_configured_rows` is the canonical balloon-aware resolver.
+- `snapshot.hierarchy.populate_snapshot_hierarchy` materializes hierarchy rows from that resolver through an in-memory `BOM Export Package` context.
+- `snapshot.hierarchy.generate_hierarchy_workbook` renders only the materialized hierarchy.
+- Snapshot diff reads the materialized hierarchy.
+- `Configured BOM Snapshot Item` / `.lines` is a balloon-blind material rollup and must not be treated as structural truth.
+
+The hardened candidate suite now asserts flat, hierarchy, and hierarchy-workbook content against `inductone_tools.balloon_scoped_options.expected_resolution` for all 12 configurations. It also asserts cross-stage consistency, so a future divergence between flat and hierarchy fails even if each stage appears internally plausible.
+
+Final candidate evidence after fixture round-trip:
+
+- `/mnt/c/hub/frappe-sandbox/validation-evidence/balloon_scoped_options_validation_20260708T174507Z.json`
+- `/mnt/c/hub/frappe-sandbox/validation-evidence/balloon_export_zip_closeout_20260708T174734Z.json`
+
+Regression sentinel: baseline must contain `173 → 11283 qty 2` in flat, hierarchy, and workbook; IPC must contain `172 → 11283 qty 3` and `173 → 11351 qty 2`.
+
+
+## Status lifecycle and signoff release gate
+
+As of the 2026-07-08 status-model cleanup, the canonical option lifecycle is:
+
+```text
+Draft → Released → Deprecated
+```
+
+The abandoned intermediate statuses `Defined-Product` and `Defined-Ops` were removed from the `InductOne Configuration Option.status` Select field. Existing `Defined-Ops` / `Defined-Product` records are moved to `Draft` by idempotent patch `v2026_07_08_configuration_option_status_model_cleanup` before the field trim is applied.
+
+`request_signoff` is valid only while an option is `Draft`. `approve_signoff` requires `mapping_status == Complete` and auto-promotes the option to `Released`; `engineering_signoff.on_target_save` blocks manual Draft→Released edits and makes Released/Deprecated options immutable. The candidate proof on 2026-07-08 ran request→approve→Released for all 13 DEV options and confirmed manual release, Released edits, and non-Draft signoff requests are rejected.
+
+The inactive legacy workflow `InductOne Option Cycle` was removed. The `workflow_state` column remains present but empty (`NULL` for all option rows); it is documented as harmless retained schema rather than removed blindly from a live Frappe DocType.

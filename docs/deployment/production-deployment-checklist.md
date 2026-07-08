@@ -355,6 +355,7 @@ All items in this phase must be true before touching production.
    - `Executing inductone_tools.patches.v2026_06_29_link_dependency_read_grants` appears during patch execution if the managed link-read dependency patch has not previously run.
    - `Executing inductone_tools.patches.v2026_06_29_snapshot_stock_entry_type_permissions` appears during patch execution if the Stock Entry Type snapshot-management patch has not previously run.
    - `Executing inductone_tools.patches.v2026_07_06_balloon_report_access` appears during patch execution if the Electrical Balloon Callouts report access patch has not previously run.
+   - `Executing inductone_tools.patches.v2026_07_08_configuration_option_status_model_cleanup` appears during patch execution if the configuration option status cleanup patch has not previously run.
    - Fixtures import cleanly, including the BOM Item `User Notes` Custom Field and the app-owned `user_notes` DocFields on `Configured BOM Snapshot Hierarchy` and `BOM Export Package Item`.
    - Fixtures import the app-owned `Electrical Balloon Callouts` Report record.
    - If the patch already appears in Patch Log, migrate should still complete cleanly.
@@ -371,6 +372,8 @@ All items in this phase must be true before touching production.
    bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_06_29_operations_workspace_visibility%';"
    bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_06_29_link_dependency_read_grants%';"
    bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_06_29_snapshot_stock_entry_type_permissions%';"
+   bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_06_balloon_report_access%';"
+   bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_08_configuration_option_status_model_cleanup%';"
    ```
 
    Expected output:
@@ -382,6 +385,8 @@ All items in this phase must be true before touching production.
    inductone_tools.patches.v2026_06_29_operations_workspace_visibility
    inductone_tools.patches.v2026_06_29_link_dependency_read_grants
    inductone_tools.patches.v2026_06_29_snapshot_stock_entry_type_permissions
+   inductone_tools.patches.v2026_07_06_balloon_report_access
+   inductone_tools.patches.v2026_07_08_configuration_option_status_model_cleanup
    ```
 
    Go/no-go:
@@ -518,6 +523,21 @@ Use the automated script as the primary verification method. Manual browser chec
    - [ ] Fixture Export Control check:
      - Confirm a Finance Viewer user cannot access Fixture Export Control.
      - Confirm an Operations Viewer user cannot access Fixture Export Control.
+
+5. [ ] Balloon-scoped hierarchy regression re-validation.
+
+   After the corrective follow-up is deployed, regenerate baseline-only and IPC snapshots for test build `SAL-ORD-2026-00054-BLD-0225`, then run the same balloon-scoped stage ladder read-only against those production snapshots.
+
+   Required sentinel:
+
+   - Baseline-only snapshot contains `172 → 11245 qty 3` and `173 → 11283 qty 2` in flat, hierarchy, and hierarchy workbook.
+   - IPC snapshot contains `172 → 11283 qty 3` and `173 → 11351 qty 2` in flat, hierarchy, and hierarchy workbook.
+   - Flat, hierarchy, and workbook collision rollups are identical.
+
+   Go/no-go:
+
+   - GO if the sentinel rows are present and the stage ladder passes.
+   - NO-GO if baseline `173 → 11283 qty 2` is missing from hierarchy or workbook. Keep `DEV-*` options at `Draft`, do not approve Engineering Signoff/release them, and investigate in candidate before promoting them to `Released`.
 
    Go/no-go:
 

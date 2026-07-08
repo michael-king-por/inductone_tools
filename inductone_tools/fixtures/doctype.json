@@ -9061,7 +9061,7 @@
     "non_negative": 0,
     "oldfieldname": null,
     "oldfieldtype": null,
-    "options": "Draft\nDefined-Product\nDefined-Ops\nReleased\nDeprecated",
+    "options": "Draft\nReleased\nDeprecated",
     "parent": "InductOne Configuration Option",
     "parentfield": "fields",
     "parenttype": "DocType",
