@@ -139,9 +139,9 @@ These are the remaining blockers or hardening opportunities before the system ca
 
 ### Closed gap — Full business lifecycle is now proven end-to-end in candidate
 
-Closed on 2026-07-09 by `scripts/run_inductone_csa_lifecycle_smoke.py`. Passing evidence: `inductone_csa_lifecycle_smoke_20260709T171616Z.json`.
+Closed on 2026-07-09 by `scripts/run_inductone_csa_lifecycle_smoke.py`. Latest passing evidence: `inductone_csa_lifecycle_smoke_20260709T201934Z.json`.
 
-The smoke created synthetic candidate Build `SAL-ORD-2026-00054-BLD-0455`, generated snapshot/hierarchy/CO/package artifacts, ensured top-BOM signoff, allocated serial `IND-3006`, released to builder, acknowledged as `motion.builder@plusonerobotics.com`, uploaded a filled completion workbook, reviewed it, accepted it, created locked As-Built `SAL-ORD-2026-00054-BLD-0455-ASBUILT-460`, and created Instance `IND-3006`.
+The latest smoke created synthetic candidate Build `SAL-ORD-2026-00054-BLD-0475`, generated snapshot/hierarchy/CO/package artifacts, ensured release-gate signoffs, allocated serial `IND-3007`, released to builder, acknowledged as `motion.builder@plusonerobotics.com`, uploaded a filled completion workbook, reviewed it, accepted it, created locked As-Built `SAL-ORD-2026-00054-BLD-0475-ASBUILT-480`, and created Instance `IND-3007`.
 
 Two implementation defects were found and fixed during this gate:
 
@@ -159,7 +159,9 @@ Recommended hardening:
 
 ### Gap 3 — Catalog status inventory still contains Draft/Deprecated non-DEV options
 
-The 13 DEV options are released and valid. Candidate also contains other active inventory states:
+Owner decision: Draft options are necessary for ideation and iteration. This is acceptable as long as Draft records are not build-usable and cannot bypass Engineering Signoff.
+
+The 13 DEV options are released and valid after the release proof. Candidate also contains other active inventory states:
 
 - 19 Draft.
 - 1 Deprecated.
@@ -170,17 +172,20 @@ This may be intentional, but it is not presentable unless:
 - The catalog page/print format clearly separates Released vs Draft/Deprecated.
 - There is an owner-approved policy for keeping draft options in the same DocType.
 
-### Gap 4 — Release readiness breadth is still partially architectural
+Current status: acceptable policy is documented in the owner handbook fixture. Build catalog loading already filters to `status = Released`, and the stricter release gate rejects selected Draft options server-side.
 
-The release code includes readiness checks for top BOM engineering signoff, and helper code exists for broader readiness inspection. The validated release proof does not yet demonstrate every intended gate across:
+### Closed gap — Release readiness breadth
 
-- Top Item.
-- Product Bundle.
-- Selected configuration options.
-- Top BOM.
-- Generated package artifacts.
+Closed for the high-risk release blockers on 2026-07-09. Evidence: `inductone_csa_release_gate_matrix_20260709T201606Z.json`.
 
-This should be closed by a candidate full-release validation script that fails if any required signoff/gate is missing.
+The validated gate now demonstrates fail-closed behavior for:
+
+- selected Draft Configuration Option,
+- direct release method called with selected Draft option,
+- missing Top Item signoff,
+- missing Product Bundle signoff.
+
+The latest full lifecycle smoke also proves the happy path with top BOM, top Item, Product Bundle, and selected Configuration Option signoffs satisfied.
 
 ### Gap 5 — Builder portal access should get one browser-driven smoke pass after each workspace change
 
@@ -192,6 +197,25 @@ Recommended hardening:
 - Confirm visible landing page is Builder Portal.
 - Confirm Operations/Engineering/Stock/Items/Sales Orders/BOMs are not reachable from Desk.
 - Capture screenshots or route result JSON.
+
+Current status: last completed browser route evidence remains `gui-smoke-external-builders-20260709T1930Z/`, 22/22 checks passed. Re-run this after future Workspace/portal changes.
+
+### Gap 7 — Wiki information architecture needs owner review
+
+The owner handbook is now fixture-managed and includes app-versioned SVG operating maps. The broader Wiki is intentionally not bulk-fixtured yet.
+
+Candidate Wiki IA audit evidence: `wiki_information_architecture_audit_20260709T201432Z.json`.
+
+Findings:
+
+- 38 published Wiki Pages.
+- 4 fixture-managed pages.
+- 34 database-managed pages.
+- 11 stub/redirect-sized pages.
+- 22 long pages without SVG.
+- 7 long pages without Markdown headings.
+
+This is not a deployment blocker, but it is the clearest remaining handoff/polish area. Each page should be reviewed and classified before being added to fixtures, rewritten, hidden, or left GUI-owned.
 
 ### Gap 6 — “No assumptions” documentation still needs production-owner annotation
 
@@ -248,3 +272,6 @@ Next highest-value validation gate:
 - `method_negative_tests_20260709T190708Z.json`
 - `gui-smoke-external-builders-20260709T1930Z/`
 - `candidate_migrate_inductone_csa_wiki_hardening_20260709T1932Z.txt`
+- `inductone_csa_lifecycle_smoke_20260709T201934Z.json`
+- `inductone_csa_release_gate_matrix_20260709T201606Z.json`
+- `wiki_information_architecture_audit_20260709T201432Z.json`

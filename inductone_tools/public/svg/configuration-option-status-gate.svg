@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="620" viewBox="0 0 1440 620" role="img" aria-labelledby="title desc">
+  <title id="title">Configuration Option Status and Signoff Gate</title>
+  <desc id="desc">Draft configuration options are editable but not build-usable. Engineering Signoff approval is the only path to Released. Released and Deprecated options are locked.</desc>
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#25313c" flood-opacity="0.14"/>
+    </filter>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L12,7 L2,12 z" fill="#3c4447"/>
+    </marker>
+    <style>
+      .bg { fill:#f6fbff; }
+      .title { font-family:"Segoe UI",Arial,sans-serif; font-size:32px; font-weight:800; fill:#25313c; }
+      .sub { font-family:"Segoe UI",Arial,sans-serif; font-size:15px; fill:#64717c; }
+      .card { fill:#fff; stroke:#d9e5ec; stroke-width:1.4; filter:url(#shadow); }
+      .label { font-family:"Segoe UI",Arial,sans-serif; font-size:22px; font-weight:800; fill:#25313c; }
+      .small { font-family:"Segoe UI",Arial,sans-serif; font-size:14px; fill:#52616b; }
+      .mono { font-family:"Cascadia Mono","Consolas",monospace; font-size:12px; fill:#52616b; }
+      .pill { font-family:"Segoe UI",Arial,sans-serif; font-size:12px; font-weight:700; fill:#fff; }
+      .arrow { fill:none; stroke:#3c4447; stroke-width:3; marker-end:url(#arrow); }
+      .blocked { fill:none; stroke:#c73552; stroke-width:3; stroke-dasharray:8 8; }
+    </style>
+  </defs>
+  <rect class="bg" width="1440" height="620"/>
+  <text x="70" y="70" class="title">Configuration Option Gate</text>
+  <text x="70" y="100" class="sub">Draft is a safe ideation state. It is intentionally not build-usable. Engineering Signoff approval is the release action.</text>
+
+  <rect x="70" y="160" width="270" height="180" rx="22" class="card"/>
+  <rect x="94" y="186" width="86" height="28" rx="14" fill="#f0ad2e"/>
+  <text x="137" y="205" class="pill" text-anchor="middle">DRAFT</text>
+  <text x="94" y="248" class="label">Ideate and iterate</text>
+  <text x="94" y="278" class="small">Mappings can be edited.</text>
+  <text x="94" y="302" class="small">Option can be reviewed.</text>
+  <text x="94" y="326" class="mono">Build usable: NO</text>
+
+  <rect x="430" y="160" width="300" height="180" rx="22" class="card"/>
+  <rect x="454" y="186" width="152" height="28" rx="14" fill="#1794ce"/>
+  <text x="530" y="205" class="pill" text-anchor="middle">ENGINEERING</text>
+  <text x="454" y="248" class="label">Signoff review</text>
+  <text x="454" y="278" class="small">Engineering User reviews mappings.</text>
+  <text x="454" y="302" class="small">Mapping Status must be Complete.</text>
+  <text x="454" y="326" class="mono">Approval performs release</text>
+
+  <rect x="820" y="160" width="270" height="180" rx="22" class="card"/>
+  <rect x="844" y="186" width="102" height="28" rx="14" fill="#1f9d63"/>
+  <text x="895" y="205" class="pill" text-anchor="middle">RELEASED</text>
+  <text x="844" y="248" class="label">Build-usable</text>
+  <text x="844" y="278" class="small">Appears in build catalog.</text>
+  <text x="844" y="302" class="small">Locked against direct edit.</text>
+  <text x="844" y="326" class="mono">Build usable: YES</text>
+
+  <rect x="1180" y="160" width="190" height="180" rx="22" class="card"/>
+  <rect x="1204" y="186" width="118" height="28" rx="14" fill="#6b7280"/>
+  <text x="1263" y="205" class="pill" text-anchor="middle">DEPRECATED</text>
+  <text x="1204" y="248" class="label">Retired</text>
+  <text x="1204" y="278" class="small">Kept for audit/history.</text>
+  <text x="1204" y="302" class="small">Not offered on builds.</text>
+  <text x="1204" y="326" class="mono">Build usable: NO</text>
+
+  <path class="arrow" d="M340 250 C375 250 395 250 430 250"/>
+  <path class="arrow" d="M730 250 C765 250 785 250 820 250"/>
+  <path class="arrow" d="M1090 250 C1125 250 1145 250 1180 250"/>
+
+  <path class="blocked" d="M205 370 C350 445 725 445 955 370"/>
+  <text x="580" y="470" class="label" text-anchor="middle" fill="#c73552">Manual Draft → Released save is blocked</text>
+  <text x="580" y="496" class="small" text-anchor="middle">Only the Engineering Signoff approval method can perform the release transition.</text>
+
+  <rect x="70" y="530" width="1300" height="50" rx="16" fill="#e8f6ff" stroke="#b9dff2"/>
+  <text x="92" y="561" class="small">Operational rule: catalog and print views default to Released options. Draft and Deprecated records remain visible only when intentionally filtered for review/ownership work.</text>
+</svg>

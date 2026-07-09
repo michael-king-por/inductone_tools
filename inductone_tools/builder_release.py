@@ -222,18 +222,23 @@ def check_builder_release_readiness(build_name: str):
             "This build has already been released to the builder. "
             "Releasing again will regenerate artifacts."
         )
-    # ---- Engineering Signoff requirement ----
-
-    if top_bom:
-        from inductone_tools.engineering_signoff import get_current_signoff_status
-        signoff_status = get_current_signoff_status("BOM", top_bom)
-        if signoff_status != "Approved":
-            status_str = signoff_status if signoff_status else "No signoff record exists"
-            missing.append(
-                f"Top BOM {top_bom} does not have an approved Engineering Signoff "
-                f"(current status: {status_str}). "
-                f"Obtain approval from an Engineering User role holder before releasing."
-            )
+    # ---- Engineering Signoff requirements ----
+    #
+    # This is intentionally broader than the original Top-BOM-only check:
+    # releasing a CSA build is the point where the configured structure leaves
+    # Plus One control and becomes builder-facing.  The release gate must
+    # therefore prove every governed upstream object is approved, including
+    # the top Item, any Product Bundle for that Item, and every selected
+    # Configuration Option on the CO. Draft options remain valid for ideation,
+    # but they cannot pass this gate until the Engineering Signoff approval
+    # releases them.
+    _append_engineering_signoff_readiness_checks(
+        build=build,
+        configuration_order=co,
+        top_bom=top_bom,
+        missing=missing,
+        warnings=warnings,
+    )
     
     
     ready = len(missing) == 0
@@ -1146,6 +1151,18 @@ def _append_engineering_signoff_readiness_checks(build, configuration_order, top
                     f"Selected configuration option {option_code} could not be resolved to an InductOne Configuration Option record."
                 )
                 continue
+
+            option_status = frappe.db.get_value(
+                "InductOne Configuration Option",
+                option_name,
+                "status",
+            )
+            if option_status != "Released":
+                missing.append(
+                    f"Selected configuration option {option_code} is '{option_status or 'not set'}'. "
+                    f"Only Released configuration options can be used for builder release. "
+                    f"Draft options must pass Engineering Signoff first."
+                )
 
             _require_approved_signoff(
                 target_doctype="InductOne Configuration Option",

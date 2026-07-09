@@ -8,12 +8,17 @@ The manifest is descriptive, not yet a final approval of every row. It is the st
 
 | File | Count | Purpose | Ownership concern |
 |---|---:|---|---|
-| `client_script.json` | 26 | Client-side ERPNext form/list behavior. | Current `hooks.py` exports all Client Scripts. Narrow to allowlist. |
+| `client_script.json` | 26 | Client-side ERPNext form/list behavior. | Current `hooks.py` uses an explicit Client Script name allowlist. Keep it narrow. |
 | `doctype.json` | 31 | Custom DocType schema/configuration. | Spans `Operations - POR` and `InductOne Tools`; document ownership before restructuring. |
-| `custom_docperm.json` | 12 | Permission rows for selected custom DocTypes. | Needs alignment with formal permission matrix. |
-| `custom_field.json` | 8 | Deploy-critical Custom Fields, including BOM Item electrical metadata and balloon-scoped option fields. | Any addition can overwrite live Custom Field definitions on migrate; run fixture parity checks before deploy. |
+| `custom_docperm.json` | 138 | Permission rows for selected managed DocTypes. | Needs alignment with formal permission matrix and replace-trap review before adding first rows to any standard DocType. |
+| `custom_field.json` | 7 | Deploy-critical Custom Fields, including BOM Item metadata/user notes and balloon-scoped option fields. | Any addition can overwrite live Custom Field definitions on migrate; run fixture parity checks before deploy. |
 | `inductone_configuration_option.json` | 13 | Reviewed `DEV-*` balloon-scoped option catalog. | Scoped by `option_code like DEV-%`; future operational/non-DEV options must not be swept into version control accidentally. |
 | `property_setter.json` | 0 | No property setters currently exported. | Keep intentionally empty unless deploy-critical setters are added. |
+| `report.json` | 1 | App-owned Electrical Balloon Callouts Query Report. | Keep report role access aligned with curated role model. |
+| `role.json` | 10 | App-owned curated role vocabulary. | Do not fixture user assignments. |
+| `role_profile.json` | 10 | App-owned curated role profiles. | Production user-to-role assignment remains database/user-governance work. |
+| `wiki_page.json` | 4 | Explicitly allowlisted Wiki pages. | Do not bulk-export the Wiki; owner-review pages before fixture-managing them. |
+| `workspace.json` | 1 | Explicitly allowlisted Operations workspace. | Re-run workspace visibility audit after changes. |
 
 ## Client Script rows
 
@@ -117,13 +122,30 @@ The fixture contains exactly the 13 reviewed `DEV-*` options for the balloon-sco
 
 The options are exported at `status = "Draft"` so they are reproducible on migrate and can enter the Engineering Signoff flow. They are not loadable on builds until a governed Engineering Signoff approval promotes them to `Released`.
 
+## Wiki Page fixture rows
+
+`wiki_page.json` is intentionally filtered by exact page name in `hooks.py`. It is not a broad Wiki export.
+
+The current fixture includes the InductOne CSA owner handbook. That page references app-owned SVG diagrams from `/assets/inductone_tools/svg/...`; the SVGs themselves live under `inductone_tools/public/svg/` and are deployed as static app assets rather than database content.
+
+Broader Wiki content is still database-managed until the owner reviews it. Use `scripts/run_wiki_information_architecture_audit.py` to identify stub pages, diagram candidates, and pages that may deserve fixture ownership.
+
+## Static SVG app assets
+
+Current app-owned workflow diagrams:
+
+- `inductone_tools/public/svg/inductone-csa-master-workflow.svg`
+- `inductone_tools/public/svg/configuration-option-status-gate.svg`
+- `inductone_tools/public/svg/builder-package-composition.svg`
+- `inductone_tools/public/svg/as-built-instance-lineage.svg`
+
 ## Immediate fixture hardening recommendations
 
-1. Replace broad Client Script fixture export with an explicit allowlist.
-2. Decide whether non-InductOne generic scripts (`minimal`, `Attachment_display`, `generate_zip`) belong to this app.
-3. Decide whether `Fixture Export Control` remains repo-owned or becomes sandbox-only.
-4. Generate a machine-readable fixture manifest and compare it against database state after migration.
-5. Align `custom_docperm.json` with the permission matrix.
+1. Decide whether non-InductOne generic scripts (`minimal`, `Attachment_display`, `generate_zip`) belong to this app.
+2. Decide whether `Fixture Export Control` remains repo-owned or becomes sandbox-only.
+3. Generate a machine-readable fixture manifest and compare it against database state after migration.
+4. Align `custom_docperm.json` with the permission matrix.
+5. Review Wiki IA audit findings before adding any more Wiki pages to fixtures.
 
 ## Review rule
 

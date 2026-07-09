@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="760" viewBox="0 0 1680 760" role="img" aria-labelledby="title desc">
+  <title id="title">InductOne CSA Master Workflow</title>
+  <desc id="desc">End-to-end workflow from governed source data through build configuration, release, builder completion, acceptance, as-built record, and instance creation.</desc>
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#25313c" flood-opacity="0.13"/>
+    </filter>
+    <marker id="arrow" markerWidth="13" markerHeight="13" refX="11" refY="6.5" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L11,6.5 L2,11 z" fill="#3c4447"/>
+    </marker>
+    <style>
+      .title { font-family:"Segoe UI",Arial,sans-serif; font-size:34px; font-weight:800; fill:#25313c; }
+      .sub { font-family:"Segoe UI",Arial,sans-serif; font-size:15px; fill:#64717c; }
+      .lane-title { font-family:"Segoe UI",Arial,sans-serif; font-size:17px; font-weight:800; fill:#25313c; }
+      .card { fill:#fff; stroke:#d9e5ec; stroke-width:1.4; filter:url(#shadow); }
+      .node { font-family:"Segoe UI",Arial,sans-serif; font-size:14px; font-weight:750; fill:#25313c; }
+      .small { font-family:"Segoe UI",Arial,sans-serif; font-size:11.5px; fill:#52616b; }
+      .arrow { fill:none; stroke:#3c4447; stroke-width:2.4; marker-end:url(#arrow); }
+      .gate { fill:#fff8e8; stroke:#f0ad2e; stroke-width:1.5; filter:url(#shadow); }
+    </style>
+  </defs>
+  <rect width="1680" height="760" fill="#fbfdff"/>
+  <text x="60" y="62" class="title">InductOne CSA Master Workflow</text>
+  <text x="60" y="92" class="sub">A governed, auditable path from controlled source data to builder handoff, accepted As-Built evidence, and lifecycle Instance.</text>
+
+  <rect x="55" y="130" width="330" height="520" rx="24" fill="#e8f6ff" stroke="#b9dff2"/>
+  <rect x="455" y="130" width="330" height="520" rx="24" fill="#ecfff6" stroke="#bdebd2"/>
+  <rect x="855" y="130" width="330" height="520" rx="24" fill="#fff8e8" stroke="#f3d38b"/>
+  <rect x="1255" y="130" width="360" height="520" rx="24" fill="#fff1f5" stroke="#efbed0"/>
+
+  <text x="85" y="170" class="lane-title">Engineering governance</text>
+  <text x="485" y="170" class="lane-title">Configure and freeze</text>
+  <text x="885" y="170" class="lane-title">Release to builder</text>
+  <text x="1285" y="170" class="lane-title">Closeout and lifecycle</text>
+
+  <g transform="translate(85,205)">
+    <rect class="card" width="270" height="76" rx="16"/><text x="20" y="32" class="node">Part / Item / BOM control</text><text x="20" y="55" class="small">Part numbers + engineering signoffs</text>
+  </g>
+  <g transform="translate(85,320)">
+    <polygon class="gate" points="135,0 250,55 135,110 20,55"/><text x="135" y="50" class="node" text-anchor="middle">Approved?</text><text x="135" y="72" class="small" text-anchor="middle">source objects + options</text>
+  </g>
+  <g transform="translate(85,470)">
+    <rect class="card" width="270" height="94" rx="16"/><text x="20" y="32" class="node">Released option catalog</text><text x="20" y="55" class="small">Only Released options load on Builds</text><text x="20" y="75" class="small">Draft remains for ideation only</text>
+  </g>
+
+  <g transform="translate(485,205)">
+    <rect class="card" width="270" height="76" rx="16"/><text x="20" y="32" class="node">InductOne Build</text><text x="20" y="55" class="small">Sales Order context + selected options</text>
+  </g>
+  <g transform="translate(485,320)">
+    <rect class="card" width="270" height="76" rx="16"/><text x="20" y="32" class="node">Configured BOM Snapshot</text><text x="20" y="55" class="small">Frozen hierarchy + structural effects</text>
+  </g>
+  <g transform="translate(485,435)">
+    <rect class="card" width="270" height="76" rx="16"/><text x="20" y="32" class="node">Configuration Order</text><text x="20" y="55" class="small">Builder-facing package index</text>
+  </g>
+  <g transform="translate(485,550)">
+    <rect class="card" width="270" height="76" rx="16"/><text x="20" y="32" class="node">Hierarchy workbook</text><text x="20" y="55" class="small">Human-readable resolved structure</text>
+  </g>
+
+  <g transform="translate(885,205)">
+    <rect class="card" width="270" height="76" rx="16"/><text x="20" y="32" class="node">BOM Export Package</text><text x="20" y="55" class="small">PDFs/drawings/package manifest</text>
+  </g>
+  <g transform="translate(885,320)">
+    <rect class="card" width="270" height="76" rx="16"/><text x="20" y="32" class="node">Allocate IND serial</text><text x="20" y="55" class="small">Assigned before builder release</text>
+  </g>
+  <g transform="translate(885,435)">
+    <polygon class="gate" points="135,0 250,55 135,110 20,55"/><text x="135" y="43" class="node" text-anchor="middle">Release</text><text x="135" y="64" class="small" text-anchor="middle">server readiness gate</text><text x="135" y="83" class="small" text-anchor="middle">serial + docs + signoffs</text>
+  </g>
+  <g transform="translate(885,585)">
+    <rect class="card" width="270" height="50" rx="16"/><text x="20" y="31" class="node">Builder Portal handoff</text>
+  </g>
+
+  <g transform="translate(1285,205)">
+    <rect class="card" width="290" height="76" rx="16"/><text x="20" y="32" class="node">Builder acknowledgement</text><text x="20" y="55" class="small">Supplier-scoped account only</text>
+  </g>
+  <g transform="translate(1285,320)">
+    <rect class="card" width="290" height="76" rx="16"/><text x="20" y="32" class="node">Build Completion upload</text><text x="20" y="55" class="small">Completed serial workbook</text>
+  </g>
+  <g transform="translate(1285,435)">
+    <polygon class="gate" points="145,0 270,55 145,110 20,55"/><text x="145" y="50" class="node" text-anchor="middle">Review / Accept</text><text x="145" y="72" class="small" text-anchor="middle">serial evidence required</text>
+  </g>
+  <g transform="translate(1285,585)">
+    <rect class="card" width="290" height="50" rx="16"/><text x="20" y="31" class="node">As-Built + Instance created</text>
+  </g>
+
+  <path class="arrow" d="M355 525 C405 525 435 245 485 245"/>
+  <path class="arrow" d="M755 243 C810 243 830 243 885 243"/>
+  <path class="arrow" d="M755 358 C810 358 830 358 885 358"/>
+  <path class="arrow" d="M1020 545 L1020 585"/>
+  <path class="arrow" d="M1155 610 C1200 610 1235 245 1285 245"/>
+  <path class="arrow" d="M1430 281 L1430 320"/>
+  <path class="arrow" d="M1430 396 L1430 435"/>
+  <path class="arrow" d="M1430 545 L1430 585"/>
+
+  <rect x="60" y="690" width="1555" height="42" rx="14" fill="#f8f9fa" stroke="#d9e5ec"/>
+  <text x="88" y="716" class="small">Evidence chain: fixtures → candidate lifecycle smoke → hardening gates → method negative tests → GUI builder smoke → production read-only/post-deploy validation.</text>
+</svg>

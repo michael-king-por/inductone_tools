@@ -18,6 +18,11 @@ This roadmap records the state after the full lifecycle proof and the follow-up 
 | External-builder Desk/browser route smoke | Complete | `gui-smoke-external-builders-20260709T1930Z`; 22/22 checks passed with screenshots |
 | Wiki/user-facing handoff page | Complete in candidate | `inductone-csa-owner-handbook` Wiki Page fixture; candidate migrate evidence `candidate_migrate_inductone_csa_wiki_hardening_20260709T1932Z.txt` |
 | Draft/Released/Deprecated policy | Complete | Owner decision recorded in the Wiki handbook: Draft is ideation-only, not usable; Engineering Signoff gate releases options |
+| Strict release-gate happy path | Complete | `inductone_csa_lifecycle_smoke_20260709T201934Z.json`; Draft configuration options are released through the real Engineering Signoff path before builder release |
+| Broader release-gate negative matrix | Complete | `inductone_csa_release_gate_matrix_20260709T201606Z.json`; Draft selected option, missing top Item signoff, and missing Product Bundle signoff all fail closed |
+| Build form usability panel | Complete in fixture | `InductOne Build HTML Controls` Client Script fixture renders release-readiness checklist and direct links across Snapshot/CO/Package/Completion/As-Built/Instance |
+| Versioned visual operating maps | Complete in app assets | Four SVGs added under `inductone_tools/public/svg/` and referenced from the filtered owner-handbook Wiki fixture |
+| Wiki information architecture audit | Complete / review required | `wiki_information_architecture_audit_20260709T201432Z.json`; reports fixture-managed vs database-managed pages, stub pages, and diagram candidates |
 
 ## Procedural gaps remaining
 
@@ -29,13 +34,16 @@ The candidate fixes and documentation are staged locally. Production is not upda
 
 ### 2. Broader signoff-readiness matrix
 
-The release path now proves top-BOM signoff and important missing-artifact negatives. A deeper matrix could still prove fail-closed behavior for every intended gate:
+Closed for the highest-risk release blockers on 2026-07-09 by `scripts/run_inductone_csa_release_gate_matrix.py`.
+
+The candidate matrix now proves fail-closed behavior for:
 
 - selected Configuration Option not Released,
-- Product Bundle signoff missing,
-- Top Item signoff missing,
-- package exists but is not Complete,
-- CO snapshot drift from Build snapshot.
+- direct `release_to_builder_now()` attempt with selected Draft option,
+- missing Product Bundle signoff,
+- missing Top Item signoff.
+
+Lower-risk future expansion remains useful for package-state edge cases such as a package record existing but not `Complete`, or a CO snapshot drifting from the selected Build snapshot.
 
 ### 3. Builder portal polish
 
@@ -48,17 +56,22 @@ Motion and LAM browser access is correct, but the experience can be made friendl
 
 ### 4. Operator usability polish
 
-Internal users would benefit from clearer “what happens next” UI:
+Partially closed on 2026-07-09 in the fixture-managed `InductOne Build HTML Controls` Client Script.
 
-- Build status banner with next required action,
+Implemented:
+
 - release readiness checklist rendered on the Build,
-- package/signoff/serial readiness chips,
-- direct links from Build → Snapshot → CO → Package → Completion → As-Built → Instance,
-- friendlier required-option-group messages.
+- direct links from Build → Snapshot → CO → Package → Completion → As-Built → Instance.
+
+Still useful later:
+
+- richer status chips,
+- friendlier required-option-group messages,
+- builder-specific landing page polish.
 
 ### 5. Evidence packaging
 
-Evidence exists, but a single owner-facing packet would make handoff cleaner:
+Partially closed by app-versioned SVG operating maps and the owner handbook fixture. Evidence exists, but a single owner-facing packet would still make handoff cleaner:
 
 - architecture SVG,
 - lifecycle proof,

@@ -16,23 +16,38 @@ Current local repo fixture files:
 
 | File | Current count | Notes |
 |---|---:|---|
-| `client_script.json` | 26 | Contains UI behavior. Should move from broad export to explicit allowlist. |
+| `client_script.json` | 26 | Contains UI behavior. Filtered by explicit Client Script name allowlist in `hooks.py`. |
 | `doctype.json` | 31 | Contains custom DocTypes across `Operations - POR` and `InductOne Tools`. |
-| `custom_docperm.json` | 12 | Contains permission rows for selected custom DocTypes. |
-| `custom_field.json` | 0 | Empty; keep intentional unless future deploy-critical custom fields are added. |
+| `custom_docperm.json` | 138 | Contains permission rows for selected managed DocTypes. |
+| `custom_field.json` | 7 | Contains deploy-critical custom fields, including BOM Item metadata/user notes and balloon-scoped option support fields. |
 | `property_setter.json` | 0 | Empty; keep intentional unless future deploy-critical property setters are added. |
+| `inductone_configuration_option.json` | 13 | Reviewed `DEV-*` configuration-option catalog rows. |
+| `report.json` | 1 | App-owned Electrical Balloon Callouts Query Report. |
+| `role.json` | 10 | App-owned curated role vocabulary. |
+| `role_profile.json` | 10 | App-owned curated role profiles. |
+| `wiki_page.json` | 4 | Explicitly allowlisted Wiki pages, including the InductOne CSA owner handbook. |
+| `workspace.json` | 1 | Explicitly allowlisted Operations workspace. |
 
 ## Current fixture filters
 
-`hooks.py` currently includes a broad Client Script fixture:
+`hooks.py` currently uses explicit fixture filters for the database-owned metadata this app deploys. The important shape is:
 
 ```python
 {
-    "dt": "Client Script"
+    "dt": "Client Script",
+    "filters": [["name", "in", ["... explicit names ..."]]]
+}
+{
+    "dt": "Wiki Page",
+    "filters": [["name", "in", ["... explicit names ..."]]]
+}
+{
+    "dt": "InductOne Configuration Option",
+    "filters": [["option_code", "like", "DEV-%"]]
 }
 ```
 
-This is the highest-risk fixture filter because it can capture unrelated client scripts and deploy them with InductOne.
+The former broad Client Script fixture concern is closed in the current repo: Client Scripts are allowlisted by name. Keep it that way. Broad Client Script exports can capture unrelated GUI behavior and deploy it with InductOne.
 
 ## Target fixture filters
 
@@ -92,7 +107,7 @@ Use only with written justification:
 
 - Server Scripts.
 - User Permissions.
-- Wiki Pages.
+- Wiki Pages, except explicitly reviewed owner/operator handbook pages with narrow name filters.
 - Web Pages.
 - Website Settings.
 - Letterheads.
@@ -127,6 +142,19 @@ Every fixture diff should answer:
 - Was `bench migrate` run in a restored candidate sandbox?
 - Was the relevant workflow smoke-tested?
 - Is the change documented?
+
+## Static app assets
+
+Repo-owned SVG diagrams live under `inductone_tools/public/svg/` and deploy as app assets. They are preferred over embedding large opaque diagram blobs directly inside Wiki Page content.
+
+Current app-owned SVGs:
+
+- `inductone-csa-master-workflow.svg`
+- `configuration-option-status-gate.svg`
+- `builder-package-composition.svg`
+- `as-built-instance-lineage.svg`
+
+Wiki pages may reference these by `/assets/inductone_tools/svg/<file>.svg`.
 
 ## Fixture export utility policy
 

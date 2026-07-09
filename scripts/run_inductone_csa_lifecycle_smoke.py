@@ -216,19 +216,18 @@ def run_lifecycle(args, frappe, payload: dict, timestamp: str) -> None:
     })
     assert_last_step(payload)
 
-    # Step 5: ensure required engineering signoff for top BOM.
-    top_bom_signoff_before = get_current_signoff_status("BOM", build.top_bom)
-    signoff_result = None
-    if top_bom_signoff_before != "Approved":
-        frappe.set_user(args.engineering_user)
-        signoff_request = request_signoff("BOM", build.top_bom)
-        signoff_result = approve_signoff(signoff_request["signoff_name"], notes="Candidate lifecycle smoke top-BOM release gate approval.")
-    top_bom_signoff_after = get_current_signoff_status("BOM", build.top_bom)
-    add_step(payload, "ensure_top_bom_signoff", top_bom_signoff_after == "Approved", {
-        "before": top_bom_signoff_before,
-        "after": top_bom_signoff_after,
-        "created_or_approved": signoff_result,
-    })
+    # Step 5: ensure all governed release inputs have approved signoff.
+    signoff_result = ensure_release_gate_signoffs(
+        frappe=frappe,
+        build=build,
+        configuration_order=co,
+        selected_codes=selected_codes,
+        engineering_user=args.engineering_user,
+        request_signoff=request_signoff,
+        approve_signoff=approve_signoff,
+        get_current_signoff_status=get_current_signoff_status,
+    )
+    add_step(payload, "ensure_release_gate_signoffs", signoff_result["passed"], signoff_result)
     assert_last_step(payload)
 
     # Step 6: allocate serial using real builder tranche logic.
@@ -341,6 +340,113 @@ def run_lifecycle(args, frappe, payload: dict, timestamp: str) -> None:
     payload["observations"].append(
         "This smoke validates the happy path. Direct negative hardening for acknowledgement is covered by run_inductone_csa_hardening_gates.py and run_method_negative_tests.py."
     )
+
+
+def ensure_release_gate_signoffs(
+    frappe,
+    build,
+    configuration_order,
+    selected_codes: list[str],
+    engineering_user: str,
+    request_signoff,
+    approve_signoff,
+    get_current_signoff_status,
+) -> dict:
+    """Approve every governed release input through the normal gate where possible."""
+
+    results: list[dict] = []
+    frappe.set_user(engineering_user)
+
+    targets: list[tuple[str, str, str]] = []
+    if build.top_bom:
+        targets.append(("BOM", build.top_bom, build.top_bom))
+    if build.top_item:
+        targets.append(("Item", build.top_item, build.top_item))
+
+        product_bundles = frappe.get_all(
+            "Product Bundle",
+            filters={"new_item_code": build.top_item},
+            pluck="name",
+            limit_page_length=500,
+        )
+        for bundle_name in product_bundles:
+            targets.append(("Product Bundle", bundle_name, bundle_name))
+
+    for code in selected_codes:
+        option_name = frappe.db.get_value("InductOne Configuration Option", {"option_code": code}, "name")
+        if option_name:
+            targets.append(("InductOne Configuration Option", option_name, code))
+        else:
+            results.append({
+                "target_doctype": "InductOne Configuration Option",
+                "target": code,
+                "label": code,
+                "before": None,
+                "after": None,
+                "passed": False,
+                "action": "missing option record",
+            })
+
+    for doctype, name, label in targets:
+        before = get_current_signoff_status(doctype, name)
+        action = "already approved"
+        error = None
+        signoff_name = None
+
+        option_status_before = None
+        if doctype == "InductOne Configuration Option":
+            option_status_before = frappe.db.get_value(doctype, name, "status")
+
+        needs_approval = before != "Approved"
+        if (
+            doctype == "InductOne Configuration Option"
+            and option_status_before != "Released"
+        ):
+            # Configuration Option approval is also the release action.  A stale
+            # Approved signoff with a Draft target is not release-ready, so the
+            # candidate smoke must exercise the real Draft -> Pending -> Approved
+            # path instead of accepting the stale signoff as sufficient.
+            needs_approval = True
+
+        if needs_approval:
+            try:
+                req = request_signoff(doctype, name)
+                signoff_name = req.get("signoff_name")
+                approve_signoff(
+                    signoff_name,
+                    notes=f"Candidate lifecycle smoke release gate approval for {doctype} {label}.",
+                )
+                action = "requested and approved"
+            except Exception as exc:  # noqa: BLE001 - record exact blocker
+                action = "failed to request/approve"
+                error = f"{exc.__class__.__name__}: {exc}"
+
+        after = get_current_signoff_status(doctype, name)
+        row = {
+            "target_doctype": doctype,
+            "target": name,
+            "label": label,
+            "before": before,
+            "after": after,
+            "action": action,
+            "signoff_name": signoff_name,
+            "error": error,
+            "passed": after == "Approved",
+        }
+
+        if doctype == "InductOne Configuration Option":
+            option_status = frappe.db.get_value(doctype, name, "status")
+            row["option_status_before"] = option_status_before
+            row["option_status"] = option_status
+            row["passed"] = row["passed"] and option_status == "Released"
+
+        results.append(row)
+
+    return {
+        "passed": all(row["passed"] for row in results),
+        "targets": results,
+        "configuration_order": configuration_order.name,
+    }
 
 
 def create_smoke_build(frappe, source_build, timestamp: str):
