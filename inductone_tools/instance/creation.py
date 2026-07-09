@@ -85,6 +85,21 @@ def create_instance_from_as_built(as_built_name, user=None):
 
     instance.configuration_summary = config_summary
 
+    # Preserve the accepted component serial evidence on the lifecycle
+    # Instance as well as on the locked As-Built record. Backfill-created
+    # Instances already store component serials in this child table; the
+    # formal Build -> Completion -> As-Built -> Instance path should carry
+    # the same support-facing serial data forward.
+    for row in (getattr(as_built, "serials", None) or []):
+        label = (getattr(row, "component_label", None) or getattr(row, "item_name", None) or getattr(row, "item_code", None) or "").strip()
+        serial = (getattr(row, "serial_number", None) or "").strip()
+        if not label or not serial:
+            continue
+        instance.append("component_serials", {
+            "component_label": label,
+            "serial_number": serial,
+        })
+
     instance.insert(ignore_permissions=True)
 
     return instance.name

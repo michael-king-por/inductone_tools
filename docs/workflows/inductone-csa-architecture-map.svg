@@ -1,0 +1,374 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1250" viewBox="0 0 1800 1250" role="img" aria-labelledby="title desc">
+  <title id="title">InductOne CSA End-to-End Architecture Map</title>
+  <desc id="desc">A visual architecture map of the InductOne CSA workflow from engineering governance through build configuration, release to builder, completion acceptance, instance creation, and validation evidence.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef8ff"/>
+      <stop offset="45%" stop-color="#f8fbff"/>
+      <stop offset="100%" stop-color="#f7f4ff"/>
+    </linearGradient>
+
+    <linearGradient id="headerGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1794ce"/>
+      <stop offset="55%" stop-color="#3c4447"/>
+      <stop offset="100%" stop-color="#6f4bd8"/>
+    </linearGradient>
+
+    <linearGradient id="governanceGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e8f6ff"/>
+      <stop offset="100%" stop-color="#d7effc"/>
+    </linearGradient>
+
+    <linearGradient id="buildGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ecfff6"/>
+      <stop offset="100%" stop-color="#d9f8eb"/>
+    </linearGradient>
+
+    <linearGradient id="releaseGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff8e8"/>
+      <stop offset="100%" stop-color="#ffedc2"/>
+    </linearGradient>
+
+    <linearGradient id="closeoutGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff0f4"/>
+      <stop offset="100%" stop-color="#fce0eb"/>
+    </linearGradient>
+
+    <linearGradient id="evidenceGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f2efff"/>
+      <stop offset="100%" stop-color="#e2dcff"/>
+    </linearGradient>
+
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#25313c" flood-opacity="0.13"/>
+    </filter>
+
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#25313c" flood-opacity="0.11"/>
+    </filter>
+
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M 2 2 L 12 7 L 2 12 z" fill="#3c4447"/>
+    </marker>
+
+    <marker id="arrowBlue" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M 2 2 L 12 7 L 2 12 z" fill="#1794ce"/>
+    </marker>
+
+    <marker id="arrowGreen" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M 2 2 L 12 7 L 2 12 z" fill="#14865d"/>
+    </marker>
+
+    <style>
+      .title { font-family: "Aptos Display", "Segoe UI", Arial, sans-serif; font-size: 44px; font-weight: 800; fill: #ffffff; letter-spacing: -0.8px; }
+      .subtitle { font-family: "Segoe UI", Arial, sans-serif; font-size: 18px; fill: rgba(255,255,255,0.86); }
+      .tagline { font-family: "Segoe UI", Arial, sans-serif; font-size: 15px; fill: rgba(255,255,255,0.72); font-style: italic; }
+      .lane-title { font-family: "Segoe UI", Arial, sans-serif; font-size: 20px; font-weight: 800; fill: #1f2933; }
+      .lane-subtitle { font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; fill: #5c6b75; }
+      .node-title { font-family: "Segoe UI", Arial, sans-serif; font-size: 16px; font-weight: 800; fill: #25313c; }
+      .node-small { font-family: "Segoe UI", Arial, sans-serif; font-size: 12px; fill: #52616b; }
+      .node-mono { font-family: "Cascadia Mono", "Consolas", monospace; font-size: 11px; fill: #52616b; }
+      .gate-title { font-family: "Segoe UI", Arial, sans-serif; font-size: 14px; font-weight: 800; fill: #25313c; }
+      .gate-small { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; fill: #5b6570; }
+      .artifact-title { font-family: "Segoe UI", Arial, sans-serif; font-size: 14px; font-weight: 800; fill: #25313c; }
+      .artifact-small { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; fill: #52616b; }
+      .legend { font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; fill: #4c5963; }
+      .callout { font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; fill: #4c5963; }
+      .lane { stroke: rgba(60,68,71,0.18); stroke-width: 1.4; }
+      .node { fill: #ffffff; stroke: rgba(60,68,71,0.16); stroke-width: 1.5; filter: url(#softShadow); }
+      .artifact { fill: #ffffff; stroke: rgba(111,75,216,0.28); stroke-width: 1.4; filter: url(#softShadow); }
+      .gate { fill: #ffffff; stroke: rgba(223,145,0,0.35); stroke-width: 1.5; filter: url(#softShadow); }
+      .arrow { fill: none; stroke: #3c4447; stroke-width: 2.4; marker-end: url(#arrow); }
+      .arrow-blue { fill: none; stroke: #1794ce; stroke-width: 2.6; marker-end: url(#arrowBlue); }
+      .arrow-green { fill: none; stroke: #14865d; stroke-width: 2.6; marker-end: url(#arrowGreen); }
+      .dash { fill: none; stroke: #7b8794; stroke-width: 2; stroke-dasharray: 7 7; marker-end: url(#arrow); }
+      .rail { fill: none; stroke: rgba(111,75,216,0.55); stroke-width: 2.2; stroke-dasharray: 4 7; }
+    </style>
+  </defs>
+
+  <rect width="1800" height="1250" fill="url(#bg)"/>
+
+  <!-- Header -->
+  <rect x="50" y="42" width="1700" height="130" rx="28" fill="url(#headerGrad)" filter="url(#shadow)"/>
+  <text x="90" y="94" class="title">InductOne CSA Architecture Proof</text>
+  <text x="92" y="126" class="subtitle">Governed path from engineering-controlled source data to builder handoff, accepted as-built evidence, and lifecycle instance.</text>
+  <text x="92" y="151" class="tagline">Robots work. People rule. Evidence survives context windows.</text>
+
+  <g transform="translate(1398,72)">
+    <rect x="0" y="0" width="300" height="72" rx="18" fill="rgba(255,255,255,0.16)" stroke="rgba(255,255,255,0.24)"/>
+    <text x="24" y="30" class="subtitle" style="font-weight:700;">Proof mode</text>
+    <text x="24" y="54" class="tagline">source-backed · fixture-aware · auditable</text>
+  </g>
+
+  <!-- Lane backgrounds -->
+  <rect class="lane" x="70" y="210" width="390" height="870" rx="28" fill="url(#governanceGrad)"/>
+  <rect class="lane" x="490" y="210" width="390" height="870" rx="28" fill="url(#buildGrad)"/>
+  <rect class="lane" x="910" y="210" width="390" height="870" rx="28" fill="url(#releaseGrad)"/>
+  <rect class="lane" x="1330" y="210" width="390" height="870" rx="28" fill="url(#closeoutGrad)"/>
+  <rect class="lane" x="70" y="1100" width="1650" height="100" rx="28" fill="url(#evidenceGrad)"/>
+
+  <!-- Lane headers -->
+  <text x="100" y="250" class="lane-title">1 · Governance setup</text>
+  <text x="100" y="272" class="lane-subtitle">engineering identity, release approval, controlled catalog</text>
+
+  <text x="520" y="250" class="lane-title">2 · Configure and freeze</text>
+  <text x="520" y="272" class="lane-subtitle">build context, options, snapshot, hierarchy, CO</text>
+
+  <text x="940" y="250" class="lane-title">3 · Release to builder</text>
+  <text x="940" y="272" class="lane-subtitle">package, serial, readiness, assignment, handoff</text>
+
+  <text x="1360" y="250" class="lane-title">4 · Closeout and lifecycle</text>
+  <text x="1360" y="272" class="lane-subtitle">completion review, as-built, instance birth</text>
+
+  <text x="100" y="1138" class="lane-title">Evidence rail</text>
+  <text x="100" y="1162" class="lane-subtitle">fixtures + candidate validation + production read-only proof + generated engineering deliverables</text>
+
+  <!-- Governance nodes -->
+  <g id="part-numbers">
+    <rect class="node" x="105" y="310" width="320" height="92" rx="18"/>
+    <circle cx="135" cy="340" r="12" fill="#1794ce"/>
+    <text x="158" y="338" class="node-title">Part number control</text>
+    <text x="158" y="362" class="node-small">Engineering User allocates controlled</text>
+    <text x="158" y="381" class="node-mono">1/2/3/4 family prefixes · DB lock</text>
+  </g>
+
+  <g id="eng-signoff">
+    <rect class="node" x="105" y="446" width="320" height="110" rx="18"/>
+    <circle cx="135" cy="476" r="12" fill="#1794ce"/>
+    <text x="158" y="474" class="node-title">Engineering Signoff</text>
+    <text x="158" y="498" class="node-small">Items · BOMs · Product Bundles</text>
+    <text x="158" y="517" class="node-small">Configuration Options</text>
+    <text x="158" y="536" class="node-mono">Pending → Approved / Rejected</text>
+  </g>
+
+  <g id="option-release">
+    <polygon class="gate" points="265,600 414,676 265,752 116,676"/>
+    <text x="265" y="657" text-anchor="middle" class="gate-title">Option approved?</text>
+    <text x="265" y="678" text-anchor="middle" class="gate-small">approval releases option</text>
+    <text x="265" y="698" text-anchor="middle" class="gate-small">released/deprecated lock</text>
+  </g>
+
+  <g id="dev-catalog">
+    <rect class="artifact" x="105" y="800" width="320" height="120" rx="18"/>
+    <path d="M130 826 h32 l18 18 v42 h-50 z" fill="#f2efff" stroke="#6f4bd8" stroke-width="1.5"/>
+    <path d="M162 826 v18 h18" fill="none" stroke="#6f4bd8" stroke-width="1.5"/>
+    <text x="198" y="840" class="artifact-title">DEV option catalog</text>
+    <text x="198" y="864" class="artifact-small">13 fixture-managed options</text>
+    <text x="198" y="883" class="artifact-small">balloon-scoped mappings</text>
+    <text x="198" y="902" class="artifact-small">independent oracle</text>
+  </g>
+
+  <!-- Build nodes -->
+  <g id="sales-build">
+    <rect class="node" x="525" y="310" width="320" height="92" rx="18"/>
+    <circle cx="555" cy="340" r="12" fill="#14865d"/>
+    <text x="578" y="338" class="node-title">Sales Order → Build</text>
+    <text x="578" y="362" class="node-small">Sales Order line creates</text>
+    <text x="578" y="381" class="node-mono">SAL-ORD…-BLD-####</text>
+  </g>
+
+  <g id="option-select">
+    <rect class="node" x="525" y="446" width="320" height="110" rx="18"/>
+    <circle cx="555" cy="476" r="12" fill="#14865d"/>
+    <text x="578" y="474" class="node-title">Load and select options</text>
+    <text x="578" y="498" class="node-small">required groups · exclusivity</text>
+    <text x="578" y="517" class="node-small">DEV-BASELINE remains selected</text>
+    <text x="578" y="536" class="node-mono">Build.selections child table</text>
+  </g>
+
+  <g id="snapshot">
+    <rect class="node" x="525" y="600" width="320" height="112" rx="18"/>
+    <circle cx="555" cy="630" r="12" fill="#14865d"/>
+    <text x="578" y="628" class="node-title">Configured BOM Snapshot</text>
+    <text x="578" y="652" class="node-small">freezes lines + structural effects</text>
+    <text x="578" y="671" class="node-small">target balloons preserved</text>
+    <text x="578" y="690" class="node-mono">SNAP-####</text>
+  </g>
+
+  <g id="hierarchy">
+    <rect class="artifact" x="525" y="754" width="320" height="112" rx="18"/>
+    <path d="M550 782 h30 v20 h-30 z M550 816 h30 v20 h-30 z M598 782 h30 v20 h-30 z M598 816 h30 v20 h-30 z" fill="#ecfff6" stroke="#14865d" stroke-width="1.4"/>
+    <text x="652" y="790" class="artifact-title">Hierarchy workbook</text>
+    <text x="652" y="814" class="artifact-small">resolved from same configured</text>
+    <text x="652" y="833" class="artifact-small">row engine as export package</text>
+    <text x="652" y="852" class="artifact-small">registered on CO document index</text>
+  </g>
+
+  <g id="co">
+    <rect class="node" x="525" y="910" width="320" height="118" rx="18"/>
+    <circle cx="555" cy="940" r="12" fill="#14865d"/>
+    <text x="578" y="938" class="node-title">Configuration Order</text>
+    <text x="578" y="962" class="node-small">formal builder package index</text>
+    <text x="578" y="981" class="node-small">options · deltas · documents</text>
+    <text x="578" y="1000" class="node-mono">Draft → Released → Awaiting Completion → Closed</text>
+  </g>
+
+  <!-- Release nodes -->
+  <g id="bom-package">
+    <rect class="artifact" x="945" y="310" width="320" height="112" rx="18"/>
+    <path d="M970 340 h42 l14 18 v42 h-56 z" fill="#fff8e8" stroke="#df9100" stroke-width="1.5"/>
+    <path d="M1012 340 v18 h14" fill="none" stroke="#df9100" stroke-width="1.5"/>
+    <text x="1048" y="342" class="artifact-title">BOM Export Package</text>
+    <text x="1048" y="366" class="artifact-small">watermarked PDFs/drawings</text>
+    <text x="1048" y="385" class="artifact-small">manifest · results · missing files</text>
+    <text x="1048" y="404" class="artifact-small">ZIP synced to CO</text>
+  </g>
+
+  <g id="flat-bom">
+    <rect class="artifact" x="945" y="466" width="320" height="92" rx="18"/>
+    <path d="M970 493 h58 v40 h-58 z M970 506 h58 M989 493 v40 M1008 493 v40" fill="#fff8e8" stroke="#df9100" stroke-width="1.4"/>
+    <text x="1048" y="498" class="artifact-title">Flat BOM CSV</text>
+    <text x="1048" y="522" class="artifact-small">leaf procurement rollup</text>
+    <text x="1048" y="541" class="artifact-small">derived from snapshot hierarchy</text>
+  </g>
+
+  <g id="serial">
+    <rect class="node" x="945" y="600" width="320" height="110" rx="18"/>
+    <circle cx="975" cy="630" r="12" fill="#df9100"/>
+    <text x="998" y="628" class="node-title">Allocate IND serial</text>
+    <text x="998" y="652" class="node-small">Builder Tranche consumes next</text>
+    <text x="998" y="671" class="node-small">Build stamped; CO propagated</text>
+    <text x="998" y="690" class="node-mono">IND-####</text>
+  </g>
+
+  <g id="readiness">
+    <polygon class="gate" points="1105,746 1262,826 1105,906 948,826"/>
+    <text x="1105" y="800" text-anchor="middle" class="gate-title">Ready to release?</text>
+    <text x="1105" y="821" text-anchor="middle" class="gate-small">snapshot · CO · serial</text>
+    <text x="1105" y="840" text-anchor="middle" class="gate-small">package · signoff · status</text>
+    <text x="1105" y="859" text-anchor="middle" class="gate-small">server-side recheck</text>
+  </g>
+
+  <g id="release">
+    <rect class="node" x="945" y="946" width="320" height="112" rx="18"/>
+    <circle cx="975" cy="976" r="12" fill="#df9100"/>
+    <text x="998" y="974" class="node-title">Release to builder</text>
+    <text x="998" y="998" class="node-small">CO status Released</text>
+    <text x="998" y="1017" class="node-small">serial workbook + release manifest</text>
+    <text x="998" y="1036" class="node-mono">role gate: InductOne Manager+</text>
+  </g>
+
+  <!-- Closeout nodes -->
+  <g id="ack">
+    <rect class="node" x="1365" y="310" width="320" height="94" rx="18"/>
+    <circle cx="1395" cy="340" r="12" fill="#c43f68"/>
+    <text x="1418" y="338" class="node-title">Builder acknowledgement</text>
+    <text x="1418" y="362" class="node-small">CO moves to Awaiting Completion</text>
+    <text x="1418" y="381" class="node-small">optional signed receipt attached</text>
+  </g>
+
+  <g id="completion">
+    <rect class="node" x="1365" y="446" width="320" height="112" rx="18"/>
+    <circle cx="1395" cy="476" r="12" fill="#c43f68"/>
+    <text x="1418" y="474" class="node-title">Build Completion upload</text>
+    <text x="1418" y="498" class="node-small">builder workbook parsed first</text>
+    <text x="1418" y="517" class="node-small">serial rows preserved, even blank</text>
+    <text x="1418" y="536" class="node-mono">Submitted</text>
+  </g>
+
+  <g id="review">
+    <polygon class="gate" points="1525,602 1680,682 1525,762 1370,682"/>
+    <text x="1525" y="657" text-anchor="middle" class="gate-title">Ops review</text>
+    <text x="1525" y="678" text-anchor="middle" class="gate-small">Reviewed requires serial rows</text>
+    <text x="1525" y="697" text-anchor="middle" class="gate-small">Rejected requires notes</text>
+  </g>
+
+  <g id="accept">
+    <rect class="node" x="1365" y="800" width="320" height="126" rx="18"/>
+    <circle cx="1395" cy="830" r="12" fill="#c43f68"/>
+    <text x="1418" y="828" class="node-title">Accept Completion</text>
+    <text x="1418" y="852" class="node-small">atomic closeout transaction</text>
+    <text x="1418" y="871" class="node-small">As-Built Locked · Build Complete</text>
+    <text x="1418" y="890" class="node-small">CO Closed · Instance created</text>
+    <text x="1418" y="909" class="node-mono">role gate: InductOne Manager+</text>
+  </g>
+
+  <g id="instance">
+    <rect class="node" x="1365" y="970" width="320" height="88" rx="18"/>
+    <circle cx="1395" cy="1000" r="12" fill="#c43f68"/>
+    <text x="1418" y="998" class="node-title">InductOne Instance</text>
+    <text x="1418" y="1022" class="node-small">Ready for Ship → Shipped → Installed</text>
+    <text x="1418" y="1041" class="node-mono">named by system_serial</text>
+  </g>
+
+  <!-- Cross-lane arrows -->
+  <path class="arrow-blue" d="M425 356 C465 356 485 356 525 356"/>
+  <path class="arrow-blue" d="M265 402 L265 446"/>
+  <path class="arrow-blue" d="M265 556 L265 600"/>
+  <path class="arrow-blue" d="M265 752 L265 800"/>
+  <path class="dash" d="M425 860 C470 860 490 482 525 482"/>
+
+  <path class="arrow-green" d="M685 402 L685 446"/>
+  <path class="arrow-green" d="M685 556 L685 600"/>
+  <path class="arrow-green" d="M685 712 L685 754"/>
+  <path class="arrow-green" d="M685 866 L685 910"/>
+
+  <path class="arrow" d="M845 356 C890 356 905 356 945 356"/>
+  <path class="arrow" d="M845 970 C890 970 912 512 945 512"/>
+  <path class="arrow" d="M845 970 C900 970 910 655 945 655"/>
+
+  <path class="arrow" d="M1105 422 L1105 466"/>
+  <path class="arrow" d="M1105 558 L1105 600"/>
+  <path class="arrow" d="M1105 710 L1105 746"/>
+  <path class="arrow" d="M1105 906 L1105 946"/>
+
+  <path class="arrow" d="M1265 1002 C1310 1002 1322 357 1365 357"/>
+  <path class="arrow" d="M1525 404 L1525 446"/>
+  <path class="arrow" d="M1525 558 L1525 602"/>
+  <path class="arrow" d="M1525 762 L1525 800"/>
+  <path class="arrow" d="M1525 926 L1525 970"/>
+
+  <!-- Rejection loop -->
+  <path class="dash" d="M1370 682 C1318 682 1318 502 1365 502"/>
+  <text x="1290" y="612" class="callout" text-anchor="middle">reject → new upload</text>
+
+  <!-- Evidence rail blocks -->
+  <g id="evidence-blocks">
+    <rect class="artifact" x="278" y="1124" width="230" height="52" rx="16"/>
+    <text x="393" y="1146" text-anchor="middle" class="artifact-title">Fixtures</text>
+    <text x="393" y="1165" text-anchor="middle" class="artifact-small">DocTypes · scripts · roles · DEV options</text>
+
+    <rect class="artifact" x="548" y="1124" width="230" height="52" rx="16"/>
+    <text x="663" y="1146" text-anchor="middle" class="artifact-title">Candidate execution</text>
+    <text x="663" y="1165" text-anchor="middle" class="artifact-small">safe mutation proof</text>
+
+    <rect class="artifact" x="818" y="1124" width="230" height="52" rx="16"/>
+    <text x="933" y="1146" text-anchor="middle" class="artifact-title">Production read-only</text>
+    <text x="933" y="1165" text-anchor="middle" class="artifact-small">parity and permission proof</text>
+
+    <rect class="artifact" x="1088" y="1124" width="230" height="52" rx="16"/>
+    <text x="1203" y="1146" text-anchor="middle" class="artifact-title">Diff deliverables</text>
+    <text x="1203" y="1165" text-anchor="middle" class="artifact-small">XLSX + JSON oracle evidence</text>
+
+    <rect class="artifact" x="1358" y="1124" width="230" height="52" rx="16"/>
+    <text x="1473" y="1146" text-anchor="middle" class="artifact-title">Handoff docs</text>
+    <text x="1473" y="1165" text-anchor="middle" class="artifact-small">map · gameplan · tracker</text>
+  </g>
+
+  <path class="rail" d="M390 1080 L390 1124"/>
+  <path class="rail" d="M685 1080 L685 1124"/>
+  <path class="rail" d="M1105 1080 L1105 1124"/>
+  <path class="rail" d="M1525 1080 L1525 1124"/>
+
+  <!-- Issue / gap callout -->
+  <g id="gap-callout">
+    <rect x="930" y="190" width="760" height="70" rx="18" fill="#fff" stroke="rgba(196,63,104,0.28)" filter="url(#softShadow)"/>
+    <circle cx="960" cy="225" r="13" fill="#fff0f4" stroke="#c43f68" stroke-width="1.8"/>
+    <text x="960" y="230" text-anchor="middle" style="font-family:Segoe UI,Arial,sans-serif;font-size:18px;font-weight:800;fill:#c43f68;">!</text>
+    <text x="985" y="216" class="artifact-title">Mapped hardening gap</text>
+    <text x="985" y="239" class="artifact-small">Release currently checks Top BOM signoff; helper exists for Top Item, Product Bundle, and selected Options but is not wired.</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(90,1208)">
+    <circle cx="0" cy="0" r="7" fill="#1794ce"/><text x="14" y="5" class="legend">governance</text>
+    <circle cx="112" cy="0" r="7" fill="#14865d"/><text x="126" y="5" class="legend">configuration</text>
+    <circle cx="250" cy="0" r="7" fill="#df9100"/><text x="264" y="5" class="legend">release</text>
+    <circle cx="355" cy="0" r="7" fill="#c43f68"/><text x="369" y="5" class="legend">closeout</text>
+    <rect x="476" y="-8" width="16" height="16" rx="4" fill="#fff" stroke="#6f4bd8"/><text x="500" y="5" class="legend">artifact/evidence</text>
+    <polygon points="650,-13 675,0 650,13 625,0" fill="#fff" stroke="#df9100"/><text x="686" y="5" class="legend">gate</text>
+  </g>
+
+  <text x="1708" y="1216" text-anchor="end" class="legend">InductOne Tools · architecture proof SVG · 2026-07-09</text>
+</svg>

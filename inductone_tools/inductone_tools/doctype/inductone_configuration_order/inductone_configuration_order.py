@@ -7,9 +7,11 @@ def enqueue_flat_bom_generation(doc, method=None):
     Enqueues background generation of snapshot-based flat BOM CSV.
     """
 
-    # Set Pending/Running quickly in-db (avoid conflicts)
+    # Set Queued quickly in-db (avoid conflicts). The DocType's
+    # flat_bom_status Select options are Queued/Running/Complete/Failed;
+    # "Pending" is a retired value and will break later saves.
     frappe.db.set_value(doc.doctype, doc.name, {
-        "flat_bom_status": "Pending",
+        "flat_bom_status": "Queued",
         "flat_bom_error": ""
     })
 

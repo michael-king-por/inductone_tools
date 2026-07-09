@@ -38,6 +38,7 @@ Design notes:
 """
 
 import io
+import time
 
 import frappe
 from frappe import _
@@ -83,10 +84,6 @@ def populate_snapshot_hierarchy(snapshot_name):
             "Snapshot {0} has no top_bom; hierarchy cannot be resolved."
         ).format(snapshot_name))
 
-    # Wipe any existing hierarchy rows. Idempotent re-runs replace
-    # rather than append.
-    _clear_snapshot_hierarchy(snapshot_name)
-
     # Build a stub BOM Export Package doc so we can call
     # build_configured_rows without modifying it.
     stub_package = _build_stub_export_package(snap)
@@ -103,10 +100,10 @@ def populate_snapshot_hierarchy(snapshot_name):
     # Enrich each row with frozen copies of Item metadata.
     _enrich_with_item_metadata(hierarchy_rows)
 
-    # Bulk insert.
-    _insert_hierarchy_rows(snapshot_name, hierarchy_rows)
-
-    frappe.db.commit()
+    # Persist with deadlock retry. The resolver is deterministic; if MariaDB
+    # deadlocks while replacing child rows, rollback and write the same frozen
+    # rows again rather than requiring the operator to re-click generation.
+    _persist_hierarchy_rows_with_retry(snapshot_name, hierarchy_rows)
 
     return {
         "ok": True,
@@ -544,6 +541,36 @@ def _clear_snapshot_hierarchy(snapshot_name):
         "parenttype": "Configured BOM Snapshot",
         "parentfield": "hierarchy",
     })
+
+
+def _is_deadlock_or_lock_timeout(exc):
+    args = getattr(exc, "args", ()) or ()
+    code = args[0] if args else None
+    message = str(exc).lower()
+    return code in (1205, 1213) or "deadlock" in message or "lock wait timeout" in message
+
+
+def _persist_hierarchy_rows_with_retry(snapshot_name, hierarchy_rows, max_attempts=3):
+    """Replace hierarchy child rows, retrying transient DB lock failures."""
+
+    last_exc = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            # Wipe any existing hierarchy rows. Idempotent re-runs replace
+            # rather than append.
+            _clear_snapshot_hierarchy(snapshot_name)
+            _insert_hierarchy_rows(snapshot_name, hierarchy_rows)
+            frappe.db.commit()
+            return
+        except Exception as exc:
+            if not _is_deadlock_or_lock_timeout(exc) or attempt >= max_attempts:
+                raise
+            last_exc = exc
+            frappe.db.rollback()
+            time.sleep(0.25 * attempt)
+
+    if last_exc:
+        raise last_exc
 
 
 def _insert_hierarchy_rows(snapshot_name, hierarchy_rows):

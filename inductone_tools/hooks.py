@@ -132,7 +132,8 @@ fixtures = [
             ["name", "in", [
                 "d0v7dsi9lu",
                 "9n8bvqedso",
-                "3hnmdg9m5q"
+                "3hnmdg9m5q",
+                "inductone-csa-owner-handbook"
             ]]
         ]
     },

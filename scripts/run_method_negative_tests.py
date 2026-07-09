@@ -67,7 +67,7 @@ def run(site: str, sites_path: str) -> int:
     frappe.init(site=site, sites_path=sites_path)
     frappe.connect()
 
-    from inductone_tools.builder_release import release_to_builder_now
+    from inductone_tools.builder_release import acknowledge_builder_release, release_to_builder_now
     from inductone_tools.build_completion_accept import accept_completion_create_as_built
     from inductone_tools.engineering_signoff import (
         approve_signoff,
@@ -77,6 +77,7 @@ def run(site: str, sites_path: str) -> int:
     from inductone_tools.part_numbering import allocate_numbers
 
     motion_builder = "motion.builder@plusonerobotics.com"
+    lam_builder = "lam@plusonerobotics.com"
     operations_viewer = "candidate.operations.viewer@example.invalid"
 
     checks: list[tuple[str, str, Callable[..., Any], tuple[Any, ...], dict[str, Any]]] = [
@@ -102,6 +103,13 @@ def run(site: str, sites_path: str) -> int:
         ("part_numbering.allocate_numbers", operations_viewer, allocate_numbers, (NONEXISTENT_NAME,), {}),
         ("builder_release.release_to_builder_now", motion_builder, release_to_builder_now, (NONEXISTENT_NAME,), {}),
         (
+            "builder_release.acknowledge_builder_release",
+            operations_viewer,
+            acknowledge_builder_release,
+            (NONEXISTENT_NAME,),
+            {},
+        ),
+        (
             "build_completion_accept.accept_completion_create_as_built",
             motion_builder,
             accept_completion_create_as_built,
@@ -109,6 +117,32 @@ def run(site: str, sites_path: str) -> int:
             {},
         ),
     ]
+
+    motion_rows = frappe.db.sql(
+        """
+        select b.name
+        from `tabInductOne Build` b
+        inner join `tabInductOne Configuration Order` co
+          on co.name = b.latest_config_order
+        where b.builder_supplier = 'Motion Controls'
+        order by b.modified desc
+        limit 1
+        """,
+        as_dict=True,
+    )
+    motion_build = motion_rows[0]["name"] if motion_rows else None
+    if motion_build:
+        checks.append(
+            (
+                "builder_release.acknowledge_builder_release_supplier_mismatch",
+                lam_builder,
+                acknowledge_builder_release,
+                (motion_build,),
+                {},
+            )
+        )
+    else:
+        print("WARN no Motion Controls InductOne Build found; skipping supplier-mismatch acknowledgement negative check")
 
     results = [_call_check(label, user, func, *args, **kwargs) for label, user, func, args, kwargs in checks]
     passed = sum(1 for row in results if row["passed"])

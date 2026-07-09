@@ -21,6 +21,9 @@ const personas = [
     label: "external-builder-motion",
     user: "motion.builder@plusonerobotics.com",
     checks: [
+      access("Builder Portal workspace", "/app/builder-portal", true, false),
+      access("Operations workspace denied/hidden", "/app/operations", false, false),
+      access("Engineering workspace denied/hidden", "/app/engineering", false, false),
       access("BOM Export Package", "/app/bom-export-package", true, false),
       access("Configured BOM Snapshot", "/app/configured-bom-snapshot", true, false),
       access("Build Completion", "/app/inductone-build-completion", true, false),
@@ -37,6 +40,9 @@ const personas = [
     label: "external-builder-lam",
     user: "lam@plusonerobotics.com",
     checks: [
+      access("Builder Portal workspace", "/app/builder-portal", true, false),
+      access("Operations workspace denied/hidden", "/app/operations", false, false),
+      access("Engineering workspace denied/hidden", "/app/engineering", false, false),
       access("BOM Export Package", "/app/bom-export-package", true, false),
       access("Configured BOM Snapshot", "/app/configured-bom-snapshot", true, false),
       access("Build Completion", "/app/inductone-build-completion", true, false),
@@ -149,6 +155,14 @@ const personas = [
   },
 ];
 
+const personaFilter = (process.env.GUI_SMOKE_PERSONAS || "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+const selectedPersonas = personaFilter.length
+  ? personas.filter((persona) => personaFilter.includes(persona.label))
+  : personas;
+
 function access(name, route, expectReadable, expectCreate) {
   return { name, route, expectReadable, expectCreate };
 }
@@ -211,11 +225,15 @@ function evaluate(check, sig) {
   };
 }
 
-const browser = await chromium.launch({ headless: true });
+const launchOptions = { headless: true };
+if (process.env.PLAYWRIGHT_EXECUTABLE_PATH) {
+  launchOptions.executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH;
+}
+const browser = await chromium.launch(launchOptions);
 const results = [];
 
 try {
-  for (const persona of personas) {
+  for (const persona of selectedPersonas) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
     await login(page, persona.user);

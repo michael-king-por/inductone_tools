@@ -22,6 +22,73 @@ def _require_release_role():
         )
 
 
+def _require_builder_acknowledgement_role(build, configuration_order):
+    """Gate builder acknowledgement before any acknowledgement mutation.
+
+    Internal process owners may acknowledge on behalf of a builder. External
+    builders may acknowledge only records scoped to their Supplier user
+    permission. This closes the direct-call gap where a user with Desk access
+    to the method could otherwise move a Configuration Order into Awaiting
+    Completion without being the assigned builder.
+    """
+
+    user = frappe.session.user
+    roles = set(frappe.get_roles(user))
+
+    if {"InductOne Manager", "InductOne Process Architect", "System Manager"} & roles:
+        return
+
+    if "InductOne External Builder" not in roles:
+        frappe.throw(
+            _("This action requires the assigned external builder or an InductOne process owner."),
+            frappe.PermissionError,
+        )
+
+    builder_supplier = (
+        getattr(build, "builder_supplier", None)
+        or getattr(configuration_order, "builder_supplier", None)
+        or ""
+    )
+    if not builder_supplier:
+        frappe.throw(
+            _("This build has no assigned builder supplier, so it cannot be acknowledged by an external builder."),
+            frappe.PermissionError,
+        )
+
+    permitted_suppliers = set(
+        frappe.get_all(
+            "User Permission",
+            filters={"user": user, "allow": "Supplier"},
+            pluck="for_value",
+            limit_page_length=500,
+        )
+    )
+
+    if builder_supplier not in permitted_suppliers:
+        frappe.throw(
+            _("This release is assigned to {0}, not to your builder account.").format(builder_supplier),
+            frappe.PermissionError,
+        )
+
+
+def _require_builder_acknowledgement_actor_role():
+    """Reject users with no acknowledgement-capable role before document lookup."""
+
+    roles = set(frappe.get_roles(frappe.session.user))
+    if {
+        "InductOne External Builder",
+        "InductOne Manager",
+        "InductOne Process Architect",
+        "System Manager",
+    } & roles:
+        return
+
+    frappe.throw(
+        _("This action requires the assigned external builder or an InductOne process owner."),
+        frappe.PermissionError,
+    )
+
+
 @frappe.whitelist()
 def check_builder_release_readiness(build_name: str):
     """
@@ -376,6 +443,8 @@ def acknowledge_builder_release(build_name: str, acknowledgement_file_url: str =
     if not build_name:
         frappe.throw("build_name is required.")
 
+    _require_builder_acknowledgement_actor_role()
+
     build = frappe.get_doc("InductOne Build", build_name)
     co_name = _resolve_configuration_order_name(build)
 
@@ -383,6 +452,8 @@ def acknowledge_builder_release(build_name: str, acknowledgement_file_url: str =
         frappe.throw(f"Build {build_name} has no linked Configuration Order to acknowledge.")
 
     co = frappe.get_doc("InductOne Configuration Order", co_name)
+
+    _require_builder_acknowledgement_role(build, co)
 
     current_status = getattr(co, "co_status", None)
     if current_status not in ("Released", "Awaiting Completion"):
