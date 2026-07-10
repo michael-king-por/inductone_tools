@@ -493,6 +493,14 @@ def main() -> None:
     # Fixture Export Control is deliberately restricted to System Manager and
     # InductOne Process Architect. Remove any stale broad-role rows that may
     # have been carried forward from earlier generated fixtures.
+    # External builders should work only from their assigned Configuration
+    # Orders and Build Completion records. They should not retain direct
+    # workspace/list access to underlying Snapshot or BOM Export Package
+    # records; generated files are exposed through the Configuration Order
+    # document index instead.
+    for doctype in ["BOM Export Package", "Configured BOM Snapshot"]:
+        rows.pop((doctype, "InductOne External Builder", 0), None)
+
     for role in [
         "Operations Viewer",
         "Finance Viewer",

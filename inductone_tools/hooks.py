@@ -141,7 +141,9 @@ fixtures = [
         "dt": "Workspace",
         "filters": [
             ["name", "in", [
-                "Operations"
+                "Operations",
+                "Engineering",
+                "Builder Portal"
             ]]
         ]
     },

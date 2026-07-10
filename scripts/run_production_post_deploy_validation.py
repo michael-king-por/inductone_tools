@@ -396,13 +396,14 @@ def run(site: str, sites_path: str, evidence_dir: str, finance_report_user: str)
     )
 
     for user_key, user in EXTERNAL_BUILDER_USERS:
-        for doctype in ["Item", "BOM"]:
+        for doctype in ["Item", "BOM", "BOM Export Package", "Configured BOM Snapshot"]:
             permission_result = bool(has_permission(doctype, ptype="read", user=user))
             list_result = _list_check_as_user(doctype, user)
             passed = (not permission_result) and list_result["row_count"] == 0
+            label_doctype = doctype.lower().replace(" ", "_")
             _record(
                 results,
-                f"external_builder_{doctype.lower()}_denial_{user_key}",
+                f"external_builder_{label_doctype}_denial_{user_key}",
                 passed,
                 (
                     f"{user} cannot read/list {doctype}."

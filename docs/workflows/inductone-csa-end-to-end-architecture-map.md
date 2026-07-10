@@ -486,6 +486,7 @@ Confirmed by code:
 - creates a lightweight builder release manifest instead of a giant nested ZIP.
 - ensures CO document index contains:
   - BOM Export Package ZIP;
+  - Electrical Balloon Callout Report;
   - Flat BOM CSV;
   - Builder Release Manifest.
 - stamps Build bundle/manifest fields.
@@ -505,9 +506,9 @@ External builder isolation is enforced through `external_builder_permissions.py`
 | `Item` | Raw access denied by query condition and `has_permission`. |
 | `BOM` | Raw access denied by query condition and `has_permission`. |
 | `InductOne Configuration Order` | Scoped by `builder_supplier` matching Supplier User Permission. |
-| `BOM Export Package` | Scoped by `builder_supplier`. |
+| `BOM Export Package` | No raw external-builder Desk access after July 10, 2026 cleanup. Generated ZIP is delivered through the assigned Configuration Order document index. |
 | `InductOne Build Completion` | Scoped by `builder_supplier`. |
-| `Configured BOM Snapshot` | Visible only if linked through a scoped CO or BOM Export Package. |
+| `Configured BOM Snapshot` | No raw external-builder Desk access after July 10, 2026 cleanup. Generated hierarchy/diff artifacts are delivered through the assigned Configuration Order document index. |
 
 Architectural rule:
 
@@ -697,8 +698,9 @@ stateDiagram-v2
 | Configured BOM Hierarchy Workbook | `generate_hierarchy_workbook()` | Private File attached to Snapshot, CO document index | Builder/reviewer-readable hierarchy with balloon/electrical/user-note columns. | Yes, via CO document package. |
 | `InductOne Configuration Order` | Build client script | DocType | Formal builder handoff/order object and package index. | Yes, supplier-scoped. |
 | Flat BOM CSV | CO `after_insert` background job | Private File attached to CO, CO document index | Rolled-up procurement/leaf BOM from snapshot hierarchy. | Yes, if in CO package. |
-| `BOM Export Package` | Build client script + `bom_export.generate_now()` | DocType + private ZIP | Part-documentation ZIP and missing/results evidence. | Yes, supplier-scoped. |
-| BOM Export Package ZIP | `bom_export.generate_now()` | Private File attached to package | PDFs/drawings/manifest/results/missing files. | Yes. |
+| `BOM Export Package` | Build client script + `bom_export.generate_now()` | Internal DocType + private ZIP | Part-documentation ZIP and missing/results evidence. | No raw page access for external builders. |
+| BOM Export Package ZIP | `bom_export.generate_now()` | Private File attached to package and synced to CO document index | PDFs/drawings/manifest/results/missing files. | Yes, via assigned CO document index. |
+| Electrical Balloon Callout Report | `generate_builder_balloon_callout_artifact()` during release bundle generation | Private XLSX attached to Build, CO document index | Build-scoped electrical callout report derived from configured resolver output and source BOM occurrence metadata. | Yes, via assigned CO document index. |
 | Builder Serial Capture Workbook | `generate_required_serial_capture_artifact()` during release | Private File attached to Build, CO document index | Builder returns component serials; prefilled with InductOne serial and release context. | Yes. |
 | Builder Release Manifest | `generate_builder_release_bundle()` | Private File attached to Build, CO document index | Machine audit of release artifacts and identifiers. | Yes, via CO package index. |
 | Builder acknowledgement | `acknowledge_builder_release()` | CO fields + optional private File + document index row | Evidence builder received package. | Yes/recorded against scoped CO. |

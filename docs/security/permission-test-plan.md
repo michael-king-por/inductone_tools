@@ -29,9 +29,8 @@ External builders should be able to:
 - see assigned `InductOne Configuration Order` records,
 - open assigned Configuration Orders,
 - download generated private/public files attached to assigned Configuration Orders,
-- see assigned `BOM Export Package` records,
-- download generated builder package files,
-- see assigned `Configured BOM Snapshot` records and generated diff/snapshot outputs,
+- download generated builder package files from the Configuration Order document index,
+- download generated hierarchy, balloon callout, flat BOM, release manifest, and builder workbook artifacts from the Configuration Order document index,
 - upload or submit an assigned Build Completion workbook through the intended controlled path.
 
 External builders should not be able to:
@@ -39,8 +38,9 @@ External builders should not be able to:
 - list or open raw `Sales Order` records,
 - list or open raw `Item` records,
 - list or open raw `BOM` records,
+- list or open raw `BOM Export Package` records,
+- list or open raw `Configured BOM Snapshot` records,
 - list unrelated suppliers' Configuration Orders,
-- list unrelated suppliers' BOM Export Packages,
 - create/edit/delete Builder Tranches,
 - use fixture export controls,
 - release builds,
@@ -132,9 +132,9 @@ When granting access to a parent record, verify whether linked documents are req
 
 | Parent record | Linked/dependent artifacts to verify |
 |---|---|
-| InductOne Configuration Order | generated document index/files, selected options, delta lines, snapshot link |
-| BOM Export Package | generated package files, result rows, configured snapshot link |
-| Configured BOM Snapshot | hierarchy/diff output, generated workbook/report output |
+| InductOne Configuration Order | generated document index/files, selected options, delta lines, snapshot link; builder-visible artifact delivery should happen here |
+| BOM Export Package | internal generated package files, result rows, configured snapshot link; external builders receive the ZIP through the CO document index, not this raw page |
+| Configured BOM Snapshot | internal hierarchy/diff output, generated workbook/report output; external builders receive generated files through the CO document index, not this raw page |
 | Build Completion | uploaded workbook File, serial child rows |
 
 If a user needs the generated output but not the raw linked source record, prefer generated files/controlled reports over direct raw DocType access.
@@ -161,8 +161,9 @@ If a user needs the generated output but not the raw linked source record, prefe
 
 The June 2026 sandbox validation proved the expected pattern:
 
-- when all handoff records were assigned to `Test`, Motion/LAM saw zero Configuration Orders, BOM Export Packages, Configured BOM Snapshots, Items, and BOMs;
-- after a sandbox-only positive fixture assigned one Configuration Order and one BOM Export Package to `Motion Controls`, Motion saw the assigned records and LAM still saw zero;
+- Motion/LAM must see only their assigned Configuration Orders and Build Completions;
+- Motion/LAM must not see BOM Export Package, Configured BOM Snapshot, Items, or BOMs as raw Desk pages;
+- the generated BOM Export Package ZIP, hierarchy workbook, balloon callout workbook, flat BOM, release manifest, and builder workbook must be reachable through the assigned Configuration Order document index;
 - raw `Item` list output was empty for external-builder-only users;
 - raw `BOM`, `Sales Order`, `InductOne Build`, and `InductOne Builder Tranche` access was blocked.
 

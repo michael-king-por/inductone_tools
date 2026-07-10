@@ -105,9 +105,9 @@ As of the June 23, 2026 hardening implementation, the repository includes:
   - `Item`,
   - `BOM`,
   - `InductOne Configuration Order`,
-  - `BOM Export Package`,
-  - `InductOne Build Completion`,
-  - `Configured BOM Snapshot`.
+- `InductOne Build Completion`,
+- `BOM Export Package`,
+- `Configured BOM Snapshot`.
 - `has_permission` hooks for raw `Item` and `BOM` denial.
 - role fixtures for:
   - `InductOne External Builder`,
@@ -125,9 +125,9 @@ The patch also removes Item Group User Permissions from the external builder acc
 - `motion.builder@plusonerobotics.com` -> `Motion Controls`
 - `lam@plusonerobotics.com` -> `LAM`
 
-Configured BOM Snapshot access is indirect: an external builder can list/open snapshots only when the snapshot is linked to a Configuration Order or BOM Export Package assigned to one of that user's Supplier values.
+As of the July 10, 2026 builder-portal cleanup, external builders no longer receive raw Desk/list access to `BOM Export Package` or `Configured BOM Snapshot`. They receive the generated package ZIP, hierarchy workbook, balloon callout workbook, flat BOM, and release manifest through the assigned `InductOne Configuration Order` document index. This avoids pointing supplier users at source records or pages they do not need.
 
-External builder workspace access is also moved from the old `Builder` role to `InductOne External Builder`. The intended external landing surface is `Builder Portal`. The old `Build` workspace is deprecated and should stay hidden; Operations and Engineering workspaces are not intended for supplier users.
+External builder workspace access is also moved from the old `Builder` role to `InductOne External Builder`. The intended external landing surface is `Builder Portal`, restricted to Configuration Orders and Build Completions. The old `Build` workspace is deprecated and should stay hidden; Operations and Engineering workspaces are not intended for supplier users.
 
 Known UI nuance: Frappe's implicit `Desk User` role can still make some report/export/print affordances appear enabled for `Item`, but the query condition returns no rows for external-builder-only users. This must be included in UI smoke testing.
 
@@ -140,8 +140,8 @@ The target model should be documented and then implemented. Do not infer final p
 | InductOne Build | No direct access unless proven necessary | Create/edit/manage assigned/internal Builds | Read if needed | Full architect/admin | Full admin |
 | InductOne Configuration Option | No direct access | Read released/usable options | Approve/reject/supersede through signoff | Admin as needed | Full admin |
 | InductOne Configuration Order | Read assigned builder-facing orders | Create/update/release workflow | Read if needed | Full architect/admin | Full admin |
-| BOM Export Package | Read/download assigned generated packages only | Generate/manage packages | Read if needed | Full architect/admin | Full admin |
-| Configured BOM Snapshot | Read assigned generated snapshots/diff output only | Generate/read snapshots | Read if needed | Full architect/admin | Full admin |
+| BOM Export Package | No raw Desk/list access; generated ZIP is delivered through assigned CO document index | Generate/manage packages | Read if needed | Full architect/admin | Full admin |
+| Configured BOM Snapshot | No raw Desk/list access; generated hierarchy/diff artifacts are delivered through assigned CO document index | Generate/read snapshots | Read if needed | Full architect/admin | Full admin |
 | Raw Item / BOM / Sales Order | No access through InductOne builder workflow | Access only if separately required by ERPNext duties | Access only if separately required | Admin as needed | Full admin |
 | InductOne Builder Tranche | No access | Allocate serials only through controlled action | No access | Create/edit/retire tranches | Full admin |
 | InductOne Build Completion | Upload completion workbook / update assigned evidence as intentionally exposed | Upload/review/reject/accept through actions | Read if needed | Full architect/admin | Full admin |
@@ -158,9 +158,7 @@ External builders should receive generated handoff artifacts, not live engineeri
 They should be able to access:
 
 - assigned `InductOne Configuration Order` records,
-- assigned `BOM Export Package` records,
-- generated files attached to those packages/orders,
-- assigned `Configured BOM Snapshot` and generated diff/snapshot outputs,
+- generated files attached to those orders, including BOM export package ZIPs, hierarchy workbooks, balloon callout reports, release manifests, and builder workbooks,
 - assigned `InductOne Build Completion` records or controlled upload path for completion workbook submission.
 
 They should not be able to access:
@@ -169,6 +167,8 @@ They should not be able to access:
 - raw `BOM` records,
 - `Sales Order` records,
 - unrelated supplier/build records,
+- raw `BOM Export Package` pages,
+- raw `Configured BOM Snapshot` pages,
 - `InductOne Builder Tranche`,
 - fixture/export/admin tooling.
 

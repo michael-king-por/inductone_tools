@@ -18,6 +18,8 @@ All changes in this pass were deliberately segmented into the deployment mechani
 | Build form guidance | `Client Script` fixture: `inductone_tools/fixtures/client_script.json` | Filtered fixture sync | Existing build UI logic already lives in the `InductOne Build HTML Controls` Client Script fixture; this keeps user-facing guidance versioned. |
 | Owner handbook content | `Wiki Page` fixture: `inductone_tools/fixtures/wiki_page.json` | Filtered fixture sync | Only the explicitly managed owner handbook page is exported; the broader Wiki remains GUI-owned until reviewed. |
 | Workflow diagrams | Static app assets under `inductone_tools/public/svg/` | App asset deployment | SVGs are code-reviewed, cacheable assets referenced by the Wiki; they are not stored as opaque Wiki blobs. |
+| Builder landing/navigation | Filtered `Workspace` fixture: `inductone_tools/fixtures/workspace.json` plus idempotent cleanup patch | Fixture sync + patch on migrate | External-builder landing surfaces must not depend on GUI-only workspace edits or stale inaccessible links. |
+| Builder handoff artifacts | Python code: `inductone_tools/builder_release.py` | App code + `bench migrate` / deploy | Generated files are runtime artifacts delivered through the assigned Configuration Order document index, not static fixtures or raw supplier-facing pages. |
 | Wiki information architecture audit | `scripts/run_wiki_information_architecture_audit.py` | Read-only candidate audit | The audit reports unmanaged/stub/diagram-candidate pages without auto-mutating database-owned Wiki content. |
 
 No broad fixture exports were introduced. The Wiki Page fixture remains filtered. The Client Script fixture remains the existing curated fixture. The new SVGs are app-static files, not database fixtures.
@@ -100,6 +102,25 @@ Summary from candidate:
 
 This audit did not auto-fix database-managed pages. Those remain owner-review work.
 
+### 7. Builder Portal cleanup and handoff-artifact delivery
+
+On July 10, 2026 the external-builder access model was tightened to match the intended handoff:
+
+- Builders keep supplier-scoped access to assigned `InductOne Configuration Order` records.
+- Builders keep the controlled `InductOne Build Completion` path for returning their workbook.
+- Builders no longer receive raw Desk/list access to `BOM Export Package` or `Configured BOM Snapshot`.
+- `Builder Portal` is fixture-managed and limited to `Configuration Orders` and `Build Completions`.
+- `Engineering` is fixture-managed and restricted to internal roles.
+- Generated BOM package ZIPs, hierarchy workbooks, flat BOMs, builder workbooks, release manifests, and electrical balloon callout reports are delivered through the assigned Configuration Order document index.
+
+The builder release bundle now generates a build-scoped `Electrical Balloon Callout Report` XLSX from the configured BOM resolver output before writing the release manifest. The report includes source BOM, balloon number, component, quantity, electrical unit, source revision, source BOM Item, and user notes, so it reflects the exact electrical BOM rows used by the released configuration rather than the global Query Report page.
+
+Candidate evidence:
+
+- `C:\hub\frappe-sandbox\validation-evidence\builder_balloon_callout_handoff_candidate_20260710.json`
+- `C:\hub\frappe-sandbox\validation-evidence\builder_release_manifest_balloon_callout_candidate_20260710.json`
+- `C:\hub\frappe-sandbox\validation-evidence\builder_workspace_and_page_access_candidate_20260710.json`
+
 ## Validation performed
 
 | Validation | Result |
@@ -112,13 +133,15 @@ This audit did not auto-fix database-managed pages. Those remain owner-review wo
 | Candidate lifecycle smoke with strict release gate | PASS |
 | Candidate release-gate negative matrix | PASS |
 | Candidate Wiki IA audit | PASS / review findings produced |
+| Builder Portal / external-builder page access cleanup | PASS |
+| Builder balloon callout handoff artifact generation | PASS |
+| Builder release manifest lists balloon callout artifact | PASS |
 
 ## Remaining owner-review items
 
 These are not blockers to the code/fixture hardening pass, but they are the next visible polish items:
 
 1. Review the Wiki IA audit and decide which database-managed Wiki pages should be fixture-managed, rewritten, hidden, or left GUI-owned.
-2. Decide whether the Builder Portal should receive a dedicated stripped-down landing page beyond the current Desk route controls.
+2. Review the stripped-down Builder Portal copy after the first supplier-facing use. The current fixture-managed portal intentionally exposes only Configuration Orders and Build Completions.
 3. Review the new release gate against production source data before deploy. The stricter gate is intentionally safer, but it will block any build whose Item, Product Bundle, BOM, or selected Configuration Option signoffs are incomplete.
 4. Package the SVGs and evidence into the final ownership handoff packet.
-

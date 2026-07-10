@@ -356,8 +356,10 @@ All items in this phase must be true before touching production.
    - `Executing inductone_tools.patches.v2026_06_29_snapshot_stock_entry_type_permissions` appears during patch execution if the Stock Entry Type snapshot-management patch has not previously run.
    - `Executing inductone_tools.patches.v2026_07_06_balloon_report_access` appears during patch execution if the Electrical Balloon Callouts report access patch has not previously run.
    - `Executing inductone_tools.patches.v2026_07_08_configuration_option_status_model_cleanup` appears during patch execution if the configuration option status cleanup patch has not previously run.
+   - `Executing inductone_tools.patches.v2026_07_10_builder_portal_workspace_cleanup` appears during patch execution if the builder-portal cleanup patch has not previously run.
    - Fixtures import cleanly, including the BOM Item `User Notes` Custom Field and the app-owned `user_notes` DocFields on `Configured BOM Snapshot Hierarchy` and `BOM Export Package Item`.
    - Fixtures import the app-owned `Electrical Balloon Callouts` Report record.
+   - Fixtures import the filtered Workspace records for `Operations`, `Engineering`, and `Builder Portal`.
    - If the patch already appears in Patch Log, migrate should still complete cleanly.
 
 2. [ ] Confirm the patch is in Patch Log.
@@ -374,6 +376,7 @@ All items in this phase must be true before touching production.
    bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_06_29_snapshot_stock_entry_type_permissions%';"
    bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_06_balloon_report_access%';"
    bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_08_configuration_option_status_model_cleanup%';"
+   bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_10_builder_portal_workspace_cleanup%';"
    ```
 
    Expected output:
@@ -387,6 +390,7 @@ All items in this phase must be true before touching production.
    inductone_tools.patches.v2026_06_29_snapshot_stock_entry_type_permissions
    inductone_tools.patches.v2026_07_06_balloon_report_access
    inductone_tools.patches.v2026_07_08_configuration_option_status_model_cleanup
+   inductone_tools.patches.v2026_07_10_builder_portal_workspace_cleanup
    ```
 
    Go/no-go:

@@ -8,7 +8,8 @@ from frappe.utils import now
 from frappe.utils.file_manager import save_file
 from frappe import _
 
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Alignment, Font, PatternFill
 
 from .bom_export import build_configured_rows
 
@@ -301,11 +302,16 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
             f"Open the BOM Export Package and run generation there before preparing builder handoff."
         )
 
+    balloon_report = generate_builder_balloon_callout_artifact(build.name)
+    balloon_callout_report_url = balloon_report.get("file_url")
+    build.reload()
+
     manifest_text, manifest_json = _build_builder_release_manifest(
         build=build,
         configuration_order=co,
         package_doc=package_doc,
         flat_bom_file_url=flat_bom_file_url,
+        balloon_callout_report_url=balloon_callout_report_url,
         snapshot_name=snapshot_name,
         top_bom=top_bom,
     )
@@ -353,6 +359,7 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
         "bundle_file_url": saved.file_url,
         "package_name": package_doc.name if package_doc else None,
         "flat_bom_file_url": flat_bom_file_url,
+        "balloon_callout_report_url": balloon_callout_report_url,
         "manifest": manifest_json,
     }
 
@@ -562,6 +569,72 @@ def generate_required_serial_capture_artifact(build_name: str):
     }
 
 
+def generate_builder_balloon_callout_artifact(build_name: str):
+    """
+    Generate the builder-facing electrical balloon callout report for a single
+    InductOne Build.
+
+    This intentionally does not expose the global Desk report to the builder.
+    The report is derived from the configured resolver output for the build's
+    selected/latest snapshot, so it reflects the electrical BOM rows actually
+    used by that build and configuration.
+    """
+    build = frappe.get_doc("InductOne Build", build_name)
+    co_name = _resolve_configuration_order_name(build)
+    snapshot_name = _resolve_snapshot_name(build)
+
+    if not co_name:
+        frappe.throw("Latest Configuration Order is required before generating the balloon callout report.")
+    if not snapshot_name:
+        frappe.throw("Selected/Latest Snapshot is required before generating the balloon callout report.")
+
+    configured_rows = _get_configured_rows_for_build(build)
+    callout_rows = _derive_balloon_callout_rows(configured_rows)
+
+    workbook_bytes = _build_balloon_callout_workbook_bytes(
+        build=build,
+        configuration_order_name=co_name,
+        snapshot_name=snapshot_name,
+        callout_rows=callout_rows,
+    )
+
+    fname = f"{build.name}_Electrical_Balloon_Callouts_{frappe.utils.now_datetime().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    saved = save_file(
+        fname=fname,
+        content=workbook_bytes,
+        dt="InductOne Build",
+        dn=build.name,
+        is_private=1,
+    )
+
+    _set_if_present(build, ["builder_balloon_callout_report", "balloon_callout_report_file"], saved.file_url)
+    _set_if_present(build, ["builder_balloon_callout_generated_at", "balloon_callout_report_generated_at"], now())
+    build.save(ignore_permissions=True)
+
+    _append_or_update_document_index_row(
+        parent_doctype="InductOne Configuration Order",
+        parent_name=co_name,
+        title=f"Electrical Balloon Callout Report - {build.name}",
+        file_url=saved.file_url,
+        source_type="BOM",
+        source_name=snapshot_name,
+        sort_order=260,
+        note=(
+            f"Build-scoped electrical balloon callout report generated from configured snapshot {snapshot_name}. "
+            "Rows are derived from the configured BOM resolver output, not from the global report page."
+        ),
+    )
+
+    return {
+        "ok": True,
+        "build": build.name,
+        "configuration_order": co_name,
+        "configured_snapshot": snapshot_name,
+        "row_count": len(callout_rows),
+        "file_url": saved.file_url,
+    }
+
+
 @frappe.whitelist()
 def submit_as_built_now(build_name: str, serials_json: str = None, note: str = None):
     """
@@ -613,7 +686,7 @@ def close_build_from_as_built(build_name: str, note: str = None):
     return {"ok": True, "build": build.name}
 
 
-def _build_builder_release_manifest(build, configuration_order, package_doc, flat_bom_file_url, snapshot_name, top_bom):
+def _build_builder_release_manifest(build, configuration_order, package_doc, flat_bom_file_url, balloon_callout_report_url, snapshot_name, top_bom):
     """
     System-generated audit record of the release event.
     Pure identifiers, file paths, and timestamps. No prose, no instructions.
@@ -635,6 +708,7 @@ def _build_builder_release_manifest(build, configuration_order, package_doc, fla
         "bom_export_package": package_doc.name if package_doc else None,
         "bom_export_zip": getattr(package_doc, "output_zip", None) if package_doc else None,
         "flat_bom_file_url": flat_bom_file_url,
+        "balloon_callout_report_url": balloon_callout_report_url,
         "builder_workbook_url": workbook_url,
         "generated_at": now(),
         "generated_by": frappe.session.user,
@@ -657,10 +731,117 @@ def _build_builder_release_manifest(build, configuration_order, package_doc, fla
         "-" * 60,
         f"BOM Export ZIP:       {getattr(package_doc, 'output_zip', '') if package_doc else ''}",
         f"Flat BOM CSV:         {flat_bom_file_url or ''}",
+        f"Balloon Callouts:     {balloon_callout_report_url or ''}",
         f"Builder Workbook:     {workbook_url}",
     ]
 
     return "\n".join(lines), manifest_json
+
+
+BALLOON_CALLOUT_COLUMNS = [
+    ("Source BOM", "source_bom", 30),
+    ("Balloon #", "balloon_numbers", 12),
+    ("Component", "item_code", 22),
+    ("Component Name", "item_name", 42),
+    ("Qty", "qty", 10),
+    ("UOM", "uom", 10),
+    ("Electrical Unit", "electrical_unit", 18),
+    ("Source Rev", "source_electrical_bom_rev", 14),
+    ("BOM Used", "bom_used", 30),
+    ("Source BOM Item", "source_bom_item", 18),
+    ("Source BOM Item IDX", "source_bom_item_idx", 14),
+    ("User Notes", "user_notes", 42),
+]
+
+
+def _derive_balloon_callout_rows(configured_rows):
+    rows = []
+    for row in configured_rows:
+        balloon = (row.get("balloon_numbers") or "").strip()
+        if not balloon:
+            continue
+
+        rows.append({
+            "source_bom": row.get("source_bom") or row.get("bom_used") or "",
+            "balloon_numbers": balloon,
+            "item_code": row.get("item_code") or "",
+            "item_name": row.get("item_name") or "",
+            "qty": row.get("qty") if row.get("qty") is not None else "",
+            "uom": row.get("uom") or "",
+            "electrical_unit": row.get("electrical_unit") or "",
+            "source_electrical_bom_rev": row.get("source_electrical_bom_rev") or "",
+            "bom_used": row.get("bom_used") or "",
+            "source_bom_item": row.get("source_bom_item") or "",
+            "source_bom_item_idx": int(row.get("source_bom_item_idx") or 0),
+            "user_notes": row.get("user_notes") or "",
+        })
+
+    return sorted(rows, key=_balloon_callout_sort_key)
+
+
+def _balloon_callout_sort_key(row):
+    source_bom = row.get("source_bom") or ""
+    balloon = row.get("balloon_numbers") or ""
+    try:
+        balloon_key = (0, int(balloon))
+    except Exception:
+        balloon_key = (1, balloon)
+    idx = int(row.get("source_bom_item_idx") or 0)
+    item = row.get("item_code") or ""
+    return (source_bom, balloon_key, idx, item)
+
+
+def _build_balloon_callout_workbook_bytes(build, configuration_order_name, snapshot_name, callout_rows):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Balloon Callouts"
+
+    title_fill = PatternFill("solid", fgColor="1F4E78")
+    header_fill = PatternFill("solid", fgColor="D9EAF7")
+    title_font = Font(color="FFFFFF", bold=True, size=14)
+    header_font = Font(bold=True)
+
+    ws["A1"] = "InductOne Electrical Balloon Callout Report"
+    ws["A1"].font = title_font
+    ws["A1"].fill = title_fill
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(BALLOON_CALLOUT_COLUMNS))
+
+    metadata = [
+        ("Build", build.name),
+        ("Configuration Order", configuration_order_name),
+        ("Configured Snapshot", snapshot_name),
+        ("Top BOM", getattr(build, "top_bom", None) or getattr(build, "bom", None) or ""),
+        ("Generated At", now()),
+        ("Generated By", frappe.session.user),
+        ("Rows", len(callout_rows)),
+    ]
+    for idx, (label, value) in enumerate(metadata, start=3):
+        ws.cell(row=idx, column=1, value=label).font = Font(bold=True)
+        ws.cell(row=idx, column=2, value=value)
+
+    header_row = len(metadata) + 5
+    for col_idx, (label, _key, width) in enumerate(BALLOON_CALLOUT_COLUMNS, start=1):
+        cell = ws.cell(row=header_row, column=col_idx, value=label)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        ws.column_dimensions[cell.column_letter].width = width
+
+    for row_idx, data in enumerate(callout_rows, start=header_row + 1):
+        for col_idx, (_label, key, _width) in enumerate(BALLOON_CALLOUT_COLUMNS, start=1):
+            value = data.get(key)
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+            if key == "qty":
+                cell.alignment = Alignment(horizontal="right", vertical="top")
+
+    ws.freeze_panes = ws.cell(row=header_row + 1, column=1)
+    ws.auto_filter.ref = ws.dimensions
+
+    with NamedTemporaryFile(suffix=".xlsx") as tmp:
+        wb.save(tmp.name)
+        tmp.seek(0)
+        return tmp.read()
 
 
 def _build_builder_serial_workbook_bytes(build_doc, configuration_order_doc):

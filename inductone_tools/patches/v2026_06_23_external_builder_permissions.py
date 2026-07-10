@@ -311,10 +311,14 @@ def ensure_target_docperms():
     external_read = {"read": 1, "report": 1, "export": 1, "print": 1}
     for doctype in [
         "InductOne Configuration Order",
-        "BOM Export Package",
-        "Configured BOM Snapshot",
     ]:
         ensure_custom_docperm(doctype, "InductOne External Builder", **external_read)
+
+    for doctype in ["BOM Export Package", "Configured BOM Snapshot"]:
+        frappe.db.delete(
+            "Custom DocPerm",
+            {"parent": doctype, "role": "InductOne External Builder", "permlevel": 0},
+        )
 
     ensure_custom_docperm(
         "InductOne Build Completion",
