@@ -1,0 +1,50 @@
+[
+  {
+    "action": "Go to Page",
+    "action_label": "Open Builder Portal",
+    "description": "Your Builder Portal shows assigned Configuration Orders and Build Completions. If it is empty, Plus One has not released a Build to your supplier account yet.",
+    "docstatus": 0,
+    "doctype": "Onboarding Step",
+    "is_complete": 0,
+    "is_skipped": 0,
+    "name": "Receive an InductOne Build",
+    "path": "/app/builder-portal",
+    "title": "Receive an InductOne Build"
+  },
+  {
+    "action": "Go to Page",
+    "action_label": "Open Configuration Orders",
+    "description": "Open the assigned Configuration Order and use its document index. The release package, manifest, hierarchy workbook, balloon callout report, and builder serial workbook are provided there.",
+    "docstatus": 0,
+    "doctype": "Onboarding Step",
+    "is_complete": 0,
+    "is_skipped": 0,
+    "name": "Download the release package",
+    "path": "/app/inductone-configuration-order",
+    "title": "Download the release package"
+  },
+  {
+    "action": "Go to Page",
+    "action_label": "Open Build Completions",
+    "description": "When the physical build is complete, upload the filled builder serial workbook through the Build Completion flow. The upload creates an auditable Build Completion record for Plus One review.",
+    "docstatus": 0,
+    "doctype": "Onboarding Step",
+    "is_complete": 0,
+    "is_skipped": 0,
+    "name": "Upload the builder serial workbook",
+    "path": "/app/inductone-build-completion",
+    "title": "Upload the builder serial workbook"
+  },
+  {
+    "action": "Go to Page",
+    "action_label": "Open Build Completions",
+    "description": "If a completion is rejected, open the rejected Build Completion, read Review Notes, correct the workbook, and submit a new completion. The rejected record remains as audit history.",
+    "docstatus": 0,
+    "doctype": "Onboarding Step",
+    "is_complete": 0,
+    "is_skipped": 0,
+    "name": "Respond to a rejected Build Completion",
+    "path": "/app/inductone-build-completion",
+    "title": "Respond to a rejected Build Completion"
+  }
+]

@@ -5,6 +5,10 @@ app_description = "InductOne configuration and BOM tooling"
 app_email = ""
 app_license = "MIT"
 
+app_include_js = [
+    "/assets/inductone_tools/js/guidance.js",
+]
+
 # Frappe's `bench version` first checks for a branch-specific hook version
 # (for this deployment branch, `main_version`) and then falls back to
 # inductone_tools.__version__. Keep this in sync with pyproject.toml.
@@ -68,6 +72,8 @@ doc_events = {
     },
 }
 
+after_migrate = "inductone_tools.guidance.after_migrate"
+
 permission_query_conditions = {
     "Item": "inductone_tools.external_builder_permissions.deny_raw_item_for_external_builder",
     "BOM": "inductone_tools.external_builder_permissions.deny_raw_bom_for_external_builder",
@@ -80,6 +86,8 @@ permission_query_conditions = {
 has_permission = {
     "Item": "inductone_tools.external_builder_permissions.deny_raw_item_permission",
     "BOM": "inductone_tools.external_builder_permissions.deny_raw_bom_permission",
+    "InductOne Configuration Order": "inductone_tools.external_builder_permissions.restrict_configuration_order_permission",
+    "InductOne Build Completion": "inductone_tools.external_builder_permissions.restrict_build_completion_permission",
 }
 
 fixtures = [
@@ -144,6 +152,42 @@ fixtures = [
                 "Operations",
                 "Engineering",
                 "Builder Portal"
+            ]]
+        ]
+    },
+    {
+        "dt": "Custom HTML Block",
+        "filters": [
+            ["name", "in", [
+                "Builder Banner",
+                "Builder Guidance Panel",
+                "Help and contact",
+                "Operations Banner",
+                "Operations Guidance Panel",
+                "Engineering Banner",
+                "Engineering Banner Info",
+                "Engineering Banner Workflows",
+                "Engineering Banner Reference",
+                "Engineering Banner Resources"
+            ]]
+        ]
+    },
+    {
+        "dt": "Module Onboarding",
+        "filters": [
+            ["name", "in", [
+                "InductOne External Builder Onboarding"
+            ]]
+        ]
+    },
+    {
+        "dt": "Onboarding Step",
+        "filters": [
+            ["name", "in", [
+                "Receive an InductOne Build",
+                "Download the release package",
+                "Upload the builder serial workbook",
+                "Respond to a rejected Build Completion"
             ]]
         ]
     },
@@ -257,7 +301,12 @@ fixtures = [
                 "InductOne Configuration Option styling",
                 "Engineering Signoff Banner - Item",
                 "Engineering Signoff Banner - Configuration Option",
-                "InductOne Configuration Option Review Button"
+                "InductOne Configuration Option Review Button",
+                "InductOne Guidance - Configuration Order",
+                "InductOne Guidance - Build Completion",
+                "InductOne Guidance - Operations Build",
+                "InductOne Guidance - Engineering Signoff",
+                "InductOne Guidance - Configuration Option"
             ]]
         ]
     }

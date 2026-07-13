@@ -284,5 +284,55 @@
     "name": "InductOne Configuration Option Review Button",
     "script": "frappe.ui.form.on('InductOne Configuration Option', {\r\n  refresh(frm) {\r\n    if (frm.is_new()) return;\r\n\r\n    frappe.call({\r\n      method: 'inductone_tools.engineering_signoff.get_current_signoff_record',\r\n      args: { target_doctype: 'InductOne Configuration Option', target_docname: frm.doc.name }\r\n    }).then(r => {\r\n      const rec = (r && r.message) || null;\r\n      if (rec) {\r\n        const colors = {\r\n          Approved: ['#DCF5E5', '#027A48'], Pending: ['#FEF3D8', '#854F0B'],\r\n          Rejected: ['#FEE4DD', '#A32D2D']\r\n        }[rec.status] || ['#F2F4F7', '#475467'];\r\n        frm.dashboard.set_headline(\r\n          `<div style=\"padding:8px 12px;background:${colors[0]};border-left:4px solid ${colors[1]};border-radius:4px;font-size:12px\">\r\n             <strong>Engineering Signoff: ${rec.status}</strong>\r\n             — <a href=\"/app/engineering-signoff/${rec.name}\">view record</a></div>`);\r\n      } else if (frm.doc.status === 'Draft') {\r\n        frm.dashboard.set_headline(\r\n          `<div style=\"padding:8px 12px;background:#F2F4F7;border-left:4px solid #475467;border-radius:4px;font-size:12px\">\r\n             No Engineering Signoff requested yet.</div>`);\r\n      }\r\n    });\r\n\r\n    if (frm.doc.status === 'Draft') {\r\n      frm.add_custom_button('Request Engineering Signoff', () => {\r\n        frappe.call({\r\n          method: 'inductone_tools.engineering_signoff.request_signoff',\r\n          args: { target_doctype: 'InductOne Configuration Option', target_docname: frm.doc.name }\r\n        }).then(r => {\r\n          if (r && r.message) {\r\n            frappe.show_alert({ message: `Signoff ${r.message.signoff_name} (${r.message.status})`, indicator: 'blue' });\r\n            frm.reload_doc();\r\n          }\r\n        });\r\n      });\r\n    }\r\n\r\n    if (frm.doc.status === 'Released' && frappe.user.has_role('Engineering User')) {\r\n      frm.add_custom_button('Supersede', () => {\r\n        frappe.prompt(\r\n          [{ fieldtype: 'Data', fieldname: 'new_code', label: 'New option code (blank = auto -R2)' },\r\n           { fieldtype: 'Small Text', fieldname: 'notes', label: 'Notes' }],\r\n          values => {\r\n            frappe.call({\r\n              method: 'inductone_tools.engineering_signoff.supersede_config_option',\r\n              args: { option_name: frm.doc.name, new_option_code: values.new_code || null, notes: values.notes || null }\r\n            }).then(r => {\r\n              if (r && r.message) {\r\n                frappe.msgprint(`Created ${r.message.new_option} (Draft). Original deprecated.`);\r\n                frappe.set_route('Form', 'InductOne Configuration Option', r.message.new_option);\r\n              }\r\n            });\r\n          }, 'Supersede Configuration Option', 'Create revision');\r\n      });\r\n    }\r\n  }\r\n});",
     "view": "Form"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Client Script",
+    "dt": "InductOne Configuration Order",
+    "enabled": 1,
+    "module": null,
+    "name": "InductOne Guidance - Configuration Order",
+    "view": "Form",
+    "script": "frappe.ui.form.on('InductOne Configuration Order', {\n  refresh(frm) {\n    if (window.inductoneGuidance && window.inductoneGuidance.renderFormGuidance) {\n      window.inductoneGuidance.renderFormGuidance(frm);\n    }\n  }\n});\n"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Client Script",
+    "dt": "InductOne Build Completion",
+    "enabled": 1,
+    "module": null,
+    "name": "InductOne Guidance - Build Completion",
+    "view": "Form",
+    "script": "frappe.ui.form.on('InductOne Build Completion', {\n  refresh(frm) {\n    if (window.inductoneGuidance && window.inductoneGuidance.renderFormGuidance) {\n      window.inductoneGuidance.renderFormGuidance(frm);\n    }\n  }\n});\n"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Client Script",
+    "dt": "InductOne Build",
+    "enabled": 1,
+    "module": null,
+    "name": "InductOne Guidance - Operations Build",
+    "view": "Form",
+    "script": "frappe.ui.form.on('InductOne Build', {\n  refresh(frm) {\n    if (window.inductoneGuidance && window.inductoneGuidance.renderFormGuidance) {\n      window.inductoneGuidance.renderFormGuidance(frm);\n    }\n  }\n});\n"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Client Script",
+    "dt": "Engineering Signoff",
+    "enabled": 1,
+    "module": null,
+    "name": "InductOne Guidance - Engineering Signoff",
+    "view": "Form",
+    "script": "frappe.ui.form.on('Engineering Signoff', {\n  refresh(frm) {\n    if (window.inductoneGuidance && window.inductoneGuidance.renderFormGuidance) {\n      window.inductoneGuidance.renderFormGuidance(frm);\n    }\n  }\n});\n"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Client Script",
+    "dt": "InductOne Configuration Option",
+    "enabled": 1,
+    "module": null,
+    "name": "InductOne Guidance - Configuration Option",
+    "view": "Form",
+    "script": "frappe.ui.form.on('InductOne Configuration Option', {\n  refresh(frm) {\n    if (window.inductoneGuidance && window.inductoneGuidance.renderFormGuidance) {\n      window.inductoneGuidance.renderFormGuidance(frm);\n    }\n  }\n});\n"
   }
 ]

@@ -8,7 +8,8 @@ The manifest is descriptive, not yet a final approval of every row. It is the st
 
 | File | Count | Purpose | Ownership concern |
 |---|---:|---|---|
-| `client_script.json` | 26 | Client-side ERPNext form/list behavior. | Current `hooks.py` uses an explicit Client Script name allowlist. Keep it narrow. |
+| `client_script.json` | 31 | Client-side ERPNext form/list behavior, including the narrow usability guidance scripts. | Current `hooks.py` uses an explicit Client Script name allowlist. Keep it narrow. |
+| `custom_html_block.json` | 10 | App-owned Workspace banner and guidance blocks. | Filtered by exact block name. Do not bulk-export unrelated Custom HTML Blocks. |
 | `doctype.json` | 31 | Custom DocType schema/configuration. | Spans `Operations - POR` and `InductOne Tools`; document ownership before restructuring. |
 | `custom_docperm.json` | 138 | Permission rows for selected managed DocTypes. | Needs alignment with formal permission matrix and replace-trap review before adding first rows to any standard DocType. |
 | `custom_field.json` | 7 | Deploy-critical Custom Fields, including BOM Item metadata/user notes and balloon-scoped option fields. | Any addition can overwrite live Custom Field definitions on migrate; run fixture parity checks before deploy. |
@@ -18,7 +19,9 @@ The manifest is descriptive, not yet a final approval of every row. It is the st
 | `role.json` | 10 | App-owned curated role vocabulary. | Do not fixture user assignments. |
 | `role_profile.json` | 10 | App-owned curated role profiles. | Production user-to-role assignment remains database/user-governance work. |
 | `wiki_page.json` | 4 | Explicitly allowlisted Wiki pages. | Do not bulk-export the Wiki; owner-review pages before fixture-managing them. |
-| `workspace.json` | 1 | Explicitly allowlisted Operations workspace. | Re-run workspace visibility audit after changes. |
+| `workspace.json` | 3 | Explicitly allowlisted Operations, Engineering, and Builder Portal workspaces. | Re-run workspace visibility audit after changes. |
+| `module_onboarding.json` | 1 | Builder first-run onboarding sequence. | Filtered to `InductOne External Builder Onboarding`. |
+| `onboarding_step.json` | 4 | Builder onboarding steps. | Filtered to the four explicit builder steps. |
 
 ## Client Script rows
 
@@ -52,6 +55,11 @@ Current local fixture rows:
 | `Engineering Signoff Banner - Item` | Item signoff banner. |
 | `Engineering Signoff Banner - Configuration Option` | Configuration Option signoff banner. |
 | `InductOne Configuration Option Review Button` | Configuration Option review action. |
+| `InductOne Guidance - Configuration Order` | Shared in-form guidance for Configuration Orders. |
+| `InductOne Guidance - Build Completion` | Shared in-form guidance for Build Completions. |
+| `InductOne Guidance - Operations Build` | Shared in-form guidance for InductOne Builds. |
+| `InductOne Guidance - Engineering Signoff` | Shared in-form guidance for Engineering Signoffs. |
+| `InductOne Guidance - Configuration Option` | Shared in-form guidance for Configuration Options. |
 
 Notably absent from current local fixtures:
 
@@ -138,6 +146,33 @@ Current app-owned workflow diagrams:
 - `inductone_tools/public/svg/configuration-option-status-gate.svg`
 - `inductone_tools/public/svg/builder-package-composition.svg`
 - `inductone_tools/public/svg/as-built-instance-lineage.svg`
+
+## Custom HTML Block fixture rows
+
+`custom_html_block.json` is intentionally filtered by exact name in `hooks.py`. The managed rows are:
+
+- `Builder Banner`
+- `Builder Guidance Panel`
+- `Help and contact`
+- `Operations Banner`
+- `Operations Guidance Panel`
+- `Engineering Banner`
+- `Engineering Banner Info`
+- `Engineering Banner Workflows`
+- `Engineering Banner Reference`
+- `Engineering Banner Resources`
+
+These blocks back the fixture-managed Workspaces. The Builder Portal panel is dynamic: its script calls `inductone_tools.guidance.get_builder_portal_guidance`, which uses the logged-in user's normal permissions.
+
+## Module Onboarding fixture rows
+
+The builder onboarding fixture is exact-name scoped:
+
+- `InductOne External Builder Onboarding`
+- `Receive an InductOne Build`
+- `Download the release package`
+- `Upload the builder serial workbook`
+- `Respond to a rejected Build Completion`
 
 ## Immediate fixture hardening recommendations
 

@@ -1,11 +1,18 @@
 [
   {
     "charts": [],
-    "content": "[{\"id\":\"hhkQYdnroK\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Operations Banner\",\"col\":12}},{\"id\":\"-MTYPZhDvn\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Active InductOne Builds</b></span>\",\"col\":12}},{\"id\":\"GU-1ZnkD7l\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"InductOne - Configuring\",\"col\":4}},{\"id\":\"RSz4kIfUW_\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"InductOne - Ready to Release\",\"col\":4}},{\"id\":\"ec7h3TgLKd\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"InductOne - Awaiting Acknowledgement\",\"col\":4}},{\"id\":\"x1sWQo9Zg6\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"InductOne - At Builder\",\"col\":4}},{\"id\":\"RvAOo4yjoE\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"InductOne - Needs Review\",\"col\":4}},{\"id\":\"D4FACt1Ppm\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"InductOne - Accepted\",\"col\":4}},{\"id\":\"HNPcvm5S10\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Links</b></span>\",\"col\":12}},{\"id\":\"KW53TqY143\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne Build Completion\",\"col\":6}},{\"id\":\"h2KI1QFqoy\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne As-Built Records\",\"col\":6}},{\"id\":\"_AEzdcM3Vi\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"All InductOne Builds\",\"col\":6}},{\"id\":\"vy7NGqhMUd\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne Configuration Order\",\"col\":6}},{\"id\":\"gSm9M9H9W7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Order\",\"col\":6}},{\"id\":\"lLYYlo_qJ3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne Snapshot Diff\",\"col\":6}},{\"id\":\"HhwBppYfjV\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reference Section</b></span>\",\"col\":12}},{\"id\":\"TK9FKw6mte\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne v2.0 RH BOM Report\",\"col\":6}},{\"id\":\"KAZbFIfyeu\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne v2.0 LH BOM Report\",\"col\":6}},{\"id\":\"nDteQiA7iN\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne v2.0 RH Flat BOM\",\"col\":6}},{\"id\":\"J0_ir64Wqk\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne v2.0 LH Flat BOM\",\"col\":6}},{\"id\":\"VDKXdCDedm\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne v2.0 RH BOM Export Package (Complete - 4/2/26)\",\"col\":6}},{\"id\":\"-83szMVHDY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne v2.0 LH BOM Export Package (Complete - 4/9/26)\",\"col\":6}},{\"id\":\"aN8AJD4d-d\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Operations Resources</b></span>\",\"col\":12}},{\"id\":\"9JGier38o6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"ERP Issue List\",\"col\":6}},{\"id\":\"HEeHHVlPyV\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Operations Manual/Wiki\",\"col\":6}}]",
+    "content": "[{\"id\":\"hhkQYdnroK\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Operations Banner\",\"col\":12}},{\"id\":\"operations-guidance-panel\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Operations Guidance Panel\",\"col\":12}},{\"id\":\"-MTYPZhDvn\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Active InductOne Builds</b></span>\",\"col\":12}},{\"id\":\"GU-1ZnkD7l\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"InductOne - Configuring\",\"col\":4}},{\"id\":\"RSz4kIfUW_\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"InductOne - Ready to Release\",\"col\":4}},{\"id\":\"ec7h3TgLKd\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"InductOne - Awaiting Acknowledgement\",\"col\":4}},{\"id\":\"x1sWQo9Zg6\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"InductOne - At Builder\",\"col\":4}},{\"id\":\"RvAOo4yjoE\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"InductOne - Needs Review\",\"col\":4}},{\"id\":\"D4FACt1Ppm\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"InductOne - Accepted\",\"col\":4}},{\"id\":\"HNPcvm5S10\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Links</b></span>\",\"col\":12}},{\"id\":\"KW53TqY143\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne Build Completion\",\"col\":6}},{\"id\":\"h2KI1QFqoy\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne As-Built Records\",\"col\":6}},{\"id\":\"_AEzdcM3Vi\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"All InductOne Builds\",\"col\":6}},{\"id\":\"vy7NGqhMUd\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne Configuration Order\",\"col\":6}},{\"id\":\"gSm9M9H9W7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Order\",\"col\":6}},{\"id\":\"lLYYlo_qJ3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne Snapshot Diff\",\"col\":6}},{\"id\":\"HhwBppYfjV\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reference Section</b></span>\",\"col\":12}},{\"id\":\"TK9FKw6mte\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne v2.0 RH BOM Report\",\"col\":6}},{\"id\":\"KAZbFIfyeu\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne v2.0 LH BOM Report\",\"col\":6}},{\"id\":\"nDteQiA7iN\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne v2.0 RH Flat BOM\",\"col\":6}},{\"id\":\"J0_ir64Wqk\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne v2.0 LH Flat BOM\",\"col\":6}},{\"id\":\"VDKXdCDedm\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne v2.0 RH BOM Export Package (Complete - 4/2/26)\",\"col\":6}},{\"id\":\"-83szMVHDY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"InductOne v2.0 LH BOM Export Package (Complete - 4/9/26)\",\"col\":6}},{\"id\":\"aN8AJD4d-d\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Operations Resources</b></span>\",\"col\":12}},{\"id\":\"9JGier38o6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"ERP Issue List\",\"col\":6}},{\"id\":\"HEeHHVlPyV\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Operations Manual/Wiki\",\"col\":6}}]",
     "custom_blocks": [
       {
         "custom_block_name": "Operations Banner",
         "label": "Operations Banner",
+        "parent": "Operations",
+        "parentfield": "custom_blocks",
+        "parenttype": "Workspace"
+      },
+      {
+        "custom_block_name": "Operations Guidance Panel",
+        "label": "Operations Guidance Panel",
         "parent": "Operations",
         "parentfield": "custom_blocks",
         "parenttype": "Workspace"
@@ -339,21 +346,21 @@
         "parenttype": "Workspace"
       },
       {
-        "number_card_name": "InductOne \u2014 Ready to release",
+        "number_card_name": "InductOne — Ready to release",
         "label": "InductOne - Ready to Release",
         "parent": "Operations",
         "parentfield": "number_cards",
         "parenttype": "Workspace"
       },
       {
-        "number_card_name": "InductOne \u2014 Awaiting ack",
+        "number_card_name": "InductOne — Awaiting ack",
         "label": "InductOne - Awaiting Acknowledgement",
         "parent": "Operations",
         "parentfield": "number_cards",
         "parenttype": "Workspace"
       },
       {
-        "number_card_name": "InductOne \u2014 At builder",
+        "number_card_name": "InductOne — At builder",
         "label": "InductOne - At Builder",
         "parent": "Operations",
         "parentfield": "number_cards",
@@ -827,7 +834,7 @@
   },
   {
     "charts": [],
-    "content": "[{\"id\":\"RDBhk3f8st\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Builder Banner\",\"col\":12}},{\"id\":\"N11IdrzcZn\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Active Work</b></span>\",\"col\":12}},{\"id\":\"wNNgy6dF9I\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Awaiting Your Acknowledgement\",\"col\":6}},{\"id\":\"73JyVK472u\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"In Progress at Your Facility\",\"col\":6}},{\"id\":\"Tl8ZkzqIq6\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Submitted, in Review\",\"col\":6}},{\"id\":\"L9lJWFPzUb\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Completed\",\"col\":6}},{\"id\":\"ZP2rBAXEDA\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"builder-task-links\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Builder Tasks</b></span>\",\"col\":12}},{\"id\":\"T1MNxU_uDR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Configuration Orders\",\"col\":7}},{\"id\":\"xxmdd3Pc2t\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Build Completions\",\"col\":7}},{\"id\":\"UyfaXOvYcr\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Help and contact\",\"col\":12}}]",
+    "content": "[{\"id\":\"RDBhk3f8st\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Builder Banner\",\"col\":12}},{\"id\":\"builder-guidance-panel\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Builder Guidance Panel\",\"col\":12}},{\"id\":\"N11IdrzcZn\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Active Work</b></span>\",\"col\":12}},{\"id\":\"wNNgy6dF9I\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Awaiting Your Acknowledgement\",\"col\":6}},{\"id\":\"73JyVK472u\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"In Progress at Your Facility\",\"col\":6}},{\"id\":\"Tl8ZkzqIq6\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Submitted, in Review\",\"col\":6}},{\"id\":\"L9lJWFPzUb\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Completed\",\"col\":6}},{\"id\":\"ZP2rBAXEDA\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"builder-task-links\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Builder Tasks</b></span>\",\"col\":12}},{\"id\":\"T1MNxU_uDR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Configuration Orders\",\"col\":7}},{\"id\":\"xxmdd3Pc2t\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Build Completions\",\"col\":7}},{\"id\":\"UyfaXOvYcr\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Help and contact\",\"col\":12}}]",
     "custom_blocks": [
       {
         "custom_block_name": "Help and contact",
@@ -839,6 +846,13 @@
       {
         "custom_block_name": "Builder Banner",
         "label": "Builder Banner",
+        "parent": "Builder Portal",
+        "parentfield": "custom_blocks",
+        "parenttype": "Workspace"
+      },
+      {
+        "custom_block_name": "Builder Guidance Panel",
+        "label": "Builder Guidance Panel",
         "parent": "Builder Portal",
         "parentfield": "custom_blocks",
         "parenttype": "Workspace"

@@ -37,15 +37,20 @@ def create_completion_from_upload(
       - Stamps parent Build with latest_build_completion link
     """
     if not build_name:
-        frappe.throw(_("build_name is required."))
+        frappe.throw(_(
+            "Build Completion upload could not start because no Build was provided. "
+            "Open the assigned Configuration Order from Builder Portal, then use the upload action from that Build workflow."
+        ))
     if not completion_file_url:
-        frappe.throw(_("completion_file_url is required."))
+        frappe.throw(_(
+            "No builder serial workbook was attached. Attach the completed workbook from the release package, then try the upload again."
+        ))
 
     build = frappe.get_doc("InductOne Build", build_name)
 
     if not build.latest_config_order:
         frappe.throw(_(
-            "Build {0} has no Configuration Order. Cannot create a completion record."
+            "Build {0} does not have a Configuration Order yet. Plus One Operations must generate and release the Configuration Order before a Build Completion can be uploaded."
         ).format(build_name))
 
     co_name = build.latest_config_order
@@ -54,8 +59,8 @@ def create_completion_from_upload(
     expected_status = "Awaiting Completion"
     if co.co_status != expected_status:
         frappe.throw(_(
-            "Configuration Order {0} is in status '{1}'. "
-            "Build completion can only be uploaded when CO is in '{2}'."
+            "Configuration Order {0} is currently '{1}', so a Build Completion cannot be uploaded yet. "
+            "Upload is available after the release package has been acknowledged and the Configuration Order is '{2}'."
         ).format(co_name, co.co_status, expected_status))
 
     # --- Parse the workbook BEFORE creating any records ---
@@ -68,7 +73,7 @@ def create_completion_from_upload(
         parsed = parse_builder_workbook(workbook_bytes)
     except WorkbookParseError as e:
         frappe.throw(_(
-            "Could not parse the uploaded workbook: {0}"
+            "We could not read the uploaded builder serial workbook. Confirm you uploaded the returned OPS-BLD-F01 workbook from the release package, then try again. Details: {0}"
         ).format(str(e)))
 
     # Cross-validate the workbook's IND serial against the Build.
@@ -205,8 +210,8 @@ def _read_file_bytes_from_url(file_url):
     file_doc_name = frappe.db.get_value("File", {"file_url": file_url}, "name")
     if not file_doc_name:
         frappe.throw(_(
-            "Could not find File record for upload URL '{0}'. "
-            "The file may not have been saved properly."
+            "The workbook upload was saved incorrectly and no File record could be found for '{0}'. "
+            "Upload the workbook again. If this repeats, contact your Plus One Operations contact and include the Build number."
         ).format(file_url))
 
     file_doc = frappe.get_doc("File", file_doc_name)
@@ -278,8 +283,8 @@ def _validate_completion_transition(doc):
         allowed_initial_statuses = {"Draft", "Submitted"}
         if doc.status and doc.status not in allowed_initial_statuses:
             frappe.throw(_(
-                "New Build Completions must start in status 'Draft' or 'Submitted' "
-                "(got '{0}')."
+                "New Build Completions must start as Draft or Submitted. This record tried to start as '{0}'. "
+                "Use the upload workflow so the serial workbook can be parsed and attached correctly."
             ).format(doc.status))
         return
 
@@ -292,8 +297,8 @@ def _validate_completion_transition(doc):
     allowed = _COMPLETION_TRANSITIONS.get(old_status, set())
     if new_status not in allowed:
         frappe.throw(_(
-            "Invalid Build Completion transition: '{0}' -> '{1}'. "
-            "Allowed next states from '{0}': {2}."
+            "This Build Completion cannot move from '{0}' to '{1}'. "
+            "Use the normal review buttons so the audit trail and required side effects stay complete. Allowed next states from '{0}': {2}."
         ).format(
             old_status, new_status,
             ", ".join(sorted(allowed)) if allowed else "(none — terminal state)"
@@ -305,10 +310,8 @@ def _validate_completion_transition(doc):
     # never be bypassed.
     if new_status == "Accepted" and not frappe.flags.get("io_acceptance_in_progress"):
         frappe.throw(_(
-            "A Build Completion can only be set to 'Accepted' through the "
-            "'Accept Completion' action, which creates the locked As-Built "
-            "Record and the InductOne Instance. Setting the status to "
-            "'Accepted' directly is not permitted."
+            "A Build Completion can only be accepted through the Accept Completion action. "
+            "That action creates the locked As-Built Record and InductOne Instance. Directly setting status to Accepted is not permitted."
         ))
 
 
@@ -317,14 +320,14 @@ def _validate_completion_required_fields(doc):
     reviewer on the server so it is authoritative rather than client-supplied."""
     if doc.status == "Reviewed" and not (doc.serials or []):
         frappe.throw(_(
-            "Cannot mark this Build Completion as 'Reviewed': at least one "
-            "serial row is required first."
+            "This Build Completion cannot be marked Reviewed yet. At least one serial row is required first. "
+            "Upload or correct the builder serial workbook, then review again."
         ))
 
     if doc.status == "Rejected" and not (getattr(doc, "review_notes", None) or "").strip():
         frappe.throw(_(
-            "A rejection reason is required. Record it in Review Notes before "
-            "rejecting this Build Completion."
+            "A rejection reason is required before rejecting this Build Completion. "
+            "Write the next action for the builder in Review Notes, then reject the record."
         ))
 
     if doc.status in ("Reviewed", "Rejected"):
