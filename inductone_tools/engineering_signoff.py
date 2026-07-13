@@ -621,7 +621,9 @@ def _apply_target_approval_side_effects(signoff):
         return
 
     if not frappe.db.exists(CONFIG_OPTION_DOCTYPE, signoff.target_docname):
-        return
+        frappe.throw(_(
+            "Cannot approve: target Configuration Option '{0}' no longer exists."
+        ).format(signoff.target_docname))
 
     try:
         frappe.flags.engineering_signoff_release_in_progress = True
@@ -634,6 +636,19 @@ def _apply_target_approval_side_effects(signoff):
             },
             update_modified=True,
         )
+
+        released_status = frappe.db.get_value(
+            CONFIG_OPTION_DOCTYPE, signoff.target_docname, "status"
+        )
+        if released_status != CONFIG_OPTION_RELEASED_STATUS:
+            frappe.throw(_(
+                "Engineering Signoff approval did not release Configuration Option '{0}'. "
+                "Expected status '{1}', found '{2}'."
+            ).format(
+                signoff.target_docname,
+                CONFIG_OPTION_RELEASED_STATUS,
+                released_status or "not set",
+            ))
 
         refreshed_revision = _get_target_revision_id(CONFIG_OPTION_DOCTYPE, signoff.target_docname)
 

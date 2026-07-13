@@ -336,7 +336,7 @@
   "owner_role": "Ops",
   "requires_ops_approval": 0,
   "sort_order": 10,
-  "status": "Draft",
+  "status": "Released",
   "workflow_state": null
  },
  {
@@ -360,7 +360,7 @@
   "owner_role": "Ops",
   "requires_ops_approval": 0,
   "sort_order": 20,
-  "status": "Draft",
+  "status": "Released",
   "workflow_state": null
  },
  {
@@ -469,7 +469,7 @@
   "owner_role": "Ops",
   "requires_ops_approval": 0,
   "sort_order": 30,
-  "status": "Draft",
+  "status": "Released",
   "workflow_state": null
  },
  {
@@ -493,7 +493,7 @@
   "owner_role": "Ops",
   "requires_ops_approval": 0,
   "sort_order": 40,
-  "status": "Draft",
+  "status": "Released",
   "workflow_state": null
  },
  {
@@ -791,7 +791,7 @@
   "owner_role": "Ops",
   "requires_ops_approval": 0,
   "sort_order": 50,
-  "status": "Draft",
+  "status": "Released",
   "workflow_state": null
  },
  {
@@ -815,7 +815,7 @@
   "owner_role": "Ops",
   "requires_ops_approval": 0,
   "sort_order": 60,
-  "status": "Draft",
+  "status": "Released",
   "workflow_state": null
  },
  {
@@ -903,7 +903,7 @@
   "owner_role": "Ops",
   "requires_ops_approval": 0,
   "sort_order": 70,
-  "status": "Draft",
+  "status": "Released",
   "workflow_state": null
  },
  {
@@ -927,7 +927,7 @@
   "owner_role": "Ops",
   "requires_ops_approval": 0,
   "sort_order": 80,
-  "status": "Draft",
+  "status": "Released",
   "workflow_state": null
  },
  {
@@ -973,7 +973,7 @@
   "owner_role": "Ops",
   "requires_ops_approval": 0,
   "sort_order": 90,
-  "status": "Draft",
+  "status": "Released",
   "workflow_state": null
  },
  {
@@ -997,7 +997,7 @@
   "owner_role": "Ops",
   "requires_ops_approval": 0,
   "sort_order": 100,
-  "status": "Draft",
+  "status": "Released",
   "workflow_state": null
  },
  {
@@ -1043,7 +1043,7 @@
   "owner_role": "Ops",
   "requires_ops_approval": 0,
   "sort_order": 110,
-  "status": "Draft",
+  "status": "Released",
   "workflow_state": null
  },
  {
@@ -1067,7 +1067,7 @@
   "owner_role": "Ops",
   "requires_ops_approval": 0,
   "sort_order": 120,
-  "status": "Draft",
+  "status": "Released",
   "workflow_state": null
  },
  {
@@ -1113,7 +1113,7 @@
   "owner_role": "Ops",
   "requires_ops_approval": 0,
   "sort_order": 130,
-  "status": "Draft",
+  "status": "Released",
   "workflow_state": null
  }
 ]
