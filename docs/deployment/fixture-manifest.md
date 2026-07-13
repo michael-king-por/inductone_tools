@@ -17,7 +17,7 @@ The manifest is descriptive, not yet a final approval of every row. It is the st
 | `report.json` | 1 | App-owned Electrical Balloon Callouts Query Report. | Keep report role access aligned with curated role model. |
 | `role.json` | 10 | App-owned curated role vocabulary. | Do not fixture user assignments. |
 | `role_profile.json` | 10 | App-owned curated role profiles. | Production user-to-role assignment remains database/user-governance work. |
-| `wiki_page.json` | 4 | Explicitly allowlisted Wiki pages. | Do not bulk-export the Wiki; owner-review pages before fixture-managing them. |
+| `wiki_page.json` | 15 | Explicitly allowlisted Wiki pages, including the CSA owner handbook, CSA quality-system map, controlled records index, and updated InductOne workflow pages. | Do not bulk-export the Wiki; owner-review pages before fixture-managing them. |
 | `workspace.json` | 1 | Explicitly allowlisted Operations workspace. | Re-run workspace visibility audit after changes. |
 
 ## Client Script rows
@@ -126,9 +126,19 @@ The options are exported at `status = "Draft"` so they are reproducible on migra
 
 `wiki_page.json` is intentionally filtered by exact page name in `hooks.py`. It is not a broad Wiki export.
 
-The current fixture includes the InductOne CSA owner handbook. That page references app-owned SVG diagrams from `/assets/inductone_tools/svg/...`; the SVGs themselves live under `inductone_tools/public/svg/` and are deployed as static app assets rather than database content.
+The current fixture includes the InductOne CSA owner handbook, the CSA quality-system page, the controlled records index, and selected InductOne workflow pages that now contain CSA/source-alignment guidance. These pages reference app-owned SVG diagrams from `/assets/inductone_tools/svg/...`; the SVGs themselves live under `inductone_tools/public/svg/` and are deployed as static app assets rather than database content.
 
-Broader Wiki content is still database-managed until the owner reviews it. Use `scripts/run_wiki_information_architecture_audit.py` to identify stub pages, diagram candidates, and pages that may deserve fixture ownership.
+Public Wiki rendering is not controlled by the `Wiki Page` record alone. The Wiki app also requires
+the page to appear in the owning `Wiki Space.wiki_sidebars` child table. The full Wiki Space/sidebar
+is intentionally not fixture-managed here because it contains broader navigation outside this tranche.
+Patch `inductone_tools.patches.v2026_07_13_wiki_csa_space_links` appends only these app-owned CSA
+entry pages to the existing `plus-one-ops-manual` space:
+
+- `inductone-csa-owner-handbook`
+- `inductone-csa-quality-system`
+- `inductone-csa-controlled-records-index`
+
+Broader non-InductOne Wiki content is still database-managed until the owner reviews it. Use `scripts/run_wiki_information_architecture_audit.py` to identify stub pages, diagram candidates, and pages that may deserve fixture ownership.
 
 ## Static SVG app assets
 
@@ -138,6 +148,11 @@ Current app-owned workflow diagrams:
 - `inductone_tools/public/svg/configuration-option-status-gate.svg`
 - `inductone_tools/public/svg/builder-package-composition.svg`
 - `inductone_tools/public/svg/as-built-instance-lineage.svg`
+- `inductone_tools/public/svg/inductone-csa-quality-system-map.svg`
+
+## Wiki fixture validation
+
+Run `scripts/run_wiki_fixture_validation.py` before deployment. It verifies that `wiki_page.json` parses, page names/routes are unique, the `hooks.py` exact-name filter matches the fixture rows, required CSA Wiki pages and SVG assets exist, SVG references resolve, and legacy role names are absent.
 
 ## Immediate fixture hardening recommendations
 

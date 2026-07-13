@@ -71,7 +71,26 @@ All items in this phase must be true before touching production.
    - GO if the command exits 0.
    - NO-GO if any JSON parse error occurs.
 
-4. [ ] Confirm BOM Item Custom Field fixture parity against production.
+4. [ ] Confirm Wiki Page fixture safety.
+
+   Run locally from the repo root:
+
+   ```bash
+   python scripts/run_wiki_fixture_validation.py --repo-root .
+   ```
+
+   Expected output:
+
+   ```text
+   PASS wiki fixture validation (<N> pages)
+   ```
+
+   Go/no-go:
+
+   - GO if the command exits 0.
+   - NO-GO if the Wiki fixture and `hooks.py` exact-name filter diverge, if any required CSA Wiki page or SVG asset is missing, if SVG references do not resolve, or if legacy role names reappear.
+
+5. [ ] Confirm BOM Item Custom Field fixture parity against production.
 
    This is a read-only production check. It prevents fixture sync from
    unintentionally overwriting a live `BOM Item` Custom Field definition during
@@ -105,7 +124,7 @@ All items in this phase must be true before touching production.
    - If any field is classified as `UNMANAGED_ON_SITE`, decide before deployment
      whether to add it to the fixture too or leave it manual and document why.
 
-5. [ ] Confirm Python compiles without error.
+6. [ ] Confirm Python compiles without error.
 
    Run locally from the repo root:
 
@@ -123,7 +142,7 @@ All items in this phase must be true before touching production.
    - GO if compileall exits 0.
    - NO-GO if any Python syntax error occurs.
 
-6. [ ] Confirm a production backup has been taken within the last 24 hours and is verified restorable.
+7. [ ] Confirm a production backup has been taken within the last 24 hours and is verified restorable.
 
    Required evidence:
 
@@ -357,6 +376,7 @@ All items in this phase must be true before touching production.
    - `Executing inductone_tools.patches.v2026_07_06_balloon_report_access` appears during patch execution if the Electrical Balloon Callouts report access patch has not previously run.
    - `Executing inductone_tools.patches.v2026_07_08_configuration_option_status_model_cleanup` appears during patch execution if the configuration option status cleanup patch has not previously run.
    - `Executing inductone_tools.patches.v2026_07_10_builder_portal_workspace_cleanup` appears during patch execution if the builder-portal cleanup patch has not previously run.
+   - `Executing inductone_tools.patches.v2026_07_13_wiki_csa_space_links` appears during patch execution if the CSA Wiki Space link patch has not previously run.
    - Fixtures import cleanly, including the BOM Item `User Notes` Custom Field and the app-owned `user_notes` DocFields on `Configured BOM Snapshot Hierarchy` and `BOM Export Package Item`.
    - Fixtures import the app-owned `Electrical Balloon Callouts` Report record.
    - Fixtures import the filtered Workspace records for `Operations`, `Engineering`, and `Builder Portal`.
@@ -377,6 +397,7 @@ All items in this phase must be true before touching production.
    bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_06_balloon_report_access%';"
    bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_08_configuration_option_status_model_cleanup%';"
    bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_10_builder_portal_workspace_cleanup%';"
+   bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_13_wiki_csa_space_links%';"
    ```
 
    Expected output:
@@ -391,6 +412,7 @@ All items in this phase must be true before touching production.
    inductone_tools.patches.v2026_07_06_balloon_report_access
    inductone_tools.patches.v2026_07_08_configuration_option_status_model_cleanup
    inductone_tools.patches.v2026_07_10_builder_portal_workspace_cleanup
+   inductone_tools.patches.v2026_07_13_wiki_csa_space_links
    ```
 
    Go/no-go:

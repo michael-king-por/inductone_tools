@@ -25,7 +25,7 @@ Current local repo fixture files:
 | `report.json` | 1 | App-owned Electrical Balloon Callouts Query Report. |
 | `role.json` | 10 | App-owned curated role vocabulary. |
 | `role_profile.json` | 10 | App-owned curated role profiles. |
-| `wiki_page.json` | 4 | Explicitly allowlisted Wiki pages, including the InductOne CSA owner handbook. |
+| `wiki_page.json` | 15 | Explicitly allowlisted Wiki pages, including the InductOne CSA owner handbook, CSA quality-system page, controlled records index, and selected CSA workflow pages. |
 | `workspace.json` | 1 | Explicitly allowlisted Operations workspace. |
 
 ## Current fixture filters
@@ -107,7 +107,7 @@ Use only with written justification:
 
 - Server Scripts.
 - User Permissions.
-- Wiki Pages, except explicitly reviewed owner/operator handbook pages with narrow name filters.
+- Wiki Pages, except explicitly reviewed owner/operator handbook and CSA workflow pages with narrow name filters.
 - Web Pages.
 - Website Settings.
 - Letterheads.
@@ -146,6 +146,8 @@ Every fixture diff should answer:
 ## Static app assets
 
 Repo-owned SVG diagrams live under `inductone_tools/public/svg/` and deploy as app assets. They are preferred over embedding large opaque diagram blobs directly inside Wiki Page content.
+
+Run `scripts/run_wiki_fixture_validation.py` before deploying Wiki fixture updates. The validator enforces the narrow fixture filter, required CSA pages/assets, unique routes, absence of legacy role names, and resolvable SVG references.
 
 Current app-owned SVGs:
 

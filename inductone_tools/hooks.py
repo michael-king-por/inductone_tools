@@ -133,7 +133,18 @@ fixtures = [
                 "d0v7dsi9lu",
                 "9n8bvqedso",
                 "3hnmdg9m5q",
-                "inductone-csa-owner-handbook"
+                "inductone-csa-owner-handbook",
+                "inductone-csa-quality-system",
+                "inductone-csa-controlled-records-index",
+                "3hmhgl7qdu",
+                "3hmdga44m5",
+                "3hmiq2lbi9",
+                "3hngf036ne",
+                "3hmtouafd5",
+                "82vdqj03n2",
+                "3hmbhanak2",
+                "eo88s4k9ui",
+                "3hmeksuks8"
             ]]
         ]
     },
