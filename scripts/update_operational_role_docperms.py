@@ -102,6 +102,11 @@ TRANSACTION = {
     "amend": 1,
 }
 
+SYSTEM_FULL = {
+    **MAINTAIN,
+    "delete": 1,
+}
+
 LIMITED_WRITE = {
     "read": 1,
     "write": 1,
@@ -409,6 +414,35 @@ STOCK_ENTRY_TYPE_CURATED_READ_ROLES = [
 ]
 
 
+FCO_MANAGED_DOCTYPES = [
+    "InductOne Field Change Request",
+    "InductOne Field Change",
+]
+
+FCO_WRITE_ROLES = [
+    "Operations Manager",
+    "InductOne Manager",
+    "InductOne Process Architect",
+]
+
+FCO_MAINTAIN = {
+    **MAINTAIN,
+    "import": 0,
+}
+
+FCO_SYSTEM = {
+    **SYSTEM_FULL,
+    "import": 0,
+}
+
+OPTIONS_CATALOG_DOCTYPE = "InductOne Options Catalog"
+OPTIONS_CATALOG_PRINT_ROLES = [
+    # Engineering signoff users need to review and print both the default
+    # released-only catalog and the comprehensive filtered catalog.
+    "Engineering User",
+]
+
+
 def load_rows() -> dict[tuple[str, str, int], dict]:
     current = json.loads(FIXTURE.read_text(encoding="utf-8"))
     rows: dict[tuple[str, str, int], dict] = {}
@@ -489,6 +523,23 @@ def main() -> None:
         add_perm(rows, "Stock Entry Type", role, permlevel=permlevel, **bits)
     for role in STOCK_ENTRY_TYPE_CURATED_READ_ROLES:
         add_perm(rows, "Stock Entry Type", role, **READ)
+
+    # CSA/FCO as-installed records: internal operations/process owners can
+    # create and maintain Request/Field Change records, Operations Viewer can
+    # inspect the register, and external builders intentionally receive no row.
+    for doctype in FCO_MANAGED_DOCTYPES:
+        add_perm(rows, doctype, "System Manager", **FCO_SYSTEM)
+        for role in FCO_WRITE_ROLES:
+            add_perm(rows, doctype, role, **FCO_MAINTAIN)
+        add_perm(rows, doctype, "Operations Viewer", **READ)
+
+    # Options Catalog is a Single custom DocType used as the print surface for
+    # released-only and comprehensive option catalogs. Adding any Custom
+    # DocPerm row makes Frappe ignore the embedded standard permission, so
+    # preserve System Manager explicitly before granting Engineering read/print.
+    add_perm(rows, OPTIONS_CATALOG_DOCTYPE, "System Manager", **SYSTEM_FULL)
+    for role in OPTIONS_CATALOG_PRINT_ROLES:
+        add_perm(rows, OPTIONS_CATALOG_DOCTYPE, role, **READ)
 
     # Fixture Export Control is deliberately restricted to System Manager and
     # InductOne Process Architect. Remove any stale broad-role rows that may

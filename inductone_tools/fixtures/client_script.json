@@ -334,5 +334,15 @@
     "name": "InductOne Guidance - Configuration Option",
     "view": "Form",
     "script": "frappe.ui.form.on('InductOne Configuration Option', {\n  refresh(frm) {\n    if (window.inductoneGuidance && window.inductoneGuidance.renderFormGuidance) {\n      window.inductoneGuidance.renderFormGuidance(frm);\n    }\n  }\n});\n"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Client Script",
+    "dt": "InductOne Field Change Request",
+    "enabled": 1,
+    "module": "Operations - POR",
+    "name": "InductOne FCO JotForm Import Button",
+    "script": "frappe.ui.form.on('InductOne Field Change Request', {\n    refresh(frm) {\n        const roles = frappe.user_roles || [];\n        const allowed = [\n            'Operations Manager',\n            'InductOne Manager',\n            'InductOne Process Architect',\n            'System Manager'\n        ].some(role => roles.includes(role));\n        if (!allowed) return;\n\n        frm.add_custom_button(__('Import JotForm XLSX'), () => {\n            const dialog = new frappe.ui.Dialog({\n                title: __('Import JotForm Field Change Export'),\n                fields: [\n                    {\n                        fieldname: 'file_url',\n                        fieldtype: 'Data',\n                        label: __('Uploaded XLSX File URL'),\n                        reqd: 1,\n                        description: __('Upload the JotForm XLSX as a File first, then paste its /private/files/... or /files/... URL here.')\n                    }\n                ],\n                primary_action_label: __('Import'),\n                primary_action(values) {\n                    frappe.call({\n                        method: 'inductone_tools.field_change.import_jotform_export',\n                        args: { file_url: values.file_url },\n                        freeze: true,\n                        freeze_message: __('Importing JotForm rows...'),\n                        callback(response) {\n                            const result = response.message || {};\n                            frappe.msgprint({\n                                title: __('JotForm Import Complete'),\n                                message: __('Created {0}, existing {1}, skipped {2}.', [\n                                    (result.created || []).length,\n                                    (result.existing || []).length,\n                                    (result.skipped || []).length\n                                ]),\n                                indicator: 'green'\n                            });\n                            dialog.hide();\n                            frm.reload_doc();\n                        }\n                    });\n                }\n            });\n            dialog.show();\n        });\n    }\n});",
+    "view": "Form"
   }
 ]

@@ -63,6 +63,14 @@ doc_events = {
         "validate": "inductone_tools.instance.hooks.validate_instance",
     },
 
+    "InductOne Field Change Request": {
+        "validate": "inductone_tools.field_change.validate_field_change_request",
+    },
+
+    "InductOne Field Change": {
+        "validate": "inductone_tools.field_change.validate_field_change",
+    },
+
     "InductOne Builder Tranche": {
         "validate": "inductone_tools.serial_allocation.tranche.validate_tranche",
     },
@@ -152,7 +160,8 @@ fixtures = [
                 "82vdqj03n2",
                 "3hmbhanak2",
                 "eo88s4k9ui",
-                "3hmeksuks8"
+                "3hmeksuks8",
+                "inductone-field-change-fco-register"
             ]]
         ]
     },
@@ -214,7 +223,18 @@ fixtures = [
         "dt": "Report",
         "filters": [
             ["name", "in", [
-                "Electrical Balloon Callouts"
+                "Electrical Balloon Callouts",
+                "FCO Assignments Pending Review",
+                "SUP-FCO-R01 Field Change Register"
+            ]]
+        ]
+    },
+    {
+        "dt": "Print Format",
+        "filters": [
+            ["name", "in", [
+                "InductOne Options Catalog",
+                "InductOne Options Catalog - Comprehensive"
             ]]
         ]
     },
@@ -235,6 +255,7 @@ fixtures = [
                 "InductOne Build Execution Log",
                 "InductOne Builder Tranche",
                 "InductOne Configuration Option",
+                "InductOne Options Catalog",
                 "InductOne Build Option Selection",
                 "InductOne Configuration Option Mapping",
                 "InductOne Build Completion",
@@ -242,6 +263,8 @@ fixtures = [
                 "InductOne As-Built Record",
                 "InductOne As-Built Serial",
                 "InductOne Instance",
+                "InductOne Field Change Request",
+                "InductOne Field Change",
                 "InductOne Configuration Order",
                 "InductOne Configuration Order Delta Line",
                 "InductOne Configuration Order Selected Option",
@@ -325,7 +348,8 @@ fixtures = [
                 "InductOne Guidance - Build Completion",
                 "InductOne Guidance - Operations Build",
                 "InductOne Guidance - Engineering Signoff",
-                "InductOne Guidance - Configuration Option"
+                "InductOne Guidance - Configuration Option",
+                "InductOne FCO JotForm Import Button"
             ]]
         ]
     }
