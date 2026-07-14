@@ -50,6 +50,8 @@ def validate_instance(doc, method=None):
     Frappe doc_event name (e.g., "validate"); we don't use it.
     """
     _validate_serial_format(doc)
+    _validate_born_in_system_provenance(doc)
+    _sync_deployment_site_from_location(doc)
     _validate_status_transition(doc)
     _stamp_status_transition_timestamps(doc)
 
@@ -61,6 +63,21 @@ def _validate_serial_format(doc):
     if not doc.system_serial:
         return
     s = doc.system_serial.strip()
+    origin = doc.get("origin") or "Born-in-system"
+
+    # Legacy fielded units retain the historical IN+Julian manufacturing
+    # serial, and internal reference units retain REF-* placeholders. The
+    # IND-#### rule remains mandatory for born-in-system and POC/go-forward
+    # records.
+    if origin == "Legacy backfill":
+        if not s.startswith("IN"):
+            frappe.throw(_("Legacy backfill serials must retain the historical IN* format."))
+        return
+    if origin == "Internal-Reference":
+        if not s.startswith("REF-"):
+            frappe.throw(_("Internal reference serials must use the REF-* format."))
+        return
+
     if not s.startswith("IND-"):
         frappe.throw(_(
             "System Serial must start with 'IND-' (got '{0}'). "
@@ -72,6 +89,49 @@ def _validate_serial_format(doc):
             "System Serial suffix must be all digits (got '{0}'). "
             "Expected format: IND-####"
         ).format(s))
+
+
+def _validate_born_in_system_provenance(doc):
+    """Born-in-system records must carry full ERPNext provenance.
+
+    Legacy, POC, and internal reference records are allowed to exist without
+    build/as-built/configuration-order links because those records predate the
+    current release workflow or are not customer-delivered production units.
+    """
+
+    if (doc.get("origin") or "Born-in-system") != "Born-in-system":
+        return
+
+    missing = [
+        label
+        for fieldname, label in [
+            ("inductone_build", "Source Build"),
+            ("as_built_record", "As-Built Record"),
+            ("configuration_order", "Configuration Order"),
+        ]
+        if not doc.get(fieldname)
+    ]
+    if missing:
+        frappe.throw(
+            _(
+                "Born-in-system Instances require complete provenance: {0}."
+            ).format(", ".join(missing))
+        )
+
+
+def _sync_deployment_site_from_location(doc):
+    """Keep the human-readable deployment label synced from the canonical Cell."""
+
+    if not doc.get("physical_location"):
+        return
+
+    full_path = frappe.db.get_value(
+        "POR Physical Location",
+        doc.physical_location,
+        "full_path",
+    )
+    if full_path:
+        doc.deployment_site = full_path
 
 
 def _validate_status_transition(doc):

@@ -85,5 +85,119 @@
    }
   ],
   "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disable_prepared_report_automation": 0,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "POR",
+  "modified": "2026-07-14 12:00:00.000000",
+  "module": "Operations - POR",
+  "name": "FCO Assignments Pending Review",
+  "prepared_report": 0,
+  "query": "SELECT\n  name AS \"Request:Link/InductOne Field Change Request:180\",\n  date_raised AS \"Date Raised:Date:110\",\n  title AS \"Title:Data:260\",\n  instance AS \"Assigned Instance:Link/InductOne Instance:180\",\n  assignment_confidence AS \"Confidence:Data:120\",\n  assignment_basis AS \"Assignment Basis:Data:260\",\n  machine_identifier AS \"Machine Identifier:Data:180\"\nFROM `tabInductOne Field Change Request`\nWHERE IFNULL(assignment_reviewed, 0) = 0\n  AND IFNULL(assignment_confidence, '') IN ('Low', 'Backfill-guess')\nORDER BY date_raised DESC, name DESC",
+  "ref_doctype": "InductOne Field Change Request",
+  "reference_report": null,
+  "report_name": "FCO Assignments Pending Review",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "FCO Assignments Pending Review",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "FCO Assignments Pending Review",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Operations Manager"
+   },
+   {
+    "parent": "FCO Assignments Pending Review",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Operations Viewer"
+   },
+   {
+    "parent": "FCO Assignments Pending Review",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "InductOne Manager"
+   },
+   {
+    "parent": "FCO Assignments Pending Review",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "InductOne Process Architect"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disable_prepared_report_automation": 0,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "POR",
+  "modified": "2026-07-14 12:00:00.000000",
+  "module": "Operations - POR",
+  "name": "SUP-FCO-R01 Field Change Register",
+  "prepared_report": 0,
+  "query": "SELECT\n  r.name AS \"FCO #:Link/InductOne Field Change Request:150\",\n  r.date_raised AS \"Date Raised:Date:110\",\n  r.requester AS \"Requester:Data:160\",\n  r.intake_ref AS \"Intake Ref (Submission ID / Link):Data:180\",\n  r.customer_project AS \"Customer / Project:Data:180\",\n  COALESCE(r.instance, r.machine_identifier) AS \"IND-#### Serial(s) / Location(s):Data:220\",\n  r.title AS \"Change Summary:Data:260\",\n  r.triage_outcome AS \"Triage Outcome:Data:130\",\n  r.reference AS \"Reference (ECR / Epic / Ticket):Data:220\",\n  IF(r.safety_regulatory, 'Y', 'N') AS \"Safety / Regulatory (Y/N):Data:120\",\n  r.disposition AS \"Disposition:Data:120\",\n  r.disposition_date AS \"Disposition Date:Date:120\",\n  MAX(fc.implemented_date) AS \"Implemented Date:Date:120\",\n  IF(MAX(IFNULL(fc.as_maintained_updated,0)) = 1, 'Y', 'N') AS \"As-Maintained Updated in ERPNext:Data:160\",\n  MAX(fc.post_change_test) AS \"Post-Change Test:Data:130\",\n  r.status AS \"Status:Data:120\",\n  IF(r.status='Closed', r.modified, NULL) AS \"Closed Date:Datetime:150\",\n  r.notes AS \"Notes:Data:280\"\nFROM `tabInductOne Field Change Request` r\nLEFT JOIN `tabInductOne Field Change` fc ON fc.source_request = r.name\nGROUP BY r.name\nORDER BY r.date_raised, r.name",
+  "ref_doctype": "InductOne Field Change Request",
+  "reference_report": null,
+  "report_name": "SUP-FCO-R01 Field Change Register",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "SUP-FCO-R01 Field Change Register",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "SUP-FCO-R01 Field Change Register",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Operations Manager"
+   },
+   {
+    "parent": "SUP-FCO-R01 Field Change Register",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Operations Viewer"
+   },
+   {
+    "parent": "SUP-FCO-R01 Field Change Register",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "InductOne Manager"
+   },
+   {
+    "parent": "SUP-FCO-R01 Field Change Register",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "InductOne Process Architect"
+   }
+  ],
+  "timeout": 0
  }
 ]
