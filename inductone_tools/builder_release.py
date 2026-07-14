@@ -255,7 +255,7 @@ def check_builder_release_readiness(build_name: str):
     }
 
 @frappe.whitelist()
-def generate_builder_release_bundle(build_name: str, package_name: str = None):
+def generate_builder_release_bundle(build_name: str, package_name: str = None, builder_workbook_url: str = None):
     """
     Prepare the builder handoff package using the Configuration Order document list
     as the authoritative package index.
@@ -292,8 +292,6 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
         if resolved_package_name:
             package_doc = frappe.get_doc("BOM Export Package", resolved_package_name)
 
-    flat_bom_file_url = _resolve_flat_bom_file_url(build, co)
-
     if not package_doc:
         frappe.throw("No BOM Export Package is linked/resolved for this build.")
     if not getattr(package_doc, "output_zip", None):
@@ -301,6 +299,15 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
             f"BOM Export Package {package_doc.name} has not been generated yet. "
             f"Open the BOM Export Package and run generation there before preparing builder handoff."
         )
+
+    hierarchy_workbook_url = _ensure_hierarchy_workbook_url(snapshot_name, co.name)
+    flat_bom_file_url = _ensure_flat_bom_file_url(build, co)
+    if not builder_workbook_url:
+        builder_workbook_url = _resolve_builder_workbook_url(build, co)
+    if not builder_workbook_url:
+        serial_result = generate_required_serial_capture_artifact(build.name)
+        builder_workbook_url = serial_result.get("template_file_url")
+        build.reload()
 
     balloon_report = generate_builder_balloon_callout_artifact(build.name)
     balloon_callout_report_url = balloon_report.get("file_url")
@@ -310,8 +317,10 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
         build=build,
         configuration_order=co,
         package_doc=package_doc,
+        hierarchy_workbook_url=hierarchy_workbook_url,
         flat_bom_file_url=flat_bom_file_url,
         balloon_callout_report_url=balloon_callout_report_url,
+        builder_workbook_url=builder_workbook_url,
         snapshot_name=snapshot_name,
         top_bom=top_bom,
     )
@@ -358,6 +367,7 @@ def generate_builder_release_bundle(build_name: str, package_name: str = None):
         "configuration_order": co.name,
         "bundle_file_url": saved.file_url,
         "package_name": package_doc.name if package_doc else None,
+        "hierarchy_workbook_url": hierarchy_workbook_url,
         "flat_bom_file_url": flat_bom_file_url,
         "balloon_callout_report_url": balloon_callout_report_url,
         "manifest": manifest_json,
@@ -400,7 +410,11 @@ def release_to_builder_now(build_name: str, package_name: str = None, note: str 
     serial_result = generate_required_serial_capture_artifact(build_name)
     
     # Now generate bundle (manifest will pick up the workbook URL from the build)
-    result = generate_builder_release_bundle(build_name=build_name, package_name=package_name)
+    result = generate_builder_release_bundle(
+        build_name=build_name,
+        package_name=package_name,
+        builder_workbook_url=serial_result.get("template_file_url"),
+    )
     
     build = frappe.get_doc("InductOne Build", build_name)
     
@@ -686,19 +700,24 @@ def close_build_from_as_built(build_name: str, note: str = None):
     return {"ok": True, "build": build.name}
 
 
-def _build_builder_release_manifest(build, configuration_order, package_doc, flat_bom_file_url, balloon_callout_report_url, snapshot_name, top_bom):
+def _build_builder_release_manifest(
+    build,
+    configuration_order,
+    package_doc,
+    hierarchy_workbook_url,
+    flat_bom_file_url,
+    balloon_callout_report_url,
+    builder_workbook_url,
+    snapshot_name,
+    top_bom,
+):
     """
     System-generated audit record of the release event.
     Pure identifiers, file paths, and timestamps. No prose, no instructions.
     The Configuration Order PDF and Builder Instructions print format
     cover the human-facing content — this manifest is machine evidence only.
     """
-    workbook_url = (
-        getattr(build, "required_serial_capture_file", None)
-        or getattr(build, "builder_serial_template", None)
-        or getattr(build, "serial_capture_template_file", None)
-        or ""
-    )
+    workbook_url = builder_workbook_url or _resolve_builder_workbook_url(build, configuration_order)
 
     manifest_json = {
         "build": build.name,
@@ -707,6 +726,7 @@ def _build_builder_release_manifest(build, configuration_order, package_doc, fla
         "top_bom": top_bom,
         "bom_export_package": package_doc.name if package_doc else None,
         "bom_export_zip": getattr(package_doc, "output_zip", None) if package_doc else None,
+        "hierarchy_workbook_url": hierarchy_workbook_url,
         "flat_bom_file_url": flat_bom_file_url,
         "balloon_callout_report_url": balloon_callout_report_url,
         "builder_workbook_url": workbook_url,
@@ -730,6 +750,7 @@ def _build_builder_release_manifest(build, configuration_order, package_doc, fla
         "ARTIFACTS RELEASED",
         "-" * 60,
         f"BOM Export ZIP:       {getattr(package_doc, 'output_zip', '') if package_doc else ''}",
+        f"Hierarchy Workbook:   {hierarchy_workbook_url or ''}",
         f"Flat BOM CSV:         {flat_bom_file_url or ''}",
         f"Balloon Callouts:     {balloon_callout_report_url or ''}",
         f"Builder Workbook:     {workbook_url}",
@@ -978,6 +999,96 @@ def _resolve_flat_bom_file_url(build, configuration_order):
             return getattr(row, "file_url", None) or getattr(row, "file", None)
 
     return None
+
+
+def _resolve_hierarchy_workbook_url(configuration_order, snapshot_name):
+    if not snapshot_name:
+        return None
+
+    for row in (getattr(configuration_order, "documents", None) or []):
+        title = (getattr(row, "doc_title", "") or "").lower()
+        source_name = (getattr(row, "source_name", "") or "")
+        if "configured bom hierarchy" in title and (not source_name or source_name == snapshot_name):
+            return getattr(row, "file_url", None) or getattr(row, "file", None)
+
+    files = frappe.get_all(
+        "File",
+        filters={
+            "attached_to_doctype": "Configured BOM Snapshot",
+            "attached_to_name": snapshot_name,
+        },
+        fields=["file_name", "file_url", "creation"],
+        order_by="creation desc",
+        limit_page_length=50,
+    )
+    for file_row in files:
+        file_name = (file_row.get("file_name") or "").lower()
+        file_url = (file_row.get("file_url") or "").lower()
+        if "configured_bom_hierarchy" in file_name or "configured bom hierarchy" in file_name or "configured_bom_hierarchy" in file_url:
+            return file_row.get("file_url")
+
+    return None
+
+
+def _ensure_hierarchy_workbook_url(snapshot_name, configuration_order_name):
+    """
+    Ensure the released Configuration Order document index contains the
+    hierarchy workbook and return its file URL before the release manifest is
+    written.
+    """
+    co = frappe.get_doc("InductOne Configuration Order", configuration_order_name)
+    existing = _resolve_hierarchy_workbook_url(co, snapshot_name)
+    if existing:
+        from inductone_tools.snapshot.hierarchy import sync_hierarchy_workbook_to_configuration_order
+
+        sync_hierarchy_workbook_to_configuration_order(snapshot_name, configuration_order_name)
+        return existing
+
+    from inductone_tools.snapshot.hierarchy import generate_hierarchy_workbook
+
+    result = generate_hierarchy_workbook(snapshot_name)
+    file_url = result.get("file_url") if isinstance(result, dict) else None
+    if not file_url:
+        frappe.throw(f"Could not generate Configured BOM Hierarchy workbook for snapshot {snapshot_name}.")
+    return file_url
+
+
+def _ensure_flat_bom_file_url(build, configuration_order):
+    """
+    The flat BOM is normally queued when the Configuration Order is inserted.
+    Release must not race that background job, so generate/reconcile it
+    synchronously if the document index does not yet expose a file URL.
+    """
+    existing = _resolve_flat_bom_file_url(build, configuration_order)
+    if existing:
+        return existing
+
+    from inductone_tools.inductone_tools.configured_bom.flat_bom import build_and_attach_flat_bom_for_config_order
+
+    build_and_attach_flat_bom_for_config_order(configuration_order.name)
+    configuration_order.reload()
+    file_url = _resolve_flat_bom_file_url(build, configuration_order)
+    if not file_url:
+        frappe.throw(f"Could not generate Flat BOM CSV for Configuration Order {configuration_order.name}.")
+    return file_url
+
+
+def _resolve_builder_workbook_url(build, configuration_order):
+    direct = (
+        getattr(build, "required_serial_capture_file", None)
+        or getattr(build, "builder_serial_template", None)
+        or getattr(build, "serial_capture_template_file", None)
+        or ""
+    )
+    if direct:
+        return direct
+
+    for row in (getattr(configuration_order, "documents", None) or []):
+        title = (getattr(row, "doc_title", "") or "").lower()
+        if "builder serial capture workbook" in title or "builder workbook" in title:
+            return getattr(row, "file_url", None) or getattr(row, "file", None) or ""
+
+    return ""
 
 
 def _get_configured_rows_for_build(build_doc):

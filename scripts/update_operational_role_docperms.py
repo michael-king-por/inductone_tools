@@ -242,7 +242,7 @@ TRANSACTION_ROLE_DEPENDENCIES = {
     "Operations Manager": {
         "transaction": ["Serial and Batch Bundle"],
         "maintain": ["Batch", "Serial No"],
-        "read": ["Company", "Currency", "Fiscal Year", "Territory"],
+        "read": ["Company", "Currency", "Fiscal Year", "Territory", "Account"],
     },
     "Inventory Operator": {
         "transaction": ["Serial and Batch Bundle"],

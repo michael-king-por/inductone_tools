@@ -1,0 +1,92 @@
+[
+  {
+    "docstatus": 0,
+    "doctype": "Custom HTML Block",
+    "html": "<div class=\"por-hero\"><div class=\"por-logo\"><img src=\"/files/plusone-icon-72.png\" alt=\"Plus One Robotics\"/></div><div><div class=\"por-title\">Builder Portal</div><div class=\"por-subtitle\">Your assigned InductOne release packages and completion uploads</div></div><div class=\"por-pill\">External builder</div></div>",
+    "name": "Builder Banner",
+    "private": 0,
+    "script": "",
+    "style": ".por-hero{font-family:Arial,sans-serif;background:#1794CE;padding:16px 22px;display:flex;align-items:center;gap:14px;border-radius:10px;margin-bottom:14px;color:#fff}.por-logo{width:42px;height:42px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;padding:5px}.por-logo img{width:100%;height:100%;object-fit:contain}.por-title{font-size:18px;font-weight:800;line-height:1.2}.por-subtitle{font-size:12px;color:#D6ECF7;margin-top:3px}.por-pill{margin-left:auto;font-size:11px;color:#D6ECF7;border:1px solid #5BB6E0;border-radius:999px;padding:4px 10px;white-space:nowrap}"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Custom HTML Block",
+    "html": "<div class=\"por-builder-guidance\"><div class=\"por-eyebrow\">What you need to do</div><div class=\"por-cards\"><div><strong>1. Download the release package</strong><span>Open the released Configuration Order, use its document index, and build only from the released files sent to your supplier account.</span></div><div><strong>2. Complete the build workbook</strong><span>Fill in the builder serial workbook and attach the completed workbook to a Build Completion record.</span></div><div><strong>3. Watch review status</strong><span>If Plus One rejects the completion, read the review notes, correct the workbook, and resubmit a new Build Completion.</span></div></div></div><div data-por-builder-guidance hidden></div>",
+    "name": "Builder Guidance Panel",
+    "private": 0,
+    "script": "frappe.after_ajax(function(){ if (window.inductoneGuidance) { window.inductoneGuidance.renderBuilderPortal(root_element.querySelector('[data-por-builder-guidance]')); } });",
+    "style": ".por-builder-guidance{font-family:Arial,sans-serif;border:1px solid #EAECF0;border-radius:10px;background:#FFFFFF;padding:14px;margin-bottom:12px}.por-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#667085;font-weight:800;margin-bottom:10px}.por-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.por-cards div{border:1px solid #EAECF0;border-radius:8px;background:#F9FAFB;padding:12px}.por-cards strong{display:block;font-size:13px;color:#101828;margin-bottom:5px}.por-cards span{display:block;font-size:12px;color:#475467;line-height:1.45}"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Custom HTML Block",
+    "html": "<div class=\"por-help\"><strong>Need help?</strong> For build questions, contact your Plus One Operations point of contact. For portal issues, email <a href=\"mailto:ops@plusonerobotics.com\">ops@plusonerobotics.com</a> and include the Build or Configuration Order number.</div>",
+    "name": "Help and contact",
+    "private": 0,
+    "script": "",
+    "style": ".por-help{font-family:Arial,sans-serif;padding:14px 16px;background:#F9FAFB;border:1px solid #EAECF0;border-radius:8px;margin-top:12px;font-size:13px;color:#475467;line-height:1.55}.por-help strong{color:#101828}.por-help a{color:#1794CE;font-weight:700;text-decoration:none}"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Custom HTML Block",
+    "html": "<div class=\"por-hero\"><div class=\"por-logo\"><img src=\"/files/plusone-icon-72.png\" alt=\"Plus One Robotics\"/></div><div><div class=\"por-title\">Operations Hub</div><div class=\"por-subtitle\">InductOne Builds, Configuration Orders, release packages, and completion review</div></div><div class=\"por-pill\">Operations</div></div>",
+    "name": "Operations Banner",
+    "private": 0,
+    "script": "",
+    "style": ".por-hero{font-family:Arial,sans-serif;background:#1794CE;padding:16px 22px;display:flex;align-items:center;gap:14px;border-radius:10px;margin-bottom:14px;color:#fff}.por-logo{width:42px;height:42px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;padding:5px}.por-logo img{width:100%;height:100%;object-fit:contain}.por-title{font-size:18px;font-weight:800;line-height:1.2}.por-subtitle{font-size:12px;color:#D6ECF7;margin-top:3px}.por-pill{margin-left:auto;font-size:11px;color:#D6ECF7;border:1px solid #5BB6E0;border-radius:999px;padding:4px 10px;white-space:nowrap}"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Custom HTML Block",
+    "html": "<div class=\"por-guidance-static\"><div class=\"por-eyebrow\">How to run a Build</div><div class=\"por-cards\"><div><strong>1. Configure</strong><span>Load released Configuration Options, select the required groups, and generate the Configured BOM Snapshot.</span></div><div><strong>2. Prepare handoff</strong><span>Create the Configuration Order, generate the release package, allocate the IND serial, and release to the builder.</span></div><div><strong>3. Review completion</strong><span>Review the returned Build Completion workbook, then accept it to create the As-Built Record and Instance.</span></div></div></div>",
+    "name": "Operations Guidance Panel",
+    "private": 0,
+    "script": "",
+    "style": ".por-guidance-static{font-family:Arial,sans-serif;border:1px solid #EAECF0;border-radius:10px;background:#FFFFFF;padding:14px;margin-bottom:12px}.por-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#667085;font-weight:800;margin-bottom:10px}.por-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.por-cards div{border:1px solid #EAECF0;border-radius:8px;background:#F9FAFB;padding:12px}.por-cards strong{display:block;font-size:13px;color:#101828;margin-bottom:5px}.por-cards span{display:block;font-size:12px;color:#475467;line-height:1.45}"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Custom HTML Block",
+    "html": "<div class=\"por-hero\"><div class=\"por-logo\"><img src=\"/files/plusone-icon-72.png\" alt=\"Plus One Robotics\"/></div><div><div class=\"por-title\">Engineering Portal</div><div class=\"por-subtitle\">Engineering Signoff, part numbers, Items, BOMs, and Configuration Options</div></div><div class=\"por-pill\">Engineering</div></div>",
+    "name": "Engineering Banner",
+    "private": 0,
+    "script": "",
+    "style": ".por-hero{font-family:Arial,sans-serif;background:#1794CE;padding:16px 22px;display:flex;align-items:center;gap:14px;border-radius:10px;margin-bottom:14px;color:#fff}.por-logo{width:42px;height:42px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;padding:5px}.por-logo img{width:100%;height:100%;object-fit:contain}.por-title{font-size:18px;font-weight:800;line-height:1.2}.por-subtitle{font-size:12px;color:#D6ECF7;margin-top:3px}.por-pill{margin-left:auto;font-size:11px;color:#D6ECF7;border:1px solid #5BB6E0;border-radius:999px;padding:4px 10px;white-space:nowrap}"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Custom HTML Block",
+    "html": "<div class=\"por-info\">This portal is the engineering control surface for signoffs and released Configuration Options. Draft options are ideation only. Released options are build-usable. Deprecated options remain for audit history.</div>",
+    "name": "Engineering Banner Info",
+    "private": 0,
+    "script": "",
+    "style": ".por-info{font-family:Arial,sans-serif;padding:14px 16px;background:#F9FAFB;border:1px solid #EAECF0;border-radius:8px;margin-bottom:12px;font-size:13px;color:#475467;line-height:1.55}"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Custom HTML Block",
+    "html": "<div class=\"por-link-grid\"><a href=\"/app/engineering-signoff\">Engineering Signoffs <span>Open backlog</span></a><a href=\"/app/inductone-configuration-option\">Configuration Options <span>Review option catalog</span></a><a href=\"/app/part-number-assignment\">Part Number Assignments <span>Allocate controlled numbers</span></a><a href=\"/app/item\">Items <span>Read engineering source data</span></a><a href=\"/app/bom\">BOMs <span>Read released structures</span></a></div>",
+    "name": "Engineering Banner Workflows",
+    "private": 0,
+    "script": "",
+    "style": ".por-link-grid{font-family:Arial,sans-serif;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px}.por-link-grid a{display:block;text-decoration:none;border:1px solid #EAECF0;border-radius:8px;padding:12px;background:#FFFFFF;color:#101828;font-size:13px;font-weight:800}.por-link-grid span{display:block;margin-top:4px;color:#667085;font-size:12px;font-weight:400;line-height:1.35}.por-link-grid a:hover{border-color:#1794CE}"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Custom HTML Block",
+    "html": "<div class=\"por-info\">Use the owner handbook for lifecycle context. Wiki alignment is still a tracked follow-up; when in doubt, trust the in-app status guidance and server-side gates.</div>",
+    "name": "Engineering Banner Reference",
+    "private": 0,
+    "script": "",
+    "style": ".por-info{font-family:Arial,sans-serif;padding:14px 16px;background:#F9FAFB;border:1px solid #EAECF0;border-radius:8px;margin-bottom:12px;font-size:13px;color:#475467;line-height:1.55}"
+  },
+  {
+    "docstatus": 0,
+    "doctype": "Custom HTML Block",
+    "html": "<div class=\"por-help\"><strong>Need help?</strong> For process questions, contact the InductOne process owner. For ERPNext issues, include the record link and the action you were trying to take.</div>",
+    "name": "Engineering Banner Resources",
+    "private": 0,
+    "script": "",
+    "style": ".por-help{font-family:Arial,sans-serif;padding:14px 16px;background:#F9FAFB;border:1px solid #EAECF0;border-radius:8px;margin-top:12px;font-size:13px;color:#475467;line-height:1.55}.por-help strong{color:#101828}"
+  }
+]

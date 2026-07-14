@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="660" viewBox="0 0 1440 660" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 660" role="img" aria-labelledby="title desc">
   <title id="title">As-Built and Instance Lineage</title>
   <desc id="desc">Builder completion evidence is reviewed and accepted into a locked As-Built Record and an InductOne Instance with copied component serial rows.</desc>
   <defs>
@@ -31,15 +31,15 @@
   <text x="96" y="270" class="small">Pre-filled with IND serial.</text>
   <text x="96" y="294" class="mono">Builder input artifact</text>
 
-  <rect x="410" y="170" width="250" height="145" rx="22" class="card"/>
+  <rect x="410" y="170" width="230" height="145" rx="22" class="card"/>
   <text x="436" y="215" class="label">Build Completion</text>
   <text x="436" y="245" class="small">Workbook uploaded.</text>
   <text x="436" y="270" class="small">Serial rows parsed.</text>
   <text x="436" y="294" class="mono">Submitted → Reviewed</text>
 
-  <polygon points="790,160 930,242 790,324 650,242" class="gate"/>
-  <text x="790" y="232" class="label" text-anchor="middle">Ops review</text>
-  <text x="790" y="258" class="small" text-anchor="middle">serial rows required</text>
+  <polygon points="820,160 960,242 820,324 680,242" class="gate"/>
+  <text x="820" y="232" class="label" text-anchor="middle">Ops review</text>
+  <text x="820" y="258" class="small" text-anchor="middle">serial rows required</text>
 
   <rect x="1010" y="170" width="250" height="145" rx="22" class="artifact"/>
   <text x="1036" y="215" class="label">As-Built Record</text>
@@ -53,16 +53,17 @@
   <text x="1036" y="505" class="small">Carries component serials.</text>
   <text x="1036" y="529" class="mono">Ready for Ship → Installed</text>
 
-  <rect x="70" y="405" width="590" height="145" rx="22" fill="#e8f6ff" stroke="#b9dff2" filter="url(#shadow)"/>
+  <rect x="70" y="405" width="720" height="145" rx="22" fill="#e8f6ff" stroke="#b9dff2" filter="url(#shadow)"/>
   <text x="96" y="450" class="label">Audit fields that must survive</text>
-  <text x="96" y="480" class="small">Build, Configuration Order, Snapshot, BOM Export Package, Build Completion, As-Built, Instance.</text>
-  <text x="96" y="505" class="small">Component serial rows are copied to the Instance so support does not depend on reopening the completion workbook.</text>
-  <text x="96" y="529" class="mono">Validation: lifecycle smoke + serial-copy assertion</text>
+  <text x="96" y="480" class="small">Build, Configuration Order, Snapshot, BOM Export Package,</text>
+  <text x="96" y="505" class="small">Build Completion, As-Built Record, and InductOne Instance.</text>
+  <text x="96" y="529" class="small">Component serial rows are copied to the Instance for support traceability.</text>
+  <text x="96" y="552" class="mono">Validation: lifecycle smoke + serial-copy assertion</text>
 
   <path class="arrow" d="M320 242 C355 242 375 242 410 242"/>
-  <path class="arrow" d="M660 242 C690 242 710 242 650 242"/>
-  <path class="arrow" d="M930 242 C965 242 975 242 1010 242"/>
+  <path class="arrow" d="M640 242 L672 242"/>
+  <path class="arrow" d="M960 242 L1004 242"/>
   <path class="arrow" d="M1135 315 L1135 405"/>
-  <path class="rail" d="M660 478 C765 478 875 478 1010 478"/>
-  <text x="835" y="462" class="small" text-anchor="middle">component serial rows copied</text>
+  <path class="rail" d="M790 478 C875 478 930 478 1010 478"/>
+  <text x="900" y="462" class="small" text-anchor="middle">component serial rows copied</text>
 </svg>

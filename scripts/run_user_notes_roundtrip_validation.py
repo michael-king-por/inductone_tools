@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Candidate-only round-trip validation for BOM Item per-line User Notes."""
+"""Candidate-only round-trip validation for BOM Item per-line User Notes.
+
+Validation snapshots are generated on scratch builds only; a real Build's
+snapshot history is a clean audit trail.
+"""
 
 from __future__ import annotations
 
@@ -48,6 +52,23 @@ def find_validation_context():
             leaf_codes = sorted({r["item_code"] for r in rows if r.get("is_leaf") and r.get("item_code")})
             return build, rows, target, leaf_codes
     raise RuntimeError("No explodable BOM Item rows found under available InductOne Builds.")
+
+
+def create_scratch_build(source_build):
+    name = f"{source_build.name}-USER-NOTES-SCRATCH-{int(time.time())}"
+    doc = frappe.new_doc("InductOne Build")
+    doc.name = name
+    doc.sales_order = source_build.sales_order
+    doc.top_item = source_build.top_item
+    doc.top_bom = source_build.top_bom
+    doc.builder_supplier = source_build.builder_supplier
+    doc.customer_project_label = f"User notes round-trip scratch cloned from {source_build.name}"
+    doc.builder_po_reference = "User notes validation scratch"
+    doc.build_status = "DRAFT"
+    doc.completion_status = "Open"
+    doc.insert(ignore_permissions=True, ignore_mandatory=True)
+    frappe.db.commit()
+    return doc
 
 
 def create_snapshot(build, leaf_codes):
@@ -161,12 +182,16 @@ def main() -> int:
     results = []
     created_snapshot = None
     created_package = None
+    created_scratch_build = None
     original_values = {}
     note = f"USER NOTES ROUNDTRIP {int(time.time())}"
     note_changed = f"{note} CHANGED"
 
     try:
-        build, baseline_rows, target, leaf_codes = find_validation_context()
+        source_build, baseline_rows, target, leaf_codes = find_validation_context()
+        build = create_scratch_build(source_build)
+        created_scratch_build = build.name
+        record(results, "scratch_build_created_for_validation_snapshot", created_scratch_build != source_build.name, source_build=source_build.name, scratch_build=created_scratch_build)
         source_bom_item = target["source_bom_item"]
         original_doc = frappe.get_doc("BOM Item", source_bom_item)
         original_values = {
@@ -236,6 +261,8 @@ def main() -> int:
             frappe.db.delete("Configured BOM Snapshot Hierarchy", {"parent": created_snapshot})
             frappe.db.delete("Configured BOM Snapshot Item", {"parent": created_snapshot})
             frappe.db.delete("Configured BOM Snapshot", {"name": created_snapshot})
+        if created_scratch_build:
+            frappe.db.delete("InductOne Build", {"name": created_scratch_build})
         frappe.db.commit()
         frappe.destroy()
 

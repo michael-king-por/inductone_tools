@@ -39,8 +39,9 @@
   <rect x="50" y="118" width="258" height="58" rx="18" fill="url(#blue)"/>
   <text x="74" y="153" class="h white">Controlled source layer</text>
   <text x="74" y="205" class="tiny">PLAN / POLICY</text>
-  <text x="74" y="229" class="small">OPS-CSA-PLN-001</text>
-  <text x="74" y="248" class="small">OPS-SER-POL-001</text>
+  <text x="74" y="229" class="small">OPS-CSA-OVW-01 (orientation)</text>
+  <text x="74" y="248" class="small">OPS-CSA-PLN-001</text>
+  <text x="74" y="267" class="small">OPS-SER-POL-001</text>
   <text x="74" y="285" class="tiny">PROCEDURES</text>
   <text x="74" y="309" class="small">Configuration model</text>
   <text x="74" y="328" class="small">Deviation / waiver</text>
@@ -88,15 +89,13 @@
 
   <path d="M590 201 H640" class="line"/>
   <path d="M860 201 H914" class="line"/>
-  <path d="M1050 244 V318" class="line"/>
-  <path d="M925 380 H910" class="line"/>
-  <path d="M690 380 H630" class="line"/>
-  <path d="M515 332 V258 H650" class="dash"/>
-  <path d="M795 428 V514 H475 V244" class="dash"/>
-
+  <path d="M1050 244 V288 H515 V326" class="line"/>
+  <path d="M900 380 H955" class="line"/>
+  <path d="M620 380 H680" class="line"/>
   <rect x="410" y="494" width="765" height="76" rx="14" fill="#ECFDF3" stroke="#ABEFC6" stroke-width="1.5"/>
   <text x="432" y="524" class="h">Audit loop</text>
-  <text x="432" y="548" class="small">Quarterly CSA audit compares physical labels and returned builder evidence to ERPNext CSA records. Mismatches become data corrections, FCOs, or Engineering Change actions.</text>
+  <text x="432" y="548" class="small">Quarterly CSA audit compares physical labels and returned builder evidence to ERPNext CSA records.</text>
+  <text x="432" y="565" class="small">Mismatches become data corrections, FCOs, or Engineering Change actions.</text>
 
   <path d="M308 360 H370" class="line"/>
   <text x="326" y="344" class="tiny">GOVERNS</text>

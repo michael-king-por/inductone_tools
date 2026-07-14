@@ -12,10 +12,10 @@ machinery:
 * XLSX output is produced by the existing Snapshot Diff report machinery; and
 * oracle checks come from ``inductone_tools.balloon_scoped_options``.
 
-Production caveat: running this tool against a real site creates real
-``Configured BOM Snapshot`` records attached to the requested build. For the
-engineering deliverable, the owner must decide whether to run against the real
-sales-order build or a scratch/throwaway build.
+Snapshot policy: validation and testing run against a scratch build cloned from
+the requested source build. A real Build's snapshot history is a clean audit
+trail. Passing ``--use-requested-build`` is an explicit owner override for a
+governed production deliverable run.
 """
 
 from __future__ import annotations
@@ -134,6 +134,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--build", default=DEFAULT_BUILD)
     parser.add_argument("--top-bom", default=DEFAULT_TOP_BOM)
     parser.add_argument(
+        "--use-requested-build",
+        action="store_true",
+        help=(
+            "Attach generated snapshots directly to --build. This is an explicit "
+            "owner override for governed deliverables; validation defaults to a "
+            "scratch build cloned from --build."
+        ),
+    )
+    parser.add_argument(
         "--deviation-spec",
         type=Path,
         help=(
@@ -175,11 +184,12 @@ def main() -> int:
         "build": args.build,
         "top_bom_expected": args.top_bom,
         "generated_at_utc": timestamp,
-        "production_caveat": (
-            "Running this tool creates real Configured BOM Snapshot records attached "
-            "to the requested build. Confirm whether the production deliverable should "
-            "run on the real sales-order build or a scratch build."
+        "snapshot_policy": (
+            "Validation snapshots are generated on scratch builds only; a real "
+            "Build's snapshot history is a clean audit trail."
         ),
+        "source_build": args.build,
+        "use_requested_build": bool(args.use_requested_build),
         "baseline": {},
         "deviations": [],
         "outputs": {
@@ -211,14 +221,18 @@ def main() -> int:
             write_outputs(payload, summary_path, manifest_path)
             return 1
 
-        build = frappe.get_doc("InductOne Build", args.build)
-        if (build.top_bom or "") != args.top_bom:
+        source_build = frappe.get_doc("InductOne Build", args.build)
+        if (source_build.top_bom or "") != args.top_bom:
             failures.append("top_bom_mismatch")
-            payload["top_bom_actual"] = build.top_bom
+            payload["top_bom_actual"] = source_build.top_bom
             payload["failures"] = failures
             write_outputs(payload, summary_path, manifest_path)
-            print("FAIL top BOM mismatch", {"expected": args.top_bom, "actual": build.top_bom}, flush=True)
+            print("FAIL top BOM mismatch", {"expected": args.top_bom, "actual": source_build.top_bom}, flush=True)
             return 1
+
+        build = source_build if args.use_requested_build else create_scratch_build(frappe, source_build, timestamp)
+        payload["build"] = build.name
+        payload["scratch_build_created"] = build.name != source_build.name
 
         stable_codes = resolve_option_codes(frappe, DEFAULT_STABLE_OPTION_CODES)
         deviations = load_deviation_spec(args.deviation_spec)
@@ -444,6 +458,35 @@ def load_site_catalog_specs(frappe, selected_codes: list[str]) -> list[dict]:
     return specs
 
 
+def create_scratch_build(frappe, source_build, timestamp: str):
+    """Clone the source build enough for validation snapshot generation.
+
+    The source build remains the traceable production/customer record. The
+    generated Configured BOM Snapshots attach to this scratch build so test
+    evidence cannot pollute the source build's snapshot history.
+    """
+
+    name = f"{source_build.name}-DIFF-SCRATCH-{timestamp}"
+    doc = frappe.new_doc("InductOne Build")
+    doc.name = name
+    doc.sales_order = source_build.sales_order
+    doc.sales_order_item_idx = source_build.sales_order_item_idx
+    doc.sales_order_item_row_name = getattr(source_build, "sales_order_item_row_name", None)
+    doc.customer_project_label = f"Per-option snapshot diff scratch cloned from {source_build.name}"
+    doc.top_item = source_build.top_item
+    doc.top_bom = source_build.top_bom
+    doc.orientation = source_build.orientation or "Right-Hand"
+    doc.builder_supplier = source_build.builder_supplier
+    doc.builder_poc = getattr(source_build, "builder_poc", None)
+    doc.builder_site = getattr(source_build, "builder_site", None)
+    doc.builder_po_reference = "Per-option snapshot diff scratch"
+    doc.build_status = "DRAFT"
+    doc.completion_status = "Open"
+    doc.insert(ignore_permissions=True, ignore_mandatory=True)
+    frappe.db.commit()
+    return doc
+
+
 def generate_snapshot(
     frappe,
     build,
@@ -588,7 +631,7 @@ def render_manifest(payload: dict) -> str:
         f"- Generated UTC: `{payload.get('generated_at_utc')}`",
         f"- Baseline snapshot: `{(payload.get('baseline') or {}).get('snapshot')}`",
         "",
-        "Production caveat: running this tool creates real Configured BOM Snapshot records attached to the requested build. Confirm whether to run on the real build or a scratch build.",
+        "Snapshot policy: validation snapshots are generated on scratch builds only; a real Build's snapshot history is a clean audit trail.",
         "",
         "## Reports",
         "",

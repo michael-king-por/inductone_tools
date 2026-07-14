@@ -1,0 +1,57 @@
+[
+  {
+    "allow_roles": [
+      {
+        "doctype": "Onboarding Permission",
+        "idx": 1,
+        "parent": "InductOne External Builder Onboarding",
+        "parentfield": "allow_roles",
+        "parenttype": "Module Onboarding",
+        "role": "InductOne External Builder"
+      }
+    ],
+    "docstatus": 0,
+    "doctype": "Module Onboarding",
+    "documentation_url": "/app/builder-portal",
+    "is_complete": 0,
+    "module": "Core",
+    "name": "InductOne External Builder Onboarding",
+    "steps": [
+      {
+        "doctype": "Onboarding Step Map",
+        "idx": 1,
+        "parent": "InductOne External Builder Onboarding",
+        "parentfield": "steps",
+        "parenttype": "Module Onboarding",
+        "step": "Receive an InductOne Build"
+      },
+      {
+        "doctype": "Onboarding Step Map",
+        "idx": 2,
+        "parent": "InductOne External Builder Onboarding",
+        "parentfield": "steps",
+        "parenttype": "Module Onboarding",
+        "step": "Download the release package"
+      },
+      {
+        "doctype": "Onboarding Step Map",
+        "idx": 3,
+        "parent": "InductOne External Builder Onboarding",
+        "parentfield": "steps",
+        "parenttype": "Module Onboarding",
+        "step": "Upload the builder serial workbook"
+      },
+      {
+        "doctype": "Onboarding Step Map",
+        "idx": 4,
+        "parent": "InductOne External Builder Onboarding",
+        "parentfield": "steps",
+        "parenttype": "Module Onboarding",
+        "step": "Respond to a rejected Build Completion"
+      }
+    ],
+    "subtitle": "Receive a released Build, download the package, return the workbook, and respond to review notes.",
+    "success_message": "Builder Portal onboarding is complete.",
+    "title": "InductOne External Builder Onboarding"
+  }
+]

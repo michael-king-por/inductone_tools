@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="620" viewBox="0 0 1440 620" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 620" role="img" aria-labelledby="title desc">
   <title id="title">Configuration Option Status and Signoff Gate</title>
   <desc id="desc">Draft configuration options are editable but not build-usable. Engineering Signoff approval is the only path to Released. Released and Deprecated options are locked.</desc>
   <defs>
@@ -17,8 +17,9 @@
       .small { font-family:"Segoe UI",Arial,sans-serif; font-size:14px; fill:#52616b; }
       .mono { font-family:"Cascadia Mono","Consolas",monospace; font-size:12px; fill:#52616b; }
       .pill { font-family:"Segoe UI",Arial,sans-serif; font-size:12px; font-weight:700; fill:#fff; }
-      .arrow { fill:none; stroke:#3c4447; stroke-width:3; marker-end:url(#arrow); }
+    .arrow { fill:none; stroke:#3c4447; stroke-width:3; marker-end:url(#arrow); }
       .blocked { fill:none; stroke:#c73552; stroke-width:3; stroke-dasharray:8 8; }
+      .blocked-text { font-family:"Segoe UI",Arial,sans-serif; font-size:13px; font-weight:700; fill:#c73552; }
     </style>
   </defs>
   <rect class="bg" width="1440" height="620"/>
@@ -61,7 +62,10 @@
   <path class="arrow" d="M730 250 C765 250 785 250 820 250"/>
   <path class="arrow" d="M1090 250 C1125 250 1145 250 1180 250"/>
 
-  <path class="blocked" d="M205 370 C350 445 725 445 955 370"/>
+  <path class="blocked" d="M205 368 C350 430 725 430 955 368"/>
+  <circle cx="580" cy="427" r="17" fill="#fff" stroke="#c73552" stroke-width="3"/>
+  <path d="M570 417 L590 437 M590 417 L570 437" stroke="#c73552" stroke-width="4" stroke-linecap="round"/>
+  <text x="580" y="405" class="blocked-text" text-anchor="middle">blocked bypass</text>
   <text x="580" y="470" class="label" text-anchor="middle" fill="#c73552">Manual Draft → Released save is blocked</text>
   <text x="580" y="496" class="small" text-anchor="middle">Only the Engineering Signoff approval method can perform the release transition.</text>
 

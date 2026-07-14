@@ -27,6 +27,13 @@ INTERNAL_ROLES = {
     "InductOne Process Architect",
 }
 
+EXTERNAL_BUILDER_ROLE = "InductOne External Builder"
+EXTERNAL_BUILDER_USERS = [
+    "motion.builder@plusonerobotics.com",
+    "lam@plusonerobotics.com",
+]
+ONLY_EXTERNAL_BUILDER_WORKSPACE = "Builder Portal"
+
 
 def _timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -50,12 +57,20 @@ def run(site: str, sites_path: str, evidence_dir: str) -> int:
         ):
             doc = frappe.get_doc("Workspace", row.name)
             roles = _child_roles(doc)
+            roles_set = set(roles)
             workspaces.append(
                 {
                     **dict(row),
                     "roles": roles,
                     "visible_to_any_internal_role": not roles or bool(set(roles) & INTERNAL_ROLES),
-                    "orphaned_from_internal_roles": bool(roles) and not bool(set(roles) & INTERNAL_ROLES) and not row.get("is_hidden"),
+                    "orphaned_from_internal_roles": (
+                        bool(roles)
+                        and not bool(set(roles) & INTERNAL_ROLES)
+                        and not row.get("is_hidden")
+                        and row.name != ONLY_EXTERNAL_BUILDER_WORKSPACE
+                    ),
+                    "visible_to_external_builder_role": not row.get("is_hidden")
+                    and (not roles or EXTERNAL_BUILDER_ROLE in roles_set),
                 }
             )
 
@@ -88,6 +103,29 @@ def run(site: str, sites_path: str, evidence_dir: str) -> int:
             if row["orphaned_from_internal_roles"]
         ]
 
+        external_builder_workspace_leaks = [
+            row
+            for row in workspaces
+            if row["visible_to_external_builder_role"]
+            and row["name"] != ONLY_EXTERNAL_BUILDER_WORKSPACE
+        ]
+
+        external_builder_visibility_by_user: dict[str, Any] = {}
+        for user in EXTERNAL_BUILDER_USERS:
+            roles = set(frappe.get_roles(user)) if frappe.db.exists("User", user) else set()
+            visible = []
+            for row in workspaces:
+                if row.get("is_hidden"):
+                    continue
+                row_roles = set(row.get("roles") or [])
+                if not row_roles or row_roles & roles:
+                    visible.append(row["name"])
+            external_builder_visibility_by_user[user] = {
+                "roles": sorted(roles),
+                "visible_workspaces": sorted(visible),
+                "passes_builder_portal_only": sorted(visible) == [ONLY_EXTERNAL_BUILDER_WORKSPACE],
+            }
+
         payload = {
             "site": site,
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
@@ -96,10 +134,13 @@ def run(site: str, sites_path: str, evidence_dir: str) -> int:
                 "workspaces": len(workspaces),
                 "dashboards": len(dashboards),
                 "orphaned_from_internal_roles": len(orphaned),
+                "external_builder_workspace_leaks": len(external_builder_workspace_leaks),
             },
             "workspaces": workspaces,
             "dashboards": dashboards,
             "orphaned": orphaned,
+            "external_builder_workspace_leaks": external_builder_workspace_leaks,
+            "external_builder_visibility_by_user": external_builder_visibility_by_user,
         }
     finally:
         frappe.destroy()
@@ -112,10 +153,13 @@ def run(site: str, sites_path: str, evidence_dir: str) -> int:
         f"workspaces={payload['summary']['workspaces']} "
         f"dashboards={payload['summary']['dashboards']} "
         f"orphaned={payload['summary']['orphaned_from_internal_roles']} "
+        f"external_builder_leaks={payload['summary']['external_builder_workspace_leaks']} "
         f"evidence={evidence_path}"
     )
     for row in orphaned:
         print(f"ORPHAN {row['type']} {row['name']} roles={row.get('roles')}")
+    for row in payload["external_builder_workspace_leaks"]:
+        print(f"EXTERNAL_BUILDER_LEAK Workspace {row['name']} roles={row.get('roles')}")
     return 0
 
 

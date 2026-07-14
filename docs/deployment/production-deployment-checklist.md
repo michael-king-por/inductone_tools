@@ -377,9 +377,11 @@ All items in this phase must be true before touching production.
    - `Executing inductone_tools.patches.v2026_07_08_configuration_option_status_model_cleanup` appears during patch execution if the configuration option status cleanup patch has not previously run.
    - `Executing inductone_tools.patches.v2026_07_10_builder_portal_workspace_cleanup` appears during patch execution if the builder-portal cleanup patch has not previously run.
    - `Executing inductone_tools.patches.v2026_07_13_wiki_csa_space_links` appears during patch execution if the CSA Wiki Space link patch has not previously run.
+   - `Executing inductone_tools.patches.v2026_07_13_external_builder_workspace_isolation` appears during patch execution if the external-builder workspace isolation patch has not previously run.
+   - `Executing inductone_tools.patches.v2026_07_14_operations_manager_account_read` appears during patch execution if the Operations Manager Account read/select hotfix has not previously run.
    - Fixtures import cleanly, including the BOM Item `User Notes` Custom Field and the app-owned `user_notes` DocFields on `Configured BOM Snapshot Hierarchy` and `BOM Export Package Item`.
    - Fixtures import the app-owned `Electrical Balloon Callouts` Report record.
-   - Fixtures import the filtered Workspace records for `Operations`, `Engineering`, and `Builder Portal`.
+   - Fixtures import the filtered Workspace records for `Operations`, `Engineering`, `Builder Portal`, and the standard public workspaces intentionally role-restricted away from external builders: `Financial Reports`, `Home`, `Manufacturing`, `Payables`, `Receivables`, `Selling`, `Stock`, and `Welcome Workspace`.
    - If the patch already appears in Patch Log, migrate should still complete cleanly.
 
 2. [ ] Confirm the patch is in Patch Log.
@@ -398,6 +400,8 @@ All items in this phase must be true before touching production.
    bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_08_configuration_option_status_model_cleanup%';"
    bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_10_builder_portal_workspace_cleanup%';"
    bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_13_wiki_csa_space_links%';"
+   bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_13_external_builder_workspace_isolation%';"
+   bench --site "$PROD_SITE" mariadb -e "select patch from \`tabPatch Log\` where patch like '%v2026_07_14_operations_manager_account_read%';"
    ```
 
    Expected output:
@@ -413,6 +417,8 @@ All items in this phase must be true before touching production.
    inductone_tools.patches.v2026_07_08_configuration_option_status_model_cleanup
    inductone_tools.patches.v2026_07_10_builder_portal_workspace_cleanup
    inductone_tools.patches.v2026_07_13_wiki_csa_space_links
+   inductone_tools.patches.v2026_07_13_external_builder_workspace_isolation
+   inductone_tools.patches.v2026_07_14_operations_manager_account_read
    ```
 
    Go/no-go:

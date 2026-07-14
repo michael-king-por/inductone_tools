@@ -16,7 +16,19 @@ import frappe
 
 SPACE_ROUTE = "plus-one-ops-manual"
 
-CSA_PAGES = [
+MANAGED_WIKI_PAGES = [
+    {
+        "wiki_page": "9n8bvqedso",
+        "parent_label": "Engineering",
+    },
+    {
+        "wiki_page": "d0v7dsi9lu",
+        "parent_label": "Engineering",
+    },
+    {
+        "wiki_page": "3hnmdg9m5q",
+        "parent_label": "InductOne",
+    },
     {
         "wiki_page": "inductone-csa-owner-handbook",
         "parent_label": "InductOne",
@@ -28,6 +40,42 @@ CSA_PAGES = [
     {
         "wiki_page": "inductone-csa-controlled-records-index",
         "parent_label": "InductOne",
+    },
+    {
+        "wiki_page": "3hmhgl7qdu",
+        "parent_label": "InductOne",
+    },
+    {
+        "wiki_page": "3hmdga44m5",
+        "parent_label": "InductOne",
+    },
+    {
+        "wiki_page": "3hmiq2lbi9",
+        "parent_label": "InductOne",
+    },
+    {
+        "wiki_page": "3hngf036ne",
+        "parent_label": "InductOne",
+    },
+    {
+        "wiki_page": "3hmtouafd5",
+        "parent_label": "InductOne",
+    },
+    {
+        "wiki_page": "82vdqj03n2",
+        "parent_label": "InductOne",
+    },
+    {
+        "wiki_page": "3hmbhanak2",
+        "parent_label": "InductOne",
+    },
+    {
+        "wiki_page": "eo88s4k9ui",
+        "parent_label": "Engineering",
+    },
+    {
+        "wiki_page": "3hmeksuks8",
+        "parent_label": "Engineering",
     },
 ]
 
@@ -48,7 +96,7 @@ def execute() -> None:
     existing_pages = {row.wiki_page for row in space.get("wiki_sidebars", []) if row.wiki_page}
     changed = False
 
-    for item in CSA_PAGES:
+    for item in MANAGED_WIKI_PAGES:
         wiki_page = item["wiki_page"]
         if wiki_page in existing_pages:
             continue

@@ -91,6 +91,7 @@ TRANSACTION_ROLE_DEPENDENCIES = {
         "Company": {"read": 1},
         "Currency": {"read": 1},
         "Fiscal Year": {"read": 1},
+        "Account": {"read": 1, "select": 1, "write": 0, "create": 0},
         "Stock Entry Type": {"read": 1},
         "Territory": {"read": 1},
     },

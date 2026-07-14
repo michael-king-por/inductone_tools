@@ -715,3 +715,39 @@ Sentinel confirmations:
 Each XLSX contains the Snapshot Diff report views (`Hierarchical` and `Flat Procurement`). Each JSON file contains the structured Snapshot Diff output, the report-view payloads, the balloon-keyed observed delta, and the oracle expected delta.
 
 Production-run note: this tool is safe to run read/write only on an approved target, but it does create real `Configured BOM Snapshot` records attached to the selected build. Before producing the final Engineering deliverable on production, the system owner must decide whether those real snapshot records are acceptable on `SAL-ORD-2026-00054-BLD-0225` or whether the production run should point the tool at a scratch/throwaway build instead.
+
+## Usability + guidance tranche
+
+Date: 2026-07-10
+
+This later tranche is not part of the balloon-scoped option engine itself, but it is part of making the completed InductOne workflow usable and handoff-ready.
+
+Implemented surfaces:
+
+- shared read-only guidance content in `inductone_tools/guidance.py`;
+- shared POR Desk renderer in `inductone_tools/public/js/guidance.js`;
+- Builder Portal guidance blocks in filtered `Custom HTML Block` fixtures;
+- Builder Portal workspace wiring in filtered `Workspace` fixture;
+- first-run external-builder onboarding in filtered `Module Onboarding` and `Onboarding Step` fixtures;
+- in-form guidance Client Scripts for Configuration Orders, Build Completions, Builds, Engineering Signoffs, and Configuration Options;
+- guidance-style Build Completion upload/lifecycle messages.
+
+Validation command:
+
+```bash
+env/bin/python apps/inductone_tools/scripts/run_usability_guidance_validation.py \
+  --site inductone-candidate.localhost \
+  --sites-path /home/michaelplusone/frappe-sandbox/benches/candidate-bench/sites \
+  --repo-root apps/inductone_tools \
+  --evidence-dir /mnt/c/hub/frappe-sandbox/validation-evidence
+```
+
+Candidate evidence:
+
+- `C:\hub\frappe-sandbox\validation-evidence\usability_guidance_validation_20260710T193730Z.json`
+
+Result: PASS, 15/15 checks.
+
+Notable builder-visibility assertion: external builders only see supplier-scoped Configuration Orders in `Released`, `Awaiting Completion`, `Closed`, or `Completed` status. Draft/test Configuration Orders are denied even by direct record access.
+
+Wiki status: not edited in this tranche. A Wiki audit-and-classify pass remains owed, and it must incorporate the InductOne CSA lifecycle as a first-class owner/operator reference.
