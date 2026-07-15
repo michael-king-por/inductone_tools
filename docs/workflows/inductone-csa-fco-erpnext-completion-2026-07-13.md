@@ -1,164 +1,95 @@
 # InductOne CSA/FCO/ERPNext completion report
 
-Date completed in candidate: 2026-07-14
+Date completed in candidate: 2026-07-15
 
-Branch: `integration/wiki-guidance-2026-07-13`
+Branch: `main`
 
 Candidate site: `inductone-candidate.localhost`
 
-This report covers the integrated branch carrying both the Wiki/usability guidance tranche and the InductOne as-installed / FCO / ERPNext build described in `docs/workflows/inductone-as-installed-fco-erpnext-build-2026-07-13.md`.
+This report covers completion of gaps G1-G5 from
+`docs/workflows/inductone-as-installed-fco-erpnext-build-2026-07-13.md`.
+It is candidate-only evidence. No production writes, pushes, or tags were performed.
 
-No production writes were performed.
+## Scope completed on 2026-07-15
 
-## Owner corrections encoded
-
-- Amazon POC unit is `IND-3001`, not `IND-2003`.
-- Candidate dependency `Customer: Amazon` was created as a minimal Customer record only: name `Amazon`, type `Company`, group `Commercial`, territory `United States`. No additional customer details were filled.
-- SATX location segmentation:
-  - `SATX` is the Site parent.
-  - `SATX-L-LAB` / `Lab` holds Amazon / outbound / transient units.
-  - `SATX-L-DISPLAY-TESTING` / `Display / Testing` holds POR internal reference units.
-  - `SATX-CEC` and `SATX-GU` are under Display / Testing.
-  - `SATX-AMZN` is under Lab.
+| Gap | Result | Evidence |
+|---|---|---|
+| G1 — Customer-rooted POR Physical Location tree | PASS. `POR Physical Location.location_type` supports `Customer`; Sites are parented under Customer nodes; full paths start with Customer. Candidate Customer roots are `DHL`, `Plus One Robotics`, and `UPS`, derived from existing seeded location-row customer values. | `C:\hub\frappe-sandbox\validation-evidence\fco_customer_tree_view_20260715.png`; `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
+| G2 — Field Change list readability | PASS. `InductOne Field Change` and `InductOne Field Change Request` include read-only `location_label` and `customer`, with `instance`, `location_label`, `customer`, and `status` list-visible. | `C:\hub\frappe-sandbox\validation-evidence\fco_request_list_readability_wide_20260715.png`; `C:\hub\frappe-sandbox\validation-evidence\fco_field_change_list_readability_wide_20260715.png`; `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
+| G3 — Instance backfill sets canonical Cell link | PASS. `create_backfill_instance()` accepts and sets `physical_location` to the Cell record; `deployment_site` is derived from the Cell `full_path` and remains a fallback for pre-location units. | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_backfill.json`; `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
+| G4 — Backfill execution proof | PASS. Candidate idempotent backfill confirmed 11 seeded Instances, 83 component serial rows, 19 FCO Requests, and 4 spawned Field Changes. | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_backfill.json` |
+| G5 — SUP-FCO-R01 export + JotForm importer | PASS. Validation confirmed the 18-column SUP-FCO-R01 v2.0 register contract and importer read path; importer read 19 rows and found all 19 existing. | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
 
 ## Build gate table
 
 | # | Gate | Result | Evidence |
 |---:|---|---|---|
-| 1 | Python compiles, fixtures parse, candidate migrate clean | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_wiki_guidance_combined_migrate_20260714.txt` |
+| 1 | Python compiles, fixtures parse, candidate migrate clean | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_g1_g5_local_validation_20260715.txt`; candidate migrate log in terminal; `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
 | 2 | POR Physical Location tree integrity | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
 | 3 | Seeded Instances linked to Cell physical locations | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
-| 4 | Field Changes resolve through Instance to Cell | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
-| 5 | All FCO map rows represented, with pending/organic exceptions preserved | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
-| 6 | As-installed Site query returns current fleet context | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
+| 4 | Backfilled Field Changes resolve through Instance to Cell | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
+| 5 | FCO map represented, with pending/organic exceptions preserved | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
+| 6 | As-installed Site query returns installed fleet context | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
 | 7 | Assignment correction requires reason and records Version trail | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
 | 8 | External builders denied all new FCO DocTypes | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
-| 9 | No `ignore_permissions=True` introduced in new whitelisted methods | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
+| 9 | No `ignore_permissions=True` in new whitelisted methods | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json` |
+| 10 | Native Tree view renders Customer → Site → Lane → Cell | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_customer_tree_view_20260715.png`; `C:\hub\frappe-sandbox\validation-evidence\fco_browser_visual_evidence_20260715.json` |
+| 11 | Field Change and Request lists show location/customer context | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_request_list_readability_wide_20260715.png`; `C:\hub\frappe-sandbox\validation-evidence\fco_field_change_list_readability_wide_20260715.png`; `C:\hub\frappe-sandbox\validation-evidence\fco_browser_visual_evidence_20260715.json` |
 
-Additional Phase 5 importer proof:
-
-- JotForm importer smoke: PASS, 19 rows read, 19 existing, 0 created, 0 skipped.
-- Evidence: `C:\hub\frappe-sandbox\validation-evidence\fco_jotform_importer_smoke_20260714.json`
+Note on list screenshots: at the default 1280px Desk width, Frappe hides later list columns in the
+responsive grid, though the fields are present in filters and metadata. A wide Desk capture confirms
+the actual list columns render as intended: Assigned Instance / Location / Customer / Status / ID.
 
 ## Backfill counts
 
 Fresh candidate rerun evidence: `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_backfill.json`
 
-| Area | Result |
+| Area | Count / status |
 |---|---|
-| Required customers | UPS, DHL, Amazon, Plus One Robotics all present in candidate |
-| POR Physical Locations | 28 seed rows; 28 existing on idempotent rerun; 0 created on rerun |
-| Instances | 11 seed rows; 11 existing on idempotent rerun; 0 created on rerun |
+| Required customers | `UPS`, `DHL`, `Amazon`, `Plus One Robotics` all present |
+| Customer-root location nodes | `DHL`, `Plus One Robotics`, `UPS` |
+| Location seed rows | 28 |
+| Locations on idempotent rerun | 31 existing, 0 created in the rerun; includes 28 seeded rows + 3 Customer roots |
+| Instance seed rows | 11 |
+| Seeded Instances on idempotent rerun | 11 existing, 0 created |
+| Instances with physical_location set | 11 seeded Instances validated |
 | Component serial rows | 83 |
-| Pending serials intentionally skipped | `WP-P3-2`, `WP-P3-3` |
-| FCO Requests | 19 represented; 19 existing on idempotent rerun |
+| FCO Requests | 19 represented, 19 existing on rerun |
 | Spawned Field Changes | 4 existing: two for `FCO-2025-007`, two for `FCO-2025-010` |
+| Pending serials intentionally skipped | `WP-P3-2`, `WP-P3-3` |
 
-Pending / organic exceptions preserved by validation:
+Pending / organic exceptions preserved:
 
 - `FCO-2025-013`: map row has no serial; represented as Request context only.
 - `FCO-2026-019`: organic / pending-serial Worldport Primary-3 context; Request only until real serials are designated.
 - `WP-P3-2` and `WP-P3-3`: documented pending additions, not created as Instances.
-- CVG First Article: documented pending owner designation; not created.
 
-## Wiki + guidance validation
+## Candidate object and patch proof
 
-| Validation | Result | Evidence |
-|---|---|---|
-| Wiki fixture validation | PASS, 16 pages | local command `python scripts/run_wiki_fixture_validation.py` |
-| Usability guidance validation | PASS / `GATE: PASS` | `C:\hub\frappe-sandbox\validation-evidence\usability_guidance_validation_20260714T172003Z.json` |
-| Combined candidate migrate applies wiki/guidance + FCO module | PASS | `C:\hub\frappe-sandbox\validation-evidence\fco_wiki_guidance_combined_migrate_20260714.txt` |
+- Patch registered and applied in candidate: `inductone_tools.patches.v2026_07_15_customer_rooted_fco_locations`.
+- `POR Physical Location` native Tree view expands from Customer roots to Site, Lane, and Cell descendants.
+- `InductOne Field Change Request` list shows `Title`, `Status`, `Assigned Instance`, `Location`, `Customer`, and `ID` when grid width permits.
+- `InductOne Field Change` list shows `Instance`, `Status`, `Location`, `Customer`, and `ID`.
+- `SUP-FCO-R01 Field Change Register` export returns the expected 18-column contract:
+  `fco_number`, `date_raised`, `requester`, `intake_ref`, `customer_project`, `serial_or_location`,
+  `change_summary`, `triage_outcome`, `reference`, `safety_regulatory`, `disposition`,
+  `disposition_date`, `implemented_date`, `as_maintained_updated`, `post_change_test`, `status`,
+  `closed_date`, `notes`.
 
-Wiki additions / updates:
+## Files changed for G1-G5
 
-- As-Built Records and Instances: as-installed register, POR Physical Location Site→Lane→Cell, and per-machine Field Change history.
-- Deviation Requests: field-side FCO intake and triage flow remains distinct from in-ERPNext deviation-request workflow.
-- Field Change (FCO) Register: new Wiki Page `inductone-field-change-fco-register`, route `plus-one-ops-manual/field-change-fco-register`.
-- Controlled Records Index: SUP-FCO-R01 clarified as schema template + ERPNext operating source, with placeholder release link retained.
-- Owner Handbook: FCO/as-installed policy and SATX segmentation encoded.
-
-## Carry-along confirmation
-
-The branch still carries the prior Wiki/guidance artifacts:
-
-- `inductone_tools/fixtures/wiki_page.json`
-- `inductone_tools/guidance.py`
-- `inductone_tools/public/js/guidance.js`
-- `inductone_tools/fixtures/module_onboarding.json`
-- `inductone_tools/fixtures/onboarding_step.json`
-- `inductone_tools/fixtures/custom_html_block.json`
-- `scripts/run_wiki_fixture_validation.py`
-- `scripts/run_usability_guidance_validation.py`
-- `docs/workflows/wiki-guidance-integration-2026-07-13.md`
-- `inductone_tools/public/svg/as-built-instance-lineage.svg`
-- `inductone_tools/public/svg/builder-package-composition.svg`
-- `inductone_tools/public/svg/configuration-option-status-gate.svg`
-- `inductone_tools/public/svg/inductone-csa-master-workflow.svg`
-- `inductone_tools/public/svg/inductone-csa-quality-system-map.svg`
-
-New FCO/location files and fixture changes on the same branch:
-
-- `docs/workflows/inductone-as-installed-fco-erpnext-build-2026-07-13.md`
-- `docs/workflows/inductone-csa-fco-erpnext-completion-2026-07-13.md`
+- `inductone_tools/physical_location.py`
 - `inductone_tools/field_change.py`
+- `inductone_tools/guidance.py`
+- `inductone_tools/instance/backfill.py`
+- `inductone_tools/fixtures/doctype.json`
+- `inductone_tools/patches.txt`
+- `inductone_tools/patches/v2026_07_15_customer_rooted_fco_locations.py`
 - `scripts/inductone_backfill/run_fco_as_installed_backfill.py`
 - `scripts/inductone_backfill/run_fco_as_installed_validation.py`
-- `scripts/inductone_backfill/seeds/location_tree_seed.xlsx`
-- `scripts/inductone_backfill/seeds/instance_backfill_seed.xlsx`
-- `scripts/inductone_backfill/seeds/fco_instance_map.xlsx`
-- `scripts/inductone_backfill/seeds/fco_jotform_export.xlsx`
-- `scripts/inductone_backfill/seeds/SUP-FCO-R01_operating_backfilled.xlsx`
-- `inductone_tools/fixtures/doctype.json`
-- `inductone_tools/fixtures/custom_docperm.json`
-- `inductone_tools/fixtures/report.json`
-- `inductone_tools/fixtures/client_script.json`
-- `inductone_tools/hooks.py`
-- `inductone_tools/instance/hooks.py`
-- `scripts/update_operational_role_docperms.py`
+- `docs/workflows/inductone-as-installed-fco-erpnext-build-2026-07-13.md`
+- `docs/workflows/inductone-csa-fco-erpnext-completion-2026-07-13.md`
+- `docs/deployment/production-deployment-checklist.md`
+- `docs/security/hardening-progress-tracker.md`
 
-## Candidate object presence check
-
-After migrate, candidate confirmed:
-
-- `Client Script: InductOne FCO JotForm Import Button`: present.
-- `Report: SUP-FCO-R01 Field Change Register`: present.
-- `Report: FCO Assignments Pending Review`: present.
-- `Wiki Page: inductone-field-change-fco-register`: present.
-- `Customer: Amazon`: present.
-
-## Engineering catalog print access validation
-
-Additional validation on 2026-07-14 confirmed `shaun.edwards@plusonerobotics.com` can read and print the `InductOne Options Catalog` surface as an `Engineering User`.
-
-Evidence: `C:\hub\frappe-sandbox\validation-evidence\shaun_options_catalog_print_validation_20260714.json`
-
-Validation results:
-
-- `InductOne Configuration Option` read/print: PASS.
-- `InductOne Options Catalog` read/print: PASS.
-- System Manager write access preserved after adding Custom DocPerm rows: PASS.
-- Default released catalog: 26 filtered options, 26 Released, 0 Draft.
-- Comprehensive all-active catalog: 35 filtered options, 26 Released, 9 Draft; builder/engineering descriptions and configuration effects present.
-- Comprehensive all-including-inactive catalog: 36 filtered options, including the Deprecated sample `CBL-STANDARD`.
-- Draft-only filtered catalog: 9 Draft options, 0 Released.
-
-The two catalog Print Formats are now exact-name fixtures (`inductone_tools/fixtures/print_format.json`) so their filter semantics are repo-managed rather than GUI-only.
-
-## Files changed on branch
-
-Conceptual change set:
-
-- New FCO Request / Field Change / Field Change Serial DocTypes.
-- `POR Physical Location` nested-set canonicalization.
-- `InductOne Instance` as-installed/as-maintained location and origin wiring.
-- FCO permissions for internal roles, with external builders denied.
-- SUP-FCO-R01 register projection and pending-assignment report.
-- Reusable JotForm importer with Desk button.
-- Backfill and validation scripts with seed workbooks.
-- Wiki/guidance updates carried with exact fixture ownership.
-
-The fixture diff is large because Frappe serializes full DocType fixtures; this is expected for `doctype.json`.
-
-## Final readiness
-
-CSA/FCO/ERPNEXT + WIKI CANDIDATE-READY: YES
+CSA/FCO/ERPNEXT INTEGRATION CANDIDATE-READY: YES

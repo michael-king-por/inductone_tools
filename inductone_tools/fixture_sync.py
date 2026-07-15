@@ -1,10 +1,12 @@
 # inductone_tools/fixture_sync.py
 #
-# Self-bootstrapping fixture export + git push.
+# Fixture audit utility with sandbox-only export/push escape hatch.
 #
-# Designed for Frappe Cloud where the bench is ephemeral: every click of the
-# button checks the world, fixes whatever's missing, then runs the export +
-# commit + push sequence.
+# This file used to provide a production GUI path that exported fixtures,
+# committed, and pushed to GitHub. That made production GUI state an implicit
+# source of truth. As of 2026-07-15, the normal whitelisted path is audit-only.
+# The old export/push path is retained only for explicitly configured sandbox
+# benches and refuses to run on production-looking sites.
 #
 # Requires `github_pat` in site config. Set it once via:
 #     bench --site <site> set-config -p github_pat "<token>"
@@ -15,6 +17,7 @@ import os
 import re
 import subprocess
 from datetime import datetime
+from pathlib import Path
 
 import frappe
 
@@ -33,12 +36,60 @@ COMMIT_AUTHOR_EMAIL = "michael.king@plusonerobotics.com"
 # Public entrypoint, exposed to the client script.
 # ---------------------------------------------------------------------------
 @frappe.whitelist()
-def export_and_push_fixtures():
-    """Export fixtures, commit, and push to GitHub. Idempotent across redeploys."""
+def audit_fixture_status():
+    """Return read-only fixture/git status for the current app checkout."""
 
-    # Permission gate: only System Manager may push code-bearing fixtures.
-    if "System Manager" not in frappe.get_roles(frappe.session.user):
-        frappe.throw("Only System Managers can export and push fixtures.")
+    _require_fixture_audit_role()
+
+    bench_path = _bench_path()
+    app_path = os.path.join(bench_path, "apps", APP_NAME)
+
+    fixture_dir = Path(app_path) / APP_NAME / "fixtures"
+    fixture_counts = {}
+    if fixture_dir.exists():
+        for fixture_path in sorted(fixture_dir.glob("*.json")):
+            try:
+                import json
+
+                rows = json.loads(fixture_path.read_text(encoding="utf-8"))
+                fixture_counts[fixture_path.name] = len(rows) if isinstance(rows, list) else 1
+            except Exception as exc:
+                fixture_counts[fixture_path.name] = f"ERROR: {exc}"
+
+    git_status = _git(app_path, ["status", "--short"], check=False).stdout.splitlines()
+    branch = _git(app_path, ["branch", "--show-current"], check=False).stdout.strip()
+    head = _git(app_path, ["rev-parse", "--short", "HEAD"], check=False).stdout.strip()
+
+    return {
+        "ok": True,
+        "mode": "audit_only",
+        "site": frappe.local.site,
+        "message": (
+            "Fixture Export Control is audit-only. Production GUI export/push is disabled; "
+            "fixture changes must be reviewed, committed, and deployed from the repository."
+        ),
+        "app_path": app_path,
+        "branch": branch,
+        "head": head,
+        "git_status": git_status,
+        "fixture_counts": fixture_counts,
+    }
+
+
+@frappe.whitelist()
+def export_and_push_fixtures():
+    """Sandbox-only export, commit, and push helper.
+
+    This method refuses to run unless:
+
+    - the current site name looks like a sandbox/candidate/dev site; and
+    - site_config explicitly sets ``fixture_sync_mode = "sandbox_push"``.
+
+    Production must never use GUI export/push as a source of truth.
+    """
+
+    _require_fixture_audit_role()
+    _require_sandbox_push_mode()
 
     pat = frappe.conf.get("github_pat")
     if not pat:
@@ -94,6 +145,30 @@ def export_and_push_fixtures():
 # Step implementations. Each returns a dict describing what it did, for
 # display in the client.
 # ---------------------------------------------------------------------------
+def _require_fixture_audit_role():
+    roles = set(frappe.get_roles(frappe.session.user))
+    if not {"System Manager", "InductOne Process Architect"} & roles:
+        frappe.throw("Fixture audit requires System Manager or InductOne Process Architect.")
+
+
+def _require_sandbox_push_mode():
+    site = frappe.local.site or ""
+    mode = frappe.conf.get("fixture_sync_mode")
+    sandbox_markers = ("candidate", "sandbox", "localhost", "dev", "test")
+
+    if mode != "sandbox_push":
+        frappe.throw(
+            "Fixture export/push is disabled. Set fixture_sync_mode = sandbox_push "
+            "only on a disposable sandbox bench."
+        )
+
+    if not any(marker in site.lower() for marker in sandbox_markers):
+        frappe.throw(
+            f"Refusing fixture export/push for non-sandbox site '{site}'. "
+            "Use local repository workflow instead."
+        )
+
+
 def _ensure_git_identity(app_path):
     """Set repo-level git identity if not already configured."""
     name = _git(app_path, ["config", "user.name"], check=False).stdout.strip()

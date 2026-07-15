@@ -45,6 +45,7 @@ def create_backfill_instance(
     builder_supplier,
     serials,
     deployment_site=None,
+    physical_location=None,
     status="Installed",
     backfill_notes=None,
     user=None,
@@ -62,8 +63,11 @@ def create_backfill_instance(
         serials         (list): List of dicts with keys:
                                   component_label (str)
                                   serial_number   (str)
-        deployment_site (str):  Free-text site name. REQUIRED when status
-                                is Installed; optional otherwise.
+        deployment_site (str):  Free-text site label. Used only as a fallback
+                                when no canonical physical_location is known.
+        physical_location(str): Optional POR Physical Location Cell link. When
+                                supplied, deployment_site is derived from the
+                                Cell's full_path.
         status          (str):  One of "Ready for Ship", "Shipped",
                                 "Installed". Defaults to "Installed" to
                                 preserve original behavior.
@@ -95,9 +99,22 @@ def create_backfill_instance(
             "status must be one of {0}. Got: {1}"
         ).format(", ".join(_VALID_STATUSES), status))
 
-    if status == "Installed" and not deployment_site:
+    if physical_location:
+        location = frappe.db.get_value(
+            "POR Physical Location",
+            physical_location,
+            ["name", "location_type", "full_path"],
+            as_dict=True,
+        )
+        if not location:
+            frappe.throw(_("POR Physical Location '{0}' not found.").format(physical_location))
+        if location.location_type != "Cell":
+            frappe.throw(_("physical_location must point to a Cell location."))
+        deployment_site = location.full_path or deployment_site
+
+    if status == "Installed" and not (deployment_site or physical_location):
         frappe.throw(_(
-            "deployment_site is required when status is Installed."
+            "deployment_site or physical_location is required when status is Installed."
         ))
 
     user = user or frappe.session.user
@@ -149,6 +166,8 @@ def create_backfill_instance(
 
     instance.builder_supplier = builder_supplier
     instance.deployment_site = deployment_site  # may be None for pre-install
+    if physical_location:
+        instance.physical_location = physical_location
 
     instance.backfill_notes = full_notes
 

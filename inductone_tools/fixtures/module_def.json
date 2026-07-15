@@ -1,0 +1,15 @@
+[
+  {
+    "doctype": "Module Def",
+    "name": "Finance - POR",
+    "module_name": "Finance - POR",
+    "custom": 1,
+    "app_name": "inductone_tools",
+    "restrict_to_domain": null,
+    "package": null,
+    "docstatus": 0,
+    "idx": 0,
+    "owner": "Administrator",
+    "modified_by": "Administrator"
+  }
+]

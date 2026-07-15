@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import json
 import re
 import sys
@@ -47,7 +48,23 @@ def workbook_rows(path: Path, sheet: str):
 
 def gate_location_tree(runner: GateRunner, seed_dir: Path):
     seed = workbook_rows(seed_dir / "location_tree_seed.xlsx", "POR Physical Location")
-    missing, parent_errors, leaf_errors, path_errors = [], [], [], []
+    missing, parent_errors, leaf_errors, path_errors, customer_errors = [], [], [], [], []
+
+    for customer in sorted({row.get("customer") for row in seed if row.get("customer")}):
+        customer_name = frappe.db.get_value(
+            LOCATION_DOCTYPE,
+            {"location_type": "Customer", "customer": customer},
+            "name",
+        )
+        if not customer_name:
+            customer_errors.append({"customer": customer, "issue": "missing customer root"})
+            continue
+        customer_doc = frappe.get_doc(LOCATION_DOCTYPE, customer_name)
+        if customer_doc.parent_por_physical_location:
+            customer_errors.append({"customer": customer, "issue": "customer root has parent", "parent": customer_doc.parent_por_physical_location})
+        if customer_doc.full_path != customer:
+            customer_errors.append({"customer": customer, "issue": "customer root full_path mismatch", "actual": customer_doc.full_path})
+
     for row in seed:
         code = row["location_code"]
         name = frappe.db.get_value(LOCATION_DOCTYPE, {"location_code": code}, "name")
@@ -56,18 +73,31 @@ def gate_location_tree(runner: GateRunner, seed_dir: Path):
             continue
         doc = frappe.get_doc(LOCATION_DOCTYPE, name)
         parent_code = row.get("parent_location_code")
+        if row.get("location_type") == "Site" and not parent_code:
+            parent_code = row.get("customer")
         if parent_code:
             parent_name = frappe.db.get_value(LOCATION_DOCTYPE, {"location_code": parent_code}, "name")
             if doc.parent_por_physical_location != parent_name:
                 parent_errors.append({"location_code": code, "expected_parent": parent_code, "actual": doc.parent_por_physical_location})
         if row["location_type"] == "Cell" and (int(doc.rgt or 0) - int(doc.lft or 0) != 1):
             leaf_errors.append({"location_code": code, "lft": doc.lft, "rgt": doc.rgt})
-        if doc.full_path != row.get("full_path"):
-            path_errors.append({"location_code": code, "expected": row.get("full_path"), "actual": doc.full_path})
+        expected_path = row.get("full_path")
+        if row.get("customer") and expected_path and not str(expected_path).startswith(str(row.get("customer")) + " /"):
+            expected_path = f"{row.get('customer')} / {expected_path}"
+        if doc.full_path != expected_path:
+            path_errors.append({"location_code": code, "expected": expected_path, "actual": doc.full_path})
     return runner.check(
-        "Location tree integrity",
-        not (missing or parent_errors or leaf_errors or path_errors),
-        {"seed_rows": len(seed), "missing": missing, "parent_errors": parent_errors, "leaf_errors": leaf_errors, "path_errors": path_errors},
+        "Location tree integrity: Customer -> Site -> Lane -> Cell",
+        not (missing or parent_errors or leaf_errors or path_errors or customer_errors),
+        {
+            "seed_rows": len(seed),
+            "customer_roots": sorted({row.get("customer") for row in seed if row.get("customer")}),
+            "missing": missing,
+            "parent_errors": parent_errors,
+            "leaf_errors": leaf_errors,
+            "path_errors": path_errors,
+            "customer_errors": customer_errors,
+        },
     )
 
 
@@ -222,16 +252,198 @@ def gate_external_builder_denial(runner: GateRunner):
 
 
 def gate_ignore_permissions_clean(runner: GateRunner, app_path: Path):
-    new_files = [app_path / "inductone_tools" / "field_change.py"]
+    """Assert no whitelisted method bypasses permissions.
+
+    Backfill/patch helpers are allowed to use ``ignore_permissions`` because they
+    are console/migration tooling. The hardening rule we care about here is the
+    user-callable boundary: a whitelisted method must gate permissions normally
+    instead of silently bypassing them.
+    """
+
+    new_files = [
+        app_path / "inductone_tools" / "field_change.py",
+        app_path / "inductone_tools" / "physical_location.py",
+        app_path / "inductone_tools" / "instance" / "backfill.py",
+    ]
     hits = []
     for path in new_files:
         if not path.exists():
             hits.append({"file": str(path), "issue": "missing"})
             continue
         text = path.read_text(encoding="utf-8")
-        for match in re.finditer(r"ignore_permissions\\s*=\\s*True", text):
-            hits.append({"file": str(path), "offset": match.start()})
+        whitelist_lines = [match.start() for match in re.finditer(r"@frappe\.whitelist\s*\(", text)]
+        for offset in whitelist_lines:
+            next_top_level = re.search(r"\n(?=def\s+\w+\()", text[offset + 1 :])
+            block_end = offset + 1 + next_top_level.start() if next_top_level else len(text)
+            block = text[offset:block_end]
+            for match in re.finditer(r"ignore_permissions\s*=\s*True", block):
+                hits.append({"file": str(path), "offset": offset + match.start()})
     return runner.check("No ignore_permissions=True in new whitelisted methods", not hits, {"hits": hits})
+
+
+def gate_tree_navigation_contract(runner: GateRunner):
+    customers = frappe.get_all(
+        LOCATION_DOCTYPE,
+        filters={"location_type": "Customer"},
+        fields=["name", "location_code", "location_name", "full_path", "lft", "rgt"],
+        order_by="lft asc",
+    )
+    samples = []
+    failures = []
+    for customer in customers:
+        sites = frappe.get_all(
+            LOCATION_DOCTYPE,
+            filters={"parent_por_physical_location": customer.name, "location_type": "Site"},
+            fields=["name", "location_code", "location_name", "full_path"],
+            order_by="lft asc",
+        )
+        if not sites:
+            failures.append({"customer": customer.name, "issue": "no child sites"})
+            continue
+        site = sites[0]
+        lanes = frappe.get_all(
+            LOCATION_DOCTYPE,
+            filters={"parent_por_physical_location": site.name, "location_type": "Lane"},
+            fields=["name", "location_code", "location_name", "full_path"],
+            order_by="lft asc",
+        )
+        cells = []
+        if lanes:
+            cells = frappe.get_all(
+                LOCATION_DOCTYPE,
+                filters={"parent_por_physical_location": lanes[0].name, "location_type": "Cell"},
+                fields=["name", "location_code", "location_name", "full_path"],
+                order_by="lft asc",
+            )
+        if not lanes or not cells:
+            failures.append({"customer": customer.name, "site": site.name, "issue": "missing lane/cell descendants"})
+        samples.append({"customer": customer, "site": site, "lane": lanes[0] if lanes else None, "cell": cells[0] if cells else None})
+    return runner.check(
+        "Tree navigation contract renders Customer -> Site -> Lane -> Cell data",
+        bool(customers) and not failures,
+        {"customer_count": len(customers), "failures": failures, "samples": samples[:5]},
+    )
+
+
+def gate_list_readability(runner: GateRunner):
+    failures = []
+    meta_details = {}
+    for doctype in [REQUEST_DOCTYPE, FIELD_CHANGE_DOCTYPE]:
+        meta = frappe.get_meta(doctype)
+        required = ["instance", "location_label", "customer", "status"]
+        meta_details[doctype] = {
+            field: {
+                "exists": bool(meta.get_field(field)),
+                "in_list_view": getattr(meta.get_field(field), "in_list_view", None) if meta.get_field(field) else None,
+                "read_only": getattr(meta.get_field(field), "read_only", None) if meta.get_field(field) else None,
+                "fetch_from": getattr(meta.get_field(field), "fetch_from", None) if meta.get_field(field) else None,
+            }
+            for field in required
+        }
+        for field, info in meta_details[doctype].items():
+            if not info["exists"] or not info["in_list_view"]:
+                failures.append({"doctype": doctype, "field": field, "issue": "missing or not list-visible", "info": info})
+
+    request_rows = frappe.get_all(
+        REQUEST_DOCTYPE,
+        fields=["name", "instance", "machine_identifier", "location_label", "customer", "status"],
+        limit=500,
+    )
+    for row in request_rows:
+        if row.instance:
+            inst = frappe.db.get_value(INSTANCE_DOCTYPE, row.instance, ["deployment_site", "customer"], as_dict=True)
+            if inst and row.location_label != inst.deployment_site:
+                failures.append({"doctype": REQUEST_DOCTYPE, "name": row.name, "issue": "location_label mismatch", "expected": inst.deployment_site, "actual": row.location_label})
+            if inst and row.customer != inst.customer:
+                failures.append({"doctype": REQUEST_DOCTYPE, "name": row.name, "issue": "customer mismatch", "expected": inst.customer, "actual": row.customer})
+        elif row.machine_identifier and row.location_label != row.machine_identifier:
+            failures.append({"doctype": REQUEST_DOCTYPE, "name": row.name, "issue": "missing machine_identifier fallback", "expected": row.machine_identifier, "actual": row.location_label})
+
+    fc_rows = frappe.get_all(
+        FIELD_CHANGE_DOCTYPE,
+        fields=["name", "instance", "location_label", "customer", "status"],
+        limit=500,
+    )
+    for row in fc_rows:
+        inst = frappe.db.get_value(INSTANCE_DOCTYPE, row.instance, ["deployment_site", "customer"], as_dict=True)
+        if inst and row.location_label != inst.deployment_site:
+            failures.append({"doctype": FIELD_CHANGE_DOCTYPE, "name": row.name, "issue": "location_label mismatch", "expected": inst.deployment_site, "actual": row.location_label})
+        if inst and row.customer != inst.customer:
+            failures.append({"doctype": FIELD_CHANGE_DOCTYPE, "name": row.name, "issue": "customer mismatch", "expected": inst.customer, "actual": row.customer})
+
+    return runner.check(
+        "Field Change list readability fields are visible and populated",
+        not failures,
+        {"meta": meta_details, "request_rows": len(request_rows), "field_change_rows": len(fc_rows), "failures": failures[:50]},
+    )
+
+
+def gate_fco_register_and_importer(runner: GateRunner, seed_dir: Path, evidence_dir: Path):
+    import inductone_tools.field_change as field_change
+
+    expected_columns = [
+        "fco_number",
+        "date_raised",
+        "requester",
+        "intake_ref",
+        "customer_project",
+        "serial_or_location",
+        "change_summary",
+        "triage_outcome",
+        "reference",
+        "safety_regulatory",
+        "disposition",
+        "disposition_date",
+        "implemented_date",
+        "as_maintained_updated",
+        "post_change_test",
+        "status",
+        "closed_date",
+        "notes",
+    ]
+
+    original_user = frappe.session.user
+    frappe.set_user("Administrator")
+    failures = []
+    rows = field_change.render_fco_register()
+    actual_columns = list(rows[0].keys()) if rows else []
+    if actual_columns != expected_columns:
+        failures.append({"issue": "register column contract mismatch", "expected": expected_columns, "actual": actual_columns})
+
+    private_files = Path(frappe.get_site_path("private", "files"))
+    private_files.mkdir(parents=True, exist_ok=True)
+    source = seed_dir / "fco_jotform_export.xlsx"
+    target = private_files / "fco_jotform_import_validation.xlsx"
+    shutil.copyfile(source, target)
+    file_url = "/private/files/fco_jotform_import_validation.xlsx"
+    if not frappe.db.exists("File", {"file_url": file_url}):
+        file_doc = frappe.get_doc(
+            {
+                "doctype": "File",
+                "file_name": target.name,
+                "file_url": file_url,
+                "is_private": 1,
+            }
+        )
+        file_doc.insert(ignore_permissions=True)
+
+    importer_result = field_change.import_jotform_export(file_url)
+    if importer_result.get("created"):
+        failures.append({"issue": "importer created rows during idempotency validation", "created": importer_result.get("created")})
+    if importer_result.get("rows_read") != 19:
+        failures.append({"issue": "importer row count mismatch", "result": importer_result})
+    frappe.set_user(original_user)
+
+    return runner.check(
+        "SUP-FCO-R01 register export and JotForm importer contract",
+        bool(rows) and not failures,
+        {
+            "register_rows": len(rows),
+            "columns": actual_columns,
+            "importer_result": importer_result,
+            "failures": failures,
+        },
+    )
 
 
 def run(args):
@@ -247,6 +459,9 @@ def run(args):
         gate_reassignment_mechanism(runner)
         gate_external_builder_denial(runner)
         gate_ignore_permissions_clean(runner, args.app_path)
+        gate_tree_navigation_contract(runner)
+        gate_list_readability(runner)
+        gate_fco_register_and_importer(runner, args.seed_dir, args.evidence_dir)
         payload = {
             "site": args.site,
             "generated_at_utc": datetime.utcnow().isoformat(timespec="seconds") + "Z",

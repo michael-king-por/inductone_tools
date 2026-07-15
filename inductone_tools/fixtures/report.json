@@ -1,203 +1,385 @@
 [
- {
-  "add_total_row": 0,
-  "add_translate_data": 0,
-  "columns": [],
-  "disable_prepared_report_automation": 0,
-  "disabled": 0,
-  "docstatus": 0,
-  "doctype": "Report",
-  "filters": [],
-  "is_standard": "No",
-  "javascript": null,
-  "json": null,
-  "letter_head": "POR",
-  "modified": "2026-07-06 14:18:11.551333",
-  "module": "InductOne Tools",
-  "name": "Electrical Balloon Callouts",
-  "prepared_report": 0,
-  "query": "SELECT\n    bi.parent AS \"BOM:Link/BOM:220\",\n    bi.custom_balloon_numbers AS \"Balloon #:Data:90\",\n    bi.item_code AS \"Component:Link/Item:140\",\n    bi.item_name AS \"Component Name:Data:240\",\n    bi.qty AS \"Qty:Float:80\",\n    bi.uom AS \"UOM:Data:60\",\n    bi.custom_electrical_unit AS \"Electrical Unit:Data:110\",\n    bi.custom_source_electrical_bom_rev AS \"Source Rev:Data:80\"\nFROM `tabBOM Item` bi\nINNER JOIN `tabBOM` b ON b.name = bi.parent\nWHERE\n    b.docstatus = 1\n    AND b.is_active = 1\n    AND IFNULL(bi.custom_balloon_numbers, '') != ''\nORDER BY\n    bi.parent,\n    CAST(bi.custom_balloon_numbers AS UNSIGNED)",
-  "ref_doctype": "BOM",
-  "reference_report": null,
-  "report_name": "Electrical Balloon Callouts",
-  "report_script": null,
-  "report_type": "Query Report",
-  "roles": [
-   {
-    "parent": "Electrical Balloon Callouts",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "System Manager"
-   },
-   {
-    "parent": "Electrical Balloon Callouts",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "Operations Manager"
-   },
-   {
-    "parent": "Electrical Balloon Callouts",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "Operations Viewer"
-   },
-   {
-    "parent": "Electrical Balloon Callouts",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "Inventory Operator"
-   },
-   {
-    "parent": "Electrical Balloon Callouts",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "Gripper Manufacturer"
-   },
-   {
-    "parent": "Electrical Balloon Callouts",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "Engineering User"
-   },
-   {
-    "parent": "Electrical Balloon Callouts",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "Finance Viewer"
-   },
-   {
-    "parent": "Electrical Balloon Callouts",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "Procurement User"
-   },
-   {
-    "parent": "Electrical Balloon Callouts",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "InductOne Manager"
-   },
-   {
-    "parent": "Electrical Balloon Callouts",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "InductOne Process Architect"
-   }
-  ],
-  "timeout": 0
- },
- {
-  "add_total_row": 0,
-  "add_translate_data": 0,
-  "columns": [],
-  "disable_prepared_report_automation": 0,
-  "disabled": 0,
-  "docstatus": 0,
-  "doctype": "Report",
-  "filters": [],
-  "is_standard": "No",
-  "javascript": null,
-  "json": null,
-  "letter_head": "POR",
-  "modified": "2026-07-14 12:00:00.000000",
-  "module": "Operations - POR",
-  "name": "FCO Assignments Pending Review",
-  "prepared_report": 0,
-  "query": "SELECT\n  name AS \"Request:Link/InductOne Field Change Request:180\",\n  date_raised AS \"Date Raised:Date:110\",\n  title AS \"Title:Data:260\",\n  instance AS \"Assigned Instance:Link/InductOne Instance:180\",\n  assignment_confidence AS \"Confidence:Data:120\",\n  assignment_basis AS \"Assignment Basis:Data:260\",\n  machine_identifier AS \"Machine Identifier:Data:180\"\nFROM `tabInductOne Field Change Request`\nWHERE IFNULL(assignment_reviewed, 0) = 0\n  AND IFNULL(assignment_confidence, '') IN ('Low', 'Backfill-guess')\nORDER BY date_raised DESC, name DESC",
-  "ref_doctype": "InductOne Field Change Request",
-  "reference_report": null,
-  "report_name": "FCO Assignments Pending Review",
-  "report_script": null,
-  "report_type": "Query Report",
-  "roles": [
-   {
-    "parent": "FCO Assignments Pending Review",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "System Manager"
-   },
-   {
-    "parent": "FCO Assignments Pending Review",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "Operations Manager"
-   },
-   {
-    "parent": "FCO Assignments Pending Review",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "Operations Viewer"
-   },
-   {
-    "parent": "FCO Assignments Pending Review",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "InductOne Manager"
-   },
-   {
-    "parent": "FCO Assignments Pending Review",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "InductOne Process Architect"
-   }
-  ],
-  "timeout": 0
- },
- {
-  "add_total_row": 0,
-  "add_translate_data": 0,
-  "columns": [],
-  "disable_prepared_report_automation": 0,
-  "disabled": 0,
-  "docstatus": 0,
-  "doctype": "Report",
-  "filters": [],
-  "is_standard": "No",
-  "javascript": null,
-  "json": null,
-  "letter_head": "POR",
-  "modified": "2026-07-14 12:00:00.000000",
-  "module": "Operations - POR",
-  "name": "SUP-FCO-R01 Field Change Register",
-  "prepared_report": 0,
-  "query": "SELECT\n  r.name AS \"FCO #:Link/InductOne Field Change Request:150\",\n  r.date_raised AS \"Date Raised:Date:110\",\n  r.requester AS \"Requester:Data:160\",\n  r.intake_ref AS \"Intake Ref (Submission ID / Link):Data:180\",\n  r.customer_project AS \"Customer / Project:Data:180\",\n  COALESCE(r.instance, r.machine_identifier) AS \"IND-#### Serial(s) / Location(s):Data:220\",\n  r.title AS \"Change Summary:Data:260\",\n  r.triage_outcome AS \"Triage Outcome:Data:130\",\n  r.reference AS \"Reference (ECR / Epic / Ticket):Data:220\",\n  IF(r.safety_regulatory, 'Y', 'N') AS \"Safety / Regulatory (Y/N):Data:120\",\n  r.disposition AS \"Disposition:Data:120\",\n  r.disposition_date AS \"Disposition Date:Date:120\",\n  MAX(fc.implemented_date) AS \"Implemented Date:Date:120\",\n  IF(MAX(IFNULL(fc.as_maintained_updated,0)) = 1, 'Y', 'N') AS \"As-Maintained Updated in ERPNext:Data:160\",\n  MAX(fc.post_change_test) AS \"Post-Change Test:Data:130\",\n  r.status AS \"Status:Data:120\",\n  IF(r.status='Closed', r.modified, NULL) AS \"Closed Date:Datetime:150\",\n  r.notes AS \"Notes:Data:280\"\nFROM `tabInductOne Field Change Request` r\nLEFT JOIN `tabInductOne Field Change` fc ON fc.source_request = r.name\nGROUP BY r.name\nORDER BY r.date_raised, r.name",
-  "ref_doctype": "InductOne Field Change Request",
-  "reference_report": null,
-  "report_name": "SUP-FCO-R01 Field Change Register",
-  "report_script": null,
-  "report_type": "Query Report",
-  "roles": [
-   {
-    "parent": "SUP-FCO-R01 Field Change Register",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "System Manager"
-   },
-   {
-    "parent": "SUP-FCO-R01 Field Change Register",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "Operations Manager"
-   },
-   {
-    "parent": "SUP-FCO-R01 Field Change Register",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "Operations Viewer"
-   },
-   {
-    "parent": "SUP-FCO-R01 Field Change Register",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "InductOne Manager"
-   },
-   {
-    "parent": "SUP-FCO-R01 Field Change Register",
-    "parentfield": "roles",
-    "parenttype": "Report",
-    "role": "InductOne Process Architect"
-   }
-  ],
-  "timeout": 0
- }
+  {
+    "add_total_row": 0,
+    "add_translate_data": 0,
+    "columns": [],
+    "disable_prepared_report_automation": 0,
+    "disabled": 0,
+    "docstatus": 0,
+    "doctype": "Report",
+    "filters": [],
+    "is_standard": "No",
+    "javascript": null,
+    "json": null,
+    "letter_head": "POR",
+    "modified": "2026-07-06 14:18:11.551333",
+    "module": "InductOne Tools",
+    "name": "Electrical Balloon Callouts",
+    "prepared_report": 0,
+    "query": "SELECT\n    bi.parent AS \"BOM:Link/BOM:220\",\n    bi.custom_balloon_numbers AS \"Balloon #:Data:90\",\n    bi.item_code AS \"Component:Link/Item:140\",\n    bi.item_name AS \"Component Name:Data:240\",\n    bi.qty AS \"Qty:Float:80\",\n    bi.uom AS \"UOM:Data:60\",\n    bi.custom_electrical_unit AS \"Electrical Unit:Data:110\",\n    bi.custom_source_electrical_bom_rev AS \"Source Rev:Data:80\"\nFROM `tabBOM Item` bi\nINNER JOIN `tabBOM` b ON b.name = bi.parent\nWHERE\n    b.docstatus = 1\n    AND b.is_active = 1\n    AND IFNULL(bi.custom_balloon_numbers, '') != ''\nORDER BY\n    bi.parent,\n    CAST(bi.custom_balloon_numbers AS UNSIGNED)",
+    "ref_doctype": "BOM",
+    "reference_report": null,
+    "report_name": "Electrical Balloon Callouts",
+    "report_script": null,
+    "report_type": "Query Report",
+    "roles": [
+      {
+        "parent": "Electrical Balloon Callouts",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "System Manager"
+      },
+      {
+        "parent": "Electrical Balloon Callouts",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "Operations Manager"
+      },
+      {
+        "parent": "Electrical Balloon Callouts",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "Operations Viewer"
+      },
+      {
+        "parent": "Electrical Balloon Callouts",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "Inventory Operator"
+      },
+      {
+        "parent": "Electrical Balloon Callouts",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "Gripper Manufacturer"
+      },
+      {
+        "parent": "Electrical Balloon Callouts",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "Engineering User"
+      },
+      {
+        "parent": "Electrical Balloon Callouts",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "Finance Viewer"
+      },
+      {
+        "parent": "Electrical Balloon Callouts",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "Procurement User"
+      },
+      {
+        "parent": "Electrical Balloon Callouts",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "InductOne Manager"
+      },
+      {
+        "parent": "Electrical Balloon Callouts",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "InductOne Process Architect"
+      }
+    ],
+    "timeout": 0
+  },
+  {
+    "add_total_row": 0,
+    "add_translate_data": 0,
+    "columns": [],
+    "disable_prepared_report_automation": 0,
+    "disabled": 0,
+    "docstatus": 0,
+    "doctype": "Report",
+    "filters": [],
+    "is_standard": "No",
+    "javascript": null,
+    "json": null,
+    "letter_head": "POR",
+    "modified": "2026-07-14 12:00:00.000000",
+    "module": "Operations - POR",
+    "name": "FCO Assignments Pending Review",
+    "prepared_report": 0,
+    "query": "SELECT\n  name AS \"Request:Link/InductOne Field Change Request:180\",\n  date_raised AS \"Date Raised:Date:110\",\n  title AS \"Title:Data:260\",\n  instance AS \"Assigned Instance:Link/InductOne Instance:180\",\n  assignment_confidence AS \"Confidence:Data:120\",\n  assignment_basis AS \"Assignment Basis:Data:260\",\n  machine_identifier AS \"Machine Identifier:Data:180\"\nFROM `tabInductOne Field Change Request`\nWHERE IFNULL(assignment_reviewed, 0) = 0\n  AND IFNULL(assignment_confidence, '') IN ('Low', 'Backfill-guess')\nORDER BY date_raised DESC, name DESC",
+    "ref_doctype": "InductOne Field Change Request",
+    "reference_report": null,
+    "report_name": "FCO Assignments Pending Review",
+    "report_script": null,
+    "report_type": "Query Report",
+    "roles": [
+      {
+        "parent": "FCO Assignments Pending Review",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "System Manager"
+      },
+      {
+        "parent": "FCO Assignments Pending Review",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "Operations Manager"
+      },
+      {
+        "parent": "FCO Assignments Pending Review",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "Operations Viewer"
+      },
+      {
+        "parent": "FCO Assignments Pending Review",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "InductOne Manager"
+      },
+      {
+        "parent": "FCO Assignments Pending Review",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "InductOne Process Architect"
+      }
+    ],
+    "timeout": 0
+  },
+  {
+    "add_total_row": 0,
+    "add_translate_data": 0,
+    "columns": [],
+    "disable_prepared_report_automation": 0,
+    "disabled": 0,
+    "docstatus": 0,
+    "doctype": "Report",
+    "filters": [],
+    "is_standard": "No",
+    "javascript": null,
+    "json": null,
+    "letter_head": "POR",
+    "modified": "2026-07-14 12:00:00.000000",
+    "module": "Operations - POR",
+    "name": "SUP-FCO-R01 Field Change Register",
+    "prepared_report": 0,
+    "query": "SELECT\n  r.name AS \"FCO #:Link/InductOne Field Change Request:150\",\n  r.date_raised AS \"Date Raised:Date:110\",\n  r.requester AS \"Requester:Data:160\",\n  r.intake_ref AS \"Intake Ref (Submission ID / Link):Data:180\",\n  r.customer_project AS \"Customer / Project:Data:180\",\n  COALESCE(r.instance, r.machine_identifier) AS \"IND-#### Serial(s) / Location(s):Data:220\",\n  r.title AS \"Change Summary:Data:260\",\n  r.triage_outcome AS \"Triage Outcome:Data:130\",\n  r.reference AS \"Reference (ECR / Epic / Ticket):Data:220\",\n  IF(r.safety_regulatory, 'Y', 'N') AS \"Safety / Regulatory (Y/N):Data:120\",\n  r.disposition AS \"Disposition:Data:120\",\n  r.disposition_date AS \"Disposition Date:Date:120\",\n  MAX(fc.implemented_date) AS \"Implemented Date:Date:120\",\n  IF(MAX(IFNULL(fc.as_maintained_updated,0)) = 1, 'Y', 'N') AS \"As-Maintained Updated in ERPNext:Data:160\",\n  MAX(fc.post_change_test) AS \"Post-Change Test:Data:130\",\n  r.status AS \"Status:Data:120\",\n  IF(r.status='Closed', r.modified, NULL) AS \"Closed Date:Datetime:150\",\n  r.notes AS \"Notes:Data:280\"\nFROM `tabInductOne Field Change Request` r\nLEFT JOIN `tabInductOne Field Change` fc ON fc.source_request = r.name\nGROUP BY r.name\nORDER BY r.date_raised, r.name",
+    "ref_doctype": "InductOne Field Change Request",
+    "reference_report": null,
+    "report_name": "SUP-FCO-R01 Field Change Register",
+    "report_script": null,
+    "report_type": "Query Report",
+    "roles": [
+      {
+        "parent": "SUP-FCO-R01 Field Change Register",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "System Manager"
+      },
+      {
+        "parent": "SUP-FCO-R01 Field Change Register",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "Operations Manager"
+      },
+      {
+        "parent": "SUP-FCO-R01 Field Change Register",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "Operations Viewer"
+      },
+      {
+        "parent": "SUP-FCO-R01 Field Change Register",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "InductOne Manager"
+      },
+      {
+        "parent": "SUP-FCO-R01 Field Change Register",
+        "parentfield": "roles",
+        "parenttype": "Report",
+        "role": "InductOne Process Architect"
+      }
+    ],
+    "timeout": 0
+  },
+  {
+    "name": "Configured Snapshot Diff",
+    "owner": "michael.king@plusonerobotics.com",
+    "creation": "2026-06-17 13:28:17.372981",
+    "modified": "2026-06-18 10:00:53.356588",
+    "modified_by": "michael.king@plusonerobotics.com",
+    "docstatus": 0,
+    "idx": 0,
+    "report_name": "Configured Snapshot Diff",
+    "ref_doctype": "Configured BOM Snapshot",
+    "reference_report": null,
+    "is_standard": "No",
+    "module": "Operations - POR",
+    "report_type": "Script Report",
+    "letter_head": "POR",
+    "add_total_row": 0,
+    "disabled": 0,
+    "prepared_report": 0,
+    "disable_prepared_report_automation": 0,
+    "add_translate_data": 0,
+    "timeout": 0,
+    "query": null,
+    "report_script": "out = frappe.call(\r\n    \"inductone_tools.snapshot_diff.loader.get_report_data\",\r\n    snapshot_a=filters.get(\"snapshot_a\"),\r\n    snapshot_b=filters.get(\"snapshot_b\"),\r\n    view_mode=filters.get(\"view_mode\") or \"Hierarchical\",\r\n    context_mode=filters.get(\"context_mode\") or \"Changes only\",\r\n)\r\ndata = [\r\n    out[\"columns\"],\r\n    out[\"data\"],\r\n    out[\"message\"],\r\n    None,\r\n    out[\"report_summary\"],\r\n    1,\r\n]",
+    "javascript": "frappe.query_reports[\"Configured Snapshot Diff\"] = {\r\n    filters: [\r\n        {\r\n            fieldname: \"snapshot_a\",\r\n            label: __(\"Snapshot A (previous build)\"),\r\n            fieldtype: \"Link\",\r\n            options: \"Configured BOM Snapshot\",\r\n            reqd: 1,\r\n        },\r\n        {\r\n            fieldname: \"snapshot_b\",\r\n            label: __(\"Snapshot B (this build)\"),\r\n            fieldtype: \"Link\",\r\n            options: \"Configured BOM Snapshot\",\r\n            reqd: 1,\r\n        },\r\n        {\r\n            fieldname: \"view_mode\",\r\n            label: __(\"View Mode\"),\r\n            fieldtype: \"Select\",\r\n            options: [\"Hierarchical\", \"Flat Procurement\"].join(\"\\n\"),\r\n            default: \"Hierarchical\",\r\n            reqd: 1,\r\n        },\r\n        {\r\n            fieldname: \"context_mode\",\r\n            label: __(\"Context\"),\r\n            fieldtype: \"Select\",\r\n            options: [\"Changes only\", \"Show full tree\", \"Show full list\"].join(\"\\n\"),\r\n            default: \"Changes only\",\r\n        },\r\n    ],\r\n\r\n    formatter: function (value, row, column, data, default_formatter) {\r\n        value = default_formatter(value, row, column, data);\r\n        if (!data) return value;\r\n        const status = (data._status_raw || \"\").toUpperCase();\r\n        let bg = null;\r\n        if (status === \"ADDED\") bg = \"#DCFCE7\";\r\n        else if (status === \"REMOVED\") bg = \"#FEE2E2\";\r\n        else if (status === \"REVISION_CHANGED\" || status === \"CHANGED\") bg = \"#E0F2FE\";\r\n        else if (status === \"QTY_CHANGED\") bg = \"#FEF9C3\";\r\n        else if (status === \"MOVED\") bg = \"#F3E8FF\";\r\n        if (bg) {\r\n            value = `<span style=\"display:block;margin:-4px -8px;padding:4px 8px;background:${bg};\">${value}</span>`;\r\n        }\r\n        return value;\r\n    },\r\n\r\n    onload: function (report) {\r\n        report.page.add_inner_button(__(\"Download Diff Workbook\"), function () {\r\n            const a = report.get_filter_value(\"snapshot_a\");\r\n            const b = report.get_filter_value(\"snapshot_b\");\r\n            const ctx = report.get_filter_value(\"context_mode\");\r\n            if (!a || !b) {\r\n                frappe.msgprint(__(\"Select both snapshots first.\"));\r\n                return;\r\n            }\r\n            const include_unchanged =\r\n                (ctx === \"Show full list\" || ctx === \"Show full tree\") ? 1 : 0;\r\n            const url =\r\n                \"/api/method/inductone_tools.snapshot_diff.loader.download_diff_workbook\" +\r\n                \"?snapshot_a=\" + encodeURIComponent(a) +\r\n                \"&snapshot_b=\" + encodeURIComponent(b) +\r\n                \"&include_unchanged=\" + include_unchanged;\r\n            window.open(url);\r\n        });\r\n    },\r\n};",
+    "json": null,
+    "doctype": "Report",
+    "roles": [
+      {
+        "doctype": "Has Role",
+        "idx": 1,
+        "role": "System Manager",
+        "parent": "Configured Snapshot Diff",
+        "parentfield": "roles",
+        "parenttype": "Report"
+      },
+      {
+        "doctype": "Has Role",
+        "idx": 2,
+        "role": "InductOne Process Architect",
+        "parent": "Configured Snapshot Diff",
+        "parentfield": "roles",
+        "parenttype": "Report"
+      },
+      {
+        "doctype": "Has Role",
+        "idx": 3,
+        "role": "InductOne Manager",
+        "parent": "Configured Snapshot Diff",
+        "parentfield": "roles",
+        "parenttype": "Report"
+      },
+      {
+        "doctype": "Has Role",
+        "idx": 4,
+        "role": "Operations Manager",
+        "parent": "Configured Snapshot Diff",
+        "parentfield": "roles",
+        "parenttype": "Report"
+      },
+      {
+        "doctype": "Has Role",
+        "idx": 5,
+        "role": "Operations Viewer",
+        "parent": "Configured Snapshot Diff",
+        "parentfield": "roles",
+        "parenttype": "Report"
+      },
+      {
+        "doctype": "Has Role",
+        "idx": 6,
+        "role": "Engineering User",
+        "parent": "Configured Snapshot Diff",
+        "parentfield": "roles",
+        "parenttype": "Report"
+      },
+      {
+        "doctype": "Has Role",
+        "idx": 7,
+        "role": "Finance Viewer",
+        "parent": "Configured Snapshot Diff",
+        "parentfield": "roles",
+        "parenttype": "Report"
+      },
+      {
+        "doctype": "Has Role",
+        "idx": 8,
+        "role": "Procurement User",
+        "parent": "Configured Snapshot Diff",
+        "parentfield": "roles",
+        "parenttype": "Report"
+      }
+    ],
+    "filters": [],
+    "columns": []
+  },
+  {
+    "name": "Delivery Note by PO",
+    "owner": "michael.king@plusonerobotics.com",
+    "creation": "2026-05-27 14:06:41.686229",
+    "modified": "2026-05-27 14:06:41.686229",
+    "modified_by": "michael.king@plusonerobotics.com",
+    "docstatus": 0,
+    "idx": 0,
+    "report_name": "Delivery Note by PO",
+    "ref_doctype": "Delivery Note",
+    "reference_report": null,
+    "is_standard": "No",
+    "module": "Finance - POR",
+    "report_type": "Report Builder",
+    "letter_head": "POR",
+    "add_total_row": 0,
+    "disabled": 0,
+    "prepared_report": 0,
+    "disable_prepared_report_automation": 0,
+    "add_translate_data": 0,
+    "timeout": 0,
+    "query": null,
+    "report_script": null,
+    "javascript": null,
+    "json": "{\"filters\":[],\"fields\":[[\"customer\",\"Delivery Note\"],[\"po_no\",\"Delivery Note\"],[\"name\",\"Delivery Note\"],[\"status\",\"Delivery Note\"],[\"grand_total\",\"Delivery Note\"],[\"currency\",\"Delivery Note\"],[\"po_date\",\"Delivery Note\"],[\"custom_delivery_date\",\"Delivery Note\"],[\"custom_carrier\",\"Delivery Note\"]],\"order_by\":\"`tabDelivery Note`.`modified` desc\",\"add_totals_row\":0,\"page_length\":20,\"column_widths\":{\"customer\":120,\"po_no\":100,\"name\":120,\"status\":150,\"grand_total\":150,\"currency\":120,\"po_date\":100,\"custom_delivery_date\":120,\"custom_carrier\":120},\"group_by\":null}",
+    "doctype": "Report",
+    "columns": [],
+    "filters": [],
+    "roles": [
+      {
+        "doctype": "Has Role",
+        "name": "delivery_note_by_po_finance_viewer",
+        "owner": "michael.king@plusonerobotics.com",
+        "creation": "2026-05-27 14:06:41.686229",
+        "modified": "2026-05-27 14:06:41.686229",
+        "modified_by": "michael.king@plusonerobotics.com",
+        "docstatus": 0,
+        "idx": 1,
+        "role": "Finance Viewer",
+        "parent": "Delivery Note by PO",
+        "parentfield": "roles",
+        "parenttype": "Report"
+      },
+      {
+        "doctype": "Has Role",
+        "name": "delivery_note_by_po_operations_viewer",
+        "owner": "michael.king@plusonerobotics.com",
+        "creation": "2026-05-27 14:06:41.686229",
+        "modified": "2026-05-27 14:06:41.686229",
+        "modified_by": "michael.king@plusonerobotics.com",
+        "docstatus": 0,
+        "idx": 2,
+        "role": "Operations Viewer",
+        "parent": "Delivery Note by PO",
+        "parentfield": "roles",
+        "parenttype": "Report"
+      },
+      {
+        "doctype": "Has Role",
+        "name": "delivery_note_by_po_operations_manager",
+        "owner": "michael.king@plusonerobotics.com",
+        "creation": "2026-05-27 14:06:41.686229",
+        "modified": "2026-05-27 14:06:41.686229",
+        "modified_by": "michael.king@plusonerobotics.com",
+        "docstatus": 0,
+        "idx": 3,
+        "role": "Operations Manager",
+        "parent": "Delivery Note by PO",
+        "parentfield": "roles",
+        "parenttype": "Report"
+      },
+      {
+        "doctype": "Has Role",
+        "name": "delivery_note_by_po_system_manager",
+        "owner": "michael.king@plusonerobotics.com",
+        "creation": "2026-05-27 14:06:41.686229",
+        "modified": "2026-05-27 14:06:41.686229",
+        "modified_by": "michael.king@plusonerobotics.com",
+        "docstatus": 0,
+        "idx": 4,
+        "role": "System Manager",
+        "parent": "Delivery Note by PO",
+        "parentfield": "roles",
+        "parenttype": "Report"
+      }
+    ]
+  }
 ]

@@ -59,6 +59,7 @@ def phase0_customers() -> dict[str, bool]:
 
 def naming_series(location_type: str) -> str:
     return {
+        "Customer": "POR-CUST.####",
         "Site": "POR-SITE.####",
         "Lane": "POR-LANE.####",
         "Cell": "POR-CELL.####",
@@ -75,6 +76,7 @@ def location_name_by_code(code: str | None) -> str | None:
 def seed_locations(seed_dir: Path) -> dict[str, Any]:
     seeded = rows(seed_dir / "location_tree_seed.xlsx", "POR Physical Location")
     created, existing = [], []
+    ensure_customer_roots(seeded, created, existing)
     pending = seeded[:]
 
     # Parent-before-child loop. If a parent is missing after a full pass, that is
@@ -91,6 +93,8 @@ def seed_locations(seed_dir: Path) -> dict[str, Any]:
                 continue
 
             parent_code = row.get("parent_location_code")
+            if row.get("location_type") == "Site" and not parent_code:
+                parent_code = row.get("customer")
             parent_name = location_name_by_code(parent_code) if parent_code else None
             if parent_code and not parent_name:
                 next_pending.append(row)
@@ -125,6 +129,34 @@ def seed_locations(seed_dir: Path) -> dict[str, Any]:
     return {"created": created, "existing": existing, "seed_rows": len(seeded)}
 
 
+def ensure_customer_roots(
+    seeded: list[dict[str, Any]],
+    created: list[str],
+    existing: list[str],
+) -> None:
+    """Create one Customer group node per distinct seed customer."""
+
+    for customer in sorted({row.get("customer") for row in seeded if row.get("customer")}):
+        if location_name_by_code(customer):
+            existing.append(customer)
+            continue
+
+        doc = frappe.get_doc(
+            {
+                "doctype": LOCATION_DOCTYPE,
+                "naming_series": naming_series("Customer"),
+                "location_type": "Customer",
+                "location_code": customer,
+                "location_name": customer,
+                "customer": customer,
+                "full_path": customer,
+                "is_group": 1,
+            }
+        )
+        doc.insert(ignore_permissions=True)
+        created.append(customer)
+
+
 def restamp_location_from_seed(row: dict[str, Any]) -> None:
     """Preserve seed-facing location labels after Frappe tree insertion.
 
@@ -136,11 +168,26 @@ def restamp_location_from_seed(row: dict[str, Any]) -> None:
     name = location_name_by_code(row.get("location_code"))
     if not name:
         return
+
+    parent_code = row.get("parent_location_code")
+    if row.get("location_type") == "Site" and not parent_code:
+        parent_code = row.get("customer")
+    parent_name = location_name_by_code(parent_code) if parent_code else None
+
+    doc = frappe.get_doc(LOCATION_DOCTYPE, name)
+    if parent_name and doc.parent_por_physical_location != parent_name:
+        doc.parent_por_physical_location = parent_name
+        doc.save(ignore_permissions=True)
+
+    full_path = row.get("full_path")
+    if row.get("customer") and full_path and not str(full_path).startswith(str(row.get("customer")) + " /"):
+        full_path = f"{row.get('customer')} / {full_path}"
+
     frappe.db.set_value(
         LOCATION_DOCTYPE,
         name,
         {
-            "full_path": row.get("full_path"),
+            "full_path": full_path,
             "is_group": 1 if row.get("is_group") else 0,
         },
         update_modified=False,

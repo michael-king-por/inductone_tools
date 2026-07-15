@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Compare BOM Item Custom Field fixtures against a live site.
+"""Compare Custom Field fixtures against a live site.
 
 This script is read-only with respect to Frappe. It exists to answer one
 deployment-gate question:
 
-    Would `bench migrate` overwrite any live BOM Item Custom Field definition?
+    Would `bench migrate` overwrite any live Custom Field definition?
 
 Fixture sync inserts or updates Custom Field records to match fixture JSON.
 That is safe only when fixture-managed production fields already match the
@@ -56,27 +56,39 @@ def normalize_value(value: Any) -> Any:
     return value
 
 
-def load_fixture_rows(path: Path) -> dict[str, dict[str, Any]]:
+def load_fixture_rows(path: Path, only_dt: str | None = None) -> dict[str, dict[str, Any]]:
     data = json.loads(path.read_text(encoding="utf-8"))
     rows = [
         row
         for row in data
-        if row.get("doctype") == "Custom Field" and row.get("dt") == "BOM Item"
+        if row.get("doctype") == "Custom Field"
+        and (not only_dt or row.get("dt") == only_dt)
     ]
-    return {row["fieldname"]: row for row in rows}
+    return {row["name"]: row for row in rows}
 
 
-def load_live_rows(frappe: Any) -> dict[str, dict[str, Any]]:
+def load_live_rows(frappe: Any, fixture_rows: dict[str, dict[str, Any]], only_dt: str | None = None) -> dict[str, dict[str, Any]]:
+    live: dict[str, dict[str, Any]] = {}
+    for name, fixture in fixture_rows.items():
+        if frappe.db.exists("Custom Field", name):
+            live[name] = frappe.get_doc("Custom Field", name).as_dict()
+
+    # Report same-DocType unmanaged fields only when caller scopes to one dt.
+    # This preserves the original BOM Item parity behavior without making the
+    # all-fixture deployment gate noisy across every custom field in the site.
+    if not only_dt:
+        return live
+
     rows = frappe.get_all(
         "Custom Field",
-        filters={"dt": "BOM Item"},
+        filters={"dt": only_dt},
         fields=["name", "fieldname"],
         order_by="fieldname asc",
     )
-    live: dict[str, dict[str, Any]] = {}
     for row in rows:
-        doc = frappe.get_doc("Custom Field", row.name)
-        live[row.fieldname] = doc.as_dict()
+        if row.name not in live:
+            doc = frappe.get_doc("Custom Field", row.name)
+            live[row.name] = doc.as_dict()
     return live
 
 
@@ -85,16 +97,18 @@ def compare_rows(
     live_rows: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
-    all_fieldnames = sorted(set(fixture_rows) | set(live_rows))
+    all_names = sorted(set(fixture_rows) | set(live_rows))
 
-    for fieldname in all_fieldnames:
-        fixture = fixture_rows.get(fieldname)
-        live = live_rows.get(fieldname)
+    for name in all_names:
+        fixture = fixture_rows.get(name)
+        live = live_rows.get(name)
 
         if fixture and not live:
             results.append(
                 {
-                    "fieldname": fieldname,
+                    "name": name,
+                    "dt": fixture.get("dt"),
+                    "fieldname": fixture.get("fieldname"),
                     "classification": "WOULD_CREATE",
                     "diffs": {},
                 }
@@ -104,7 +118,9 @@ def compare_rows(
         if live and not fixture:
             results.append(
                 {
-                    "fieldname": fieldname,
+                    "name": name,
+                    "dt": live.get("dt"),
+                    "fieldname": live.get("fieldname"),
                     "classification": "UNMANAGED_ON_SITE",
                     "diffs": {},
                 }
@@ -124,7 +140,9 @@ def compare_rows(
 
         results.append(
             {
-                "fieldname": fieldname,
+                "name": name,
+                "dt": fixture.get("dt"),
+                "fieldname": fixture.get("fieldname"),
                 "classification": "WOULD_OVERWRITE" if diffs else "MATCH",
                 "diffs": diffs,
             }
@@ -138,7 +156,7 @@ def print_summary(results: list[dict[str, Any]], evidence_path: Path) -> None:
     for result in results:
         counts[result["classification"]] = counts.get(result["classification"], 0) + 1
 
-    print("Custom Field fixture parity: BOM Item")
+    print("Custom Field fixture parity")
     for classification in [
         "MATCH",
         "WOULD_CREATE",
@@ -149,8 +167,8 @@ def print_summary(results: list[dict[str, Any]], evidence_path: Path) -> None:
 
     for result in results:
         classification = result["classification"]
-        fieldname = result["fieldname"]
-        print(f"{classification}: {fieldname}")
+        name = result["name"]
+        print(f"{classification}: {name}")
         if classification == "WOULD_OVERWRITE":
             diffs = result["diffs"]
             if "options" in diffs:
@@ -168,12 +186,21 @@ def print_summary(results: list[dict[str, Any]], evidence_path: Path) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Read-only BOM Item Custom Field fixture/live parity checker."
+        description="Read-only Custom Field fixture/live parity checker."
     )
     parser.add_argument("--site", required=True)
     parser.add_argument("--sites-path", required=True)
     parser.add_argument("--fixture-path", required=True, type=Path)
     parser.add_argument("--evidence-dir", required=True, type=Path)
+    parser.add_argument(
+        "--dt",
+        default=None,
+        help=(
+            "Optional DocType scope. When set, also reports unmanaged live "
+            "Custom Fields on that DocType. Omit to validate all fixture-managed "
+            "Custom Fields without site-wide unmanaged noise."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -189,8 +216,8 @@ def main() -> int:
     frappe.init(site=args.site, sites_path=args.sites_path)
     frappe.connect()
     try:
-        fixture_rows = load_fixture_rows(args.fixture_path)
-        live_rows = load_live_rows(frappe)
+        fixture_rows = load_fixture_rows(args.fixture_path, args.dt)
+        live_rows = load_live_rows(frappe, fixture_rows, args.dt)
         results = compare_rows(fixture_rows, live_rows)
 
         payload = {
@@ -198,7 +225,7 @@ def main() -> int:
             "sites_path": args.sites_path,
             "fixture_path": str(args.fixture_path),
             "generated_at_utc": timestamp,
-            "doctype": "BOM Item",
+            "doctype": args.dt or "ALL_FIXTURE_MANAGED",
             "significant_properties": SIGNIFICANT_PROPERTIES,
             "summary": {
                 classification: sum(

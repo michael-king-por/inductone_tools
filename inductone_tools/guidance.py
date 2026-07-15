@@ -83,6 +83,11 @@ def after_migrate():
             frappe.db.set_value("Custom HTML Block", block, "modified_by", "Administrator", update_modified=False)
             frappe.db.set_value("Custom HTML Block", block, "modified", frappe.utils.now(), update_modified=False)
 
+    if frappe.db.exists("DocType", "InductOne Field Change Request"):
+        from inductone_tools.field_change import refresh_display_labels
+
+        refresh_display_labels()
+
     frappe.clear_cache()
 
 

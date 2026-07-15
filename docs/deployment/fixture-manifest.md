@@ -8,20 +8,25 @@ The manifest is descriptive, not yet a final approval of every row. It is the st
 
 | File | Count | Purpose | Ownership concern |
 |---|---:|---|---|
-| `client_script.json` | 31 | Client-side ERPNext form/list behavior, including the narrow usability guidance scripts. | Current `hooks.py` uses an explicit Client Script name allowlist. Keep it narrow. |
-| `custom_html_block.json` | 10 | App-owned Workspace banner and guidance blocks. | Filtered by exact block name. Do not bulk-export unrelated Custom HTML Blocks. |
-| `doctype.json` | 31 | Custom DocType schema/configuration. | Spans `Operations - POR` and `InductOne Tools`; document ownership before restructuring. |
-| `custom_docperm.json` | 138 | Permission rows for selected managed DocTypes. | Needs alignment with formal permission matrix and replace-trap review before adding first rows to any standard DocType. |
-| `custom_field.json` | 7 | Deploy-critical Custom Fields, including BOM Item metadata/user notes and balloon-scoped option fields. | Any addition can overwrite live Custom Field definitions on migrate; run fixture parity checks before deploy. |
+| `client_script.json` | 32 | Client-side ERPNext form/list behavior, including the narrow usability guidance scripts. | Current `hooks.py` uses an explicit Client Script name allowlist. Keep it narrow. |
+| `custom_html_block.json` | 14 | App-owned Workspace banner and guidance blocks, including owner-approved Operations/Engineering UX blocks. | Filtered by exact block name. Do not bulk-export unrelated Custom HTML Blocks; convert environment-specific URLs to relative/config-driven URLs before fixture ownership. |
+| `doctype.json` | 34 | Custom DocType schema/configuration. | Spans `Operations - POR` and `InductOne Tools`; document ownership before restructuring. |
+| `custom_docperm.json` | 275 | Permission rows for selected managed DocTypes. | Needs alignment with formal permission matrix and replace-trap review before adding first rows to any standard DocType. |
+| `custom_field.json` | 22 | Deploy-critical Custom Fields, including BOM Item metadata/user notes, both balloon-scoped option fields, and app-owned Item/Product Bundle part-numbering metadata. | Any addition can overwrite live Custom Field definitions on migrate; run fixture parity checks before deploy. |
 | `inductone_configuration_option.json` | 13 | Reviewed `DEV-*` balloon-scoped option catalog. | Scoped by `option_code like DEV-%`; future operational/non-DEV options must not be swept into version control accidentally. |
 | `property_setter.json` | 0 | No property setters currently exported. | Keep intentionally empty unless deploy-critical setters are added. |
-| `report.json` | 1 | App-owned Electrical Balloon Callouts Query Report. | Keep report role access aligned with curated role model. |
+| `report.json` | 5 | App-owned Electrical Balloon Callouts, FCO assignment/register reports, Configured Snapshot Diff, and POR finance support report `Delivery Note by PO`. | Keep report role access aligned with curated role model; do not bulk-export generic ERPNext reports. |
+| `module_def.json` | 1 | App-owned `Finance - POR` module for POR finance support customization. | Module package must exist in app code before migrate; module ownership does not expand controlled InductOne CSA scope. |
+| `print_format.json` | 4 | App-owned options catalog and Configuration Order/builder release print formats. | Print format HTML can overwrite live templates; parity-review before adding records. |
+| `number_card.json` | 10 | App-owned Operations/Builder workspace count cards. | Exact-name scoped; do not bulk-export dashboards/cards. |
 | `role.json` | 10 | App-owned curated role vocabulary. | Do not fixture user assignments. |
 | `role_profile.json` | 10 | App-owned curated role profiles. | Production user-to-role assignment remains database/user-governance work. |
-| `wiki_page.json` | 15 | Explicitly allowlisted Wiki pages, including the CSA owner handbook, CSA quality-system map, controlled records index, and updated InductOne workflow pages. | Do not bulk-export the Wiki; owner-review pages before fixture-managing them. |
+| `wiki_page.json` | 16 | Explicitly allowlisted Wiki pages, including the CSA owner handbook, CSA quality-system map, controlled records index, FCO register, and updated InductOne workflow pages. | Do not bulk-export the Wiki; owner-review pages before fixture-managing them. |
 | `workspace.json` | 11 | Explicitly allowlisted Operations, Engineering, Builder Portal, and standard public workspaces whose role rows are managed so external builders see Builder Portal only. | Re-run workspace visibility audit after changes. |
 | `module_onboarding.json` | 1 | Builder first-run onboarding sequence. | Filtered to `InductOne External Builder Onboarding`. |
 | `onboarding_step.json` | 4 | Builder onboarding steps. | Filtered to the four explicit builder steps. |
+
+Scope note: `inductone_tools` is the POR-wide ERPNext customization layer. The controlled InductOne CSA scope remains the `Operations - POR` module plus the controlled CSA documents; support fixtures such as `Finance - POR` are app-owned deployment configuration, not controlled CSA records.
 
 ## Client Script rows
 
@@ -40,7 +45,7 @@ Current local fixture rows:
 | `Options Catalog Print Button` | Options Catalog print/export UX. |
 | `InductOne Build Script` | Main InductOne Build form behavior. |
 | `InductOne Build Completion Script` | Build Completion review/accept/reject UX. |
-| `Fixture Export Control Script` | Transitional fixture export UI. Should become audit-only or admin-only. |
+| `Fixture Export Control Script` | Audit-only fixture status UI. Production GUI export/push is disabled; sandbox export requires explicit site config. |
 | `InductOne List Formatting` | Build list formatting. |
 | `InductOne Build HTML Controls` | Build form visual/HTML controls. |
 | `InductOne Build Supplier Population` | Build supplier population helper. |
@@ -111,9 +116,63 @@ Current local `doctype.json` rows:
 
 - six `BOM Item` electrical/user-note fields;
 - `InductOne Configuration Option Mapping-target_balloon`;
-- `Configured BOM Snapshot Structural Effect-target_balloon`.
+- `Configured BOM Snapshot Structural Effect-target_balloon`;
+- nine app-owned `Item` part-numbering / engineering metadata fields;
+- five app-owned `Product Bundle` part-numbering / engineering metadata fields.
 
 The two `target_balloon` rows are required for balloon-scoped configuration options. They are optional Data fields inserted after `target_item`; empty value preserves legacy item-wide behavior.
+
+`scripts/run_custom_field_fixture_parity_check.py` validates all fixture-managed Custom Fields by default. The expected hardened result is all managed fields as `MATCH`, with 0 `WOULD_CREATE`, 0 `WOULD_OVERWRITE`, and 0 `UNMANAGED_ON_SITE`.
+
+Fields intentionally not fixture-managed remain owner-decision/environment-local until classified in `docs/workflows/gui-fixture-outlier-migration-2026-07-15.md`.
+
+## Report fixture rows
+
+`report.json` is intentionally filtered by exact name in `hooks.py`. The managed rows are:
+
+- `Electrical Balloon Callouts`
+- `FCO Assignments Pending Review`
+- `SUP-FCO-R01 Field Change Register`
+- `Configured Snapshot Diff`
+- `Delivery Note by PO`
+
+`Configured Snapshot Diff` is app-owned active and carries only current internal roles. `Delivery Note by PO` is POR-wide finance support under module `Finance - POR`, with curated internal read roles. Legacy `Builder`, `Manufacturing User`, and `Operations Member` role rows are not part of the fixture.
+
+## Print Format fixture rows
+
+`print_format.json` is intentionally filtered by exact name in `hooks.py`. The managed rows are:
+
+- `InductOne Options Catalog`
+- `InductOne Options Catalog - Comprehensive`
+- `CO-ATTACHED-README`
+- `InductOne Configuration Order - Builder Release`
+
+The two Configuration Order formats are builder-release artifacts. They are repo-owned so a restored candidate or production migrate cannot lose the release packet presentation layer.
+
+## Number Card fixture rows
+
+`number_card.json` is intentionally filtered by exact name in `hooks.py`. The managed rows are:
+
+- `Builder - Awaiting Acknowledgement`
+- `Builder - Completed`
+- `Builder - In Progress`
+- `Builder - Submitted`
+- `InductOne - Accepted`
+- `InductOne - Configuring`
+- `InductOne - Needs Review`
+- `InductOne — At builder`
+- `InductOne — Awaiting ack`
+- `InductOne — Ready to release`
+
+These cards support the fixture-managed Builder Portal and Operations workspace dashboards.
+
+## Server Script migration status
+
+The repository does not fixture Server Scripts. The 2026-07-15 GUI outlier migration moved the only active app-owned Server Script behavior into Python code and disables the legacy database scripts via patch `inductone_tools.patches.v2026_07_15_retire_gui_server_scripts`:
+
+- `POR Physical Locations` is replaced by `inductone_tools.physical_location.validate_por_physical_location` wired through `doc_events`.
+- `Builder Bom Permissions` is stale because it references the retired generic `Builder` role; raw Item/BOM denial for suppliers is app-owned in `external_builder_permissions.py`.
+- `InductOne Configuration Option Validation/Gatekeep` and `POR-Generated-BOM-Snapshot` remain disabled legacy/stub scripts.
 
 ## InductOne Configuration Option fixture rows
 
@@ -176,8 +235,14 @@ Run `scripts/run_wiki_fixture_validation.py` before deployment. It verifies that
 - `Engineering Banner Workflows`
 - `Engineering Banner Reference`
 - `Engineering Banner Resources`
+- `Branded Banner`
+- `Roll Callout cards`
+- `URL`
+- `Whats New Banner`
 
 These blocks back the fixture-managed Workspaces. The Builder Portal panel is dynamic: its script calls `inductone_tools.guidance.get_builder_portal_guidance`, which uses the logged-in user's normal permissions.
+
+The `URL` block was normalized to use a site-relative `/app/query-report/...` link before fixture ownership. Do not fixture hardcoded candidate or production hostnames in Custom HTML Blocks.
 
 ## Module Onboarding fixture rows
 
@@ -192,8 +257,8 @@ The builder onboarding fixture is exact-name scoped:
 ## Immediate fixture hardening recommendations
 
 1. Decide whether non-InductOne generic scripts (`minimal`, `Attachment_display`, `generate_zip`) belong to this app.
-2. Decide whether `Fixture Export Control` remains repo-owned or becomes sandbox-only.
-3. Generate a machine-readable fixture manifest and compare it against database state after migration.
+2. Keep Custom HTML Block ownership exact-name scoped; any future block with environment-specific URLs must be converted to relative/config-driven links before promotion.
+3. Do not fixture-manage Wiki Space/sidebar until every sidebar-referenced Wiki Page is already covered by the exact-name `Wiki Page` fixture, or intentionally removed from the sidebar.
 4. Align `custom_docperm.json` with the permission matrix.
 5. Review Wiki IA audit findings before adding any more Wiki pages to fixtures.
 

@@ -44,6 +44,8 @@ def validate_field_change_request(doc, method=None) -> None:
     DocType `track_changes`, which preserves the Version trail.
     """
 
+    _sync_location_display_fields(doc, fallback_to_machine_identifier=True)
+
     if doc.is_new():
         return
 
@@ -65,12 +67,113 @@ def validate_field_change_request(doc, method=None) -> None:
 def validate_field_change(doc, method=None) -> None:
     """Keep accepted Field Change records immutable."""
 
+    _sync_location_display_fields(doc, fallback_to_machine_identifier=False)
+
     if doc.is_new():
         return
 
     old_status = frappe.db.get_value(doc.doctype, doc.name, "status")
     if old_status == LOCKED_STATUS:
         frappe.throw(_("Locked Field Change records are immutable."))
+
+
+def _sync_location_display_fields(doc, *, fallback_to_machine_identifier: bool) -> None:
+    """Denormalize Instance customer/location for readable FCO list views.
+
+    These fields are display aids. The Instance remains the canonical link to
+    customer and location, but operators need the list view to read as an
+    as-installed/as-maintained ledger instead of a bare serial-number table.
+    """
+
+    if not hasattr(doc, "meta"):
+        return
+
+    has_location_label = doc.meta.has_field("location_label")
+    has_customer = doc.meta.has_field("customer")
+    if not has_location_label and not has_customer:
+        return
+
+    instance_name = doc.get("instance")
+    if instance_name:
+        values = frappe.db.get_value(
+            "InductOne Instance",
+            instance_name,
+            ["deployment_site", "customer"],
+            as_dict=True,
+        ) or {}
+        if has_location_label:
+            doc.location_label = values.get("deployment_site")
+        if has_customer:
+            doc.customer = values.get("customer")
+        return
+
+    if has_location_label:
+        doc.location_label = doc.get("machine_identifier") if fallback_to_machine_identifier else None
+    if has_customer:
+        doc.customer = None
+
+
+def refresh_display_labels() -> dict:
+    """Backfill denormalized FCO list-view labels after fixture migration.
+
+    This is intentionally not whitelisted. It is called from after_migrate,
+    after the DocType fixture has created the ``location_label`` and
+    ``customer`` columns.
+    """
+
+    result = {"requests": 0, "field_changes": 0, "skipped": []}
+
+    if frappe.db.exists("DocType", "InductOne Field Change Request") and _has_columns(
+        "InductOne Field Change Request", ["location_label", "customer"]
+    ):
+        for row in frappe.get_all(
+            "InductOne Field Change Request",
+            fields=["name", "instance", "machine_identifier"],
+        ):
+            frappe.db.set_value(
+                "InductOne Field Change Request",
+                row.name,
+                _display_values(row.instance, row.machine_identifier),
+                update_modified=False,
+            )
+            result["requests"] += 1
+    else:
+        result["skipped"].append("InductOne Field Change Request")
+
+    if frappe.db.exists("DocType", "InductOne Field Change") and _has_columns(
+        "InductOne Field Change", ["location_label", "customer"]
+    ):
+        for row in frappe.get_all("InductOne Field Change", fields=["name", "instance"]):
+            frappe.db.set_value(
+                "InductOne Field Change",
+                row.name,
+                _display_values(row.instance, None),
+                update_modified=False,
+            )
+            result["field_changes"] += 1
+    else:
+        result["skipped"].append("InductOne Field Change")
+
+    return result
+
+
+def _has_columns(doctype: str, columns: list[str]) -> bool:
+    return all(frappe.db.has_column(doctype, column) for column in columns)
+
+
+def _display_values(instance: str | None, fallback_location: str | None) -> dict:
+    if instance:
+        values = frappe.db.get_value(
+            "InductOne Instance",
+            instance,
+            ["deployment_site", "customer"],
+            as_dict=True,
+        ) or {}
+        return {
+            "location_label": values.get("deployment_site"),
+            "customer": values.get("customer"),
+        }
+    return {"location_label": fallback_location, "customer": None}
 
 
 @frappe.whitelist()

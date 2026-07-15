@@ -1,13 +1,56 @@
 # InductOne As-Installed Register + Field Change (FCO) + ERPNext Integration — Codex Build Spec
 
 **Date:** 2026-07-13  **Author:** CSA overhaul (design)  **Executor:** Codex (candidate only)
-**Status:** ready to build in candidate. Nothing in this spec touches production.
+**Status:** built and candidate-validated. Nothing in this spec touches production.
 
 This is the consolidated, execution-ready build that completes the InductOne Configuration Status
 Accounting (CSA) integration in ERPNext: it wires locations, backfills the fielded fleet as Instances,
 adds the Field Change (FCO) module tied to those Instances, backfills the historical FCOs, and turns the
 `SUP-FCO-R01` register into a generated export. It supersedes the backfill sections of the earlier
 piecemeal specs (W8 and addenda).
+
+## Build state as of 2026-07-15 — VERIFIED / completed in candidate
+Prior Codex passes (committed through `df47187` "pushing fco process") already built most of this spec.
+Confirm each item exists in candidate before acting; **extend/complete only the gaps**.
+
+**Already built (committed):**
+- DocTypes: `InductOne Instance`, `POR Physical Location` (nested-set, `is_tree=1`), `InductOne Field
+  Change`, `InductOne Field Change Request`, `InductOne Field Change Serial`, Part Number
+  Assignment/Allocation set.
+- Instance fields: `origin`, `physical_location` (Link), `deployment_site` (fetch_from
+  `physical_location.full_path`, RO), relaxed provenance (enforced only for `origin=Born-in-system` via
+  `instance/hooks.py`), `latest_field_change_date`, `field_change_count`.
+- `instance/hooks.py`: serial-format validation, born-in-system provenance gate, deployment_site sync,
+  forward-only status state machine.
+- `instance/backfill.py`: `create_backfill_instance()` bench-console mechanism (sets `deployment_site` —
+  see G3).
+- Field Change: lock-on-accept (`accepted_by`/`at`, status `Locked`), `component_serial_changes` child,
+  `source_request`. Field Change Request: full triage + `assignment_confidence`/`assignment_reviewed`/
+  `assignment_change_reason` fields.
+- `physical_location.py`: app-code validation of Site→Lane→Cell→Robot (replaced the GUI Server Script).
+- Wiki reconciliation (H.15) applied & staged (`wiki_page.json` + `wiki-reconciliation-2026-07-14.md`).
+
+**Gaps completed in candidate on 2026-07-15:**
+- **G1 — Customer tier / customer-rooted tree.** `POR Physical Location` now supports
+  Customer→Site→Lane→Cell. `physical_location.py` allows Sites under Customer roots and includes the
+  Customer node in `full_path`. Candidate patch/backfill seeded one Customer node for each distinct
+  existing location-row customer (`DHL`, `Plus One Robotics`, `UPS`) and re-parented Sites under those
+  Customer nodes. Native Frappe Tree view visual evidence:
+  `C:\hub\frappe-sandbox\validation-evidence\fco_customer_tree_view_20260715.png`.
+- **G2 — Field Change list readability.** `InductOne Field Change` and `InductOne Field Change Request`
+  now include read-only `location_label` and `customer` fetch fields. `instance`, `location_label`,
+  `customer`, and `status` are list-visible. Wide Desk visual evidence:
+  `C:\hub\frappe-sandbox\validation-evidence\fco_request_list_readability_wide_20260715.png` and
+  `C:\hub\frappe-sandbox\validation-evidence\fco_field_change_list_readability_wide_20260715.png`.
+- **G3 — backfill physical_location link.** `instance/backfill.py` accepts and sets the canonical Cell
+  `physical_location`; `deployment_site` is derived from the Cell `full_path` and remains a fallback for
+  pre-location units.
+- **G4 — confirm execution.** Candidate idempotent backfill confirmed 11 seeded Instances, 83 component
+  serial rows, 19 FCO Requests, and 4 spawned Field Changes. Evidence:
+  `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_backfill.json`.
+- **G5 — register export + JotForm importer.** Validation confirmed the SUP-FCO-R01 v2.0 18-column
+  register contract and the JotForm importer path. Evidence:
+  `C:\hub\frappe-sandbox\validation-evidence\fco_as_installed_validation.json`.
 
 ## Operating rules — absolute
 1. **Candidate only** (`inductone-candidate.localhost`). Never touch production; never push; never tag.
@@ -25,7 +68,10 @@ piecemeal specs (W8 and addenda).
   POC units use `IND-####` (e.g. `IND-3001`). Both are valid `system_serial` values by era.
 - **Onexia = a builder** (Supplier), not a site/customer. "Onexia cell" = a cell built by Onexia.
 - **Locations** are a real hierarchical DocType (`POR Physical Location`, nested-set, Site→Lane→Cell→Robot)
-  that was orphaned; this build wires it as canonical at depth **Site→Lane→Cell**. SATX internal/reference units are segmented under **Display / Testing** (CEC, Golden Unit) and **Lab** (Amazon POC / outbound transient test units).
+  that was orphaned; this build wires it as canonical and navigable as a **native Frappe tree** at depth
+  **Customer→Site→Lane→Cell** — Customer is the top group tier so Support/Ops browse by customer first.
+  SATX internal/reference units are segmented under **Display / Testing** (CEC, Golden Unit) and **Lab**
+  (Amazon POC / outbound transient test units), grouped under the Plus One Robotics customer node.
 
 ## Inputs — seed files (in `scripts/inductone_backfill/seeds/`)
 - `location_tree_seed.xlsx` — POR Physical Location rows (Sites, Lanes, Cells; each Cell → instance serial).
@@ -45,9 +91,12 @@ piecemeal specs (W8 and addenda).
   `Amazon` with no additional details; owner will enrich the record later once reliable data is known.
 
 ### Phase 1 — POR Physical Location (canonical location tree)
-1. Seed `POR Physical Location` from `location_tree_seed.xlsx` as a proper nested-set tree
-   (Site `is_group`, Lane `is_group`, Cell leaf). Set customer, `*_code`, `full_path`, parent. Let Frappe
-   maintain `lft`/`rgt`. Idempotent (skip existing by `location_code`).
+1. Seed `POR Physical Location` from `location_tree_seed.xlsx` as a proper nested-set tree. **Root the tree
+   at Customer:** derive one group node per distinct `customer` value in the seed (location_type = Customer,
+   `is_group`), then parent each Site under its customer node (Site `is_group`, Lane `is_group`, Cell leaf).
+   Deriving the customer group nodes from the seed's existing `customer` column is authorized structure, not
+   invented data (rule 5 unaffected). Set customer, `*_code`, `full_path` (Customer › Site › Lane › Cell),
+   parent. Let Frappe maintain `lft`/`rgt`. Idempotent (skip existing by `location_code`).
 2. Add Link field **`physical_location`** (options: POR Physical Location) to `InductOne Instance`.
    Make `deployment_site` a read-only label synced from the linked Cell's `full_path` (fetch_from or hook).
    Do NOT drop `deployment_site`.
@@ -55,6 +104,13 @@ piecemeal specs (W8 and addenda).
    (`inductone_build`, `as_built_record`, `configuration_order`) so legacy/POC-origin Instances can exist
    without them; enforce them (validation) only for `origin = Born-in-system`.
 4. Add `origin` (Select: Born-in-system | Legacy backfill | POC | Internal-Reference) to `InductOne Instance`.
+5. **Native tree navigation (primary Support/Ops deliverable).** Make `POR Physical Location` render in
+   Frappe's built-in **Tree view** — the same navigator ERPNext already uses for Warehouse / Territory /
+   Item Group. Set the nested-set/tree flags and a default Tree route so the DocType opens on a
+   **Customer → Site → Lane → Cell** expand/collapse tree; each node shows its `location_type`, and Cell
+   nodes show the linked Instance serial + status. **No custom page or app is built** — this is the stock
+   Frappe tree, which is why it is the easiest and most robust option. Verify add/rename/re-parent keep the
+   nested set consistent.
 
 ### Phase 2 — Instance backfill
 Load `instance_backfill_seed.xlsx` **Instances** sheet: 8 fielded (real IN serials) + 2 SATX `REF-*`
@@ -88,6 +144,13 @@ customer, `physical_location` (Cell), component serials. No fabricated provenanc
    InductOne Manager, InductOne Process Architect); Operations Viewer read-only; **external builders NO
    access** to either DocType. Export to `custom_docperm.json`; new DocTypes/child/workflow/report to
    fixtures. Keep the exact-name Wiki fixture filter untouched.
+6. **Human-readable list views (both DocTypes).** On `InductOne Field Change` and `InductOne Field Change
+   Request`, add a read-only `location_label` (fetch_from `instance.deployment_site` — the Cell `full_path`,
+   e.g. `UPS › Worldport › Primary-3 › Cell 3-2`) and a read-only `customer` (fetch_from the Instance). Set
+   `in_list_view: 1` on `instance` (serial), `location_label`, `customer`, and status/disposition, so the
+   list reads `FC-2025-0001 · IN002024257003 · UPS › Worldport › Primary-3 › Cell 3-2 · Locked` — not a
+   bare serial + status + ID. When the Instance has no location yet (pending-serial / organic),
+   `location_label` falls back to `machine_identifier`.
 
 ### Phase 4 — FCO backfill aligned to Instances (per `fco_instance_map.xlsx`)
 1. Create 19 `InductOne Field Change Request` records from `fco_jotform_export.xlsx` (map Flow Status →
@@ -125,6 +188,12 @@ customer, `physical_location` (Cell), component serials. No fabricated provenanc
    the change appears in the Version log; low-confidence rows appear in the monitor report.
 8. External builders (motion.builder / lam) denied create/read on all new DocTypes (negative test).
 9. No `ignore_permissions=True` introduced (grep clean).
+10. **Tree navigation:** `POR Physical Location` opens in Frappe Tree view as Customer → Site → Lane →
+    Cell; expanding a Customer shows its Sites; a Cell node shows its Instance serial + status. Screenshot
+    evidence.
+11. **List readability:** `InductOne Field Change` and `InductOne Field Change Request` list views show the
+    full `location_label` (Customer › Site › Lane › Cell) and `customer` columns alongside serial/status —
+    not just serial/status/ID.
 
 ## PENDING ADDITIONS — future simple Codex drop-in (documented trail)
 These are known-incomplete and intentionally deferred. Each is a small, isolated addition later:

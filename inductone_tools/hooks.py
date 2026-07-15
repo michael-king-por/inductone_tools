@@ -71,6 +71,10 @@ doc_events = {
         "validate": "inductone_tools.field_change.validate_field_change",
     },
 
+    "POR Physical Location": {
+        "before_validate": "inductone_tools.physical_location.validate_por_physical_location",
+    },
+
     "InductOne Builder Tranche": {
         "validate": "inductone_tools.serial_allocation.tranche.validate_tranche",
     },
@@ -99,6 +103,14 @@ has_permission = {
 }
 
 fixtures = [
+    {
+        "dt": "Module Def",
+        "filters": [
+            ["name", "in", [
+                "Finance - POR"
+            ]]
+        ]
+    },
     {
         "dt": "DocType",
         "filters": [
@@ -196,7 +208,11 @@ fixtures = [
                 "Engineering Banner Info",
                 "Engineering Banner Workflows",
                 "Engineering Banner Reference",
-                "Engineering Banner Resources"
+                "Engineering Banner Resources",
+                "Branded Banner",
+                "Roll Callout cards",
+                "URL",
+                "Whats New Banner"
             ]]
         ]
     },
@@ -224,8 +240,10 @@ fixtures = [
         "filters": [
             ["name", "in", [
                 "Electrical Balloon Callouts",
+                "Configured Snapshot Diff",
                 "FCO Assignments Pending Review",
-                "SUP-FCO-R01 Field Change Register"
+                "SUP-FCO-R01 Field Change Register",
+                "Delivery Note by PO"
             ]]
         ]
     },
@@ -234,7 +252,26 @@ fixtures = [
         "filters": [
             ["name", "in", [
                 "InductOne Options Catalog",
-                "InductOne Options Catalog - Comprehensive"
+                "InductOne Options Catalog - Comprehensive",
+                "CO-ATTACHED-README",
+                "InductOne Configuration Order - Builder Release"
+            ]]
+        ]
+    },
+    {
+        "dt": "Number Card",
+        "filters": [
+            ["name", "in", [
+                "Builder - Awaiting Acknowledgement",
+                "Builder - Completed",
+                "Builder - In Progress",
+                "Builder - Submitted",
+                "InductOne - Accepted",
+                "InductOne - Configuring",
+                "InductOne - Needs Review",
+                "InductOne — At builder",
+                "InductOne — Awaiting ack",
+                "InductOne — Ready to release"
             ]]
         ]
     },
@@ -292,7 +329,10 @@ fixtures = [
                 "InductOne Configuration Order Selected Option",
                 "InductOne Configuration Order Document Index",
                 "BOM Item",
-                "Configured BOM Snapshot Structural Effect"
+                "Configured BOM Snapshot Structural Effect",
+                "InductOne Configuration Option Mapping",
+                "Item",
+                "Product Bundle"
             ]]
         ]
     },
