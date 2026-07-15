@@ -63,6 +63,7 @@ def generate_now(package_name: str):
             include_bom_attachments=bool(getattr(doc, "include_bom_attachments", 0)),
             exts=exts,
         )
+        root_item_attachments = collect_root_item_attachments(doc, exts)
 
         # 3) Write child results (no parent save) + build missing summary text (db-level)
         missing_rows = update_results_and_missing_summary(package_name, doc, rows, attachment_index, exts)
@@ -75,6 +76,7 @@ def generate_now(package_name: str):
             attachment_index=attachment_index,
             exts=exts,
             missing_rows=missing_rows,
+            root_item_attachments=root_item_attachments,
         )
 
         saved = save_file(
@@ -1364,6 +1366,66 @@ def collect_attachments_for_rows(rows, include_item_attachments: bool, include_b
     return idx
 
 
+def collect_root_item_attachments(package_doc, exts):
+    """
+    Optional quote/export helper plus controlled InductOne handoff support.
+
+    Normal package collection starts from resolved BOM rows, so the root BOM's
+    parent Item is not included as a material/result row.
+
+    Rules:
+      - Standard BOM exports include root Item attachments only when the
+        checkbox is explicitly selected.
+      - Configured Build exports always include the root Item PDF when PDF
+        export is selected, because the builder handoff package needs the
+        top-level assembly drawing/document without changing BOM semantics.
+      - Explicit checkbox selection includes all selected extension types.
+
+    In every case this is an extra ZIP payload only. It does not change BOM
+    rows, configured hierarchy, flat procurement data, or package results.
+    """
+    explicitly_requested = bool(getattr(package_doc, "include_root_item_attachments", 0))
+    is_configured_build = (package_doc.source_mode or "BOM") == "Configured Build"
+
+    if explicitly_requested:
+        root_exts = list(exts)
+    elif is_configured_build and ".pdf" in exts:
+        root_exts = [".pdf"]
+    else:
+        root_exts = []
+
+    if not root_exts:
+        return []
+    if not package_doc.bom:
+        return []
+
+    root_item = frappe.db.get_value("BOM", package_doc.bom, "item")
+    if not root_item:
+        return []
+
+    out = []
+    for ext in root_exts:
+        files = frappe.get_all(
+            "File",
+            filters={
+                "attached_to_doctype": "Item",
+                "attached_to_name": root_item,
+                "is_folder": 0,
+                "file_url": ["like", f"%{ext}"],
+            },
+            fields=["name", "attached_to_name", "file_name", "file_url", "is_private", "modified", "creation"],
+            order_by="modified desc, creation desc",
+        )
+        if files:
+            f = dict(files[0])
+            f["ext"] = ext
+            f["item_code"] = root_item
+            f["source"] = "Root Assembly Item"
+            out.append(f)
+
+    return out
+
+
 def resolve_file_path(file_url: str):
     if not file_url:
         return None
@@ -1487,9 +1549,10 @@ def update_results_and_missing_summary(package_name, package_doc, rows, attachme
 # ZIP Build (NO doc mutation)
 # -----------------------------
 
-def build_zip_bytes(package_name, package_doc, rows, attachment_index, exts, missing_rows):
+def build_zip_bytes(package_name, package_doc, rows, attachment_index, exts, missing_rows, root_item_attachments=None):
     bom_safe = (package_doc.bom or "BOM").replace("/", "_")
     zip_name = f"{bom_safe}_export_{frappe.utils.now_datetime().strftime('%Y%m%d_%H%M%S')}.zip"
+    root_item_attachments = root_item_attachments or []
 
     buf = io.BytesIO()
 
@@ -1537,7 +1600,38 @@ def build_zip_bytes(package_name, package_doc, rows, attachment_index, exts, mis
                         zf.write(abs_path, zip_path)
                 else:
                     zf.write(abs_path, zip_path)
-        zf.writestr("manifest.txt", _manifest_text(package_doc, rows, exts, missing_rows))
+
+        for f in root_item_attachments:
+            ext = (f.get("ext") or "").lower()
+            file_url = f.get("file_url")
+            abs_path = resolve_file_path(file_url)
+
+            if not abs_path or not os.path.exists(abs_path):
+                _append_log(package_name, f"[{now()}] WARN: root item file not found on disk: {file_url}")
+                continue
+
+            item_code = f.get("item_code") or "ROOT_ITEM"
+            original_name = f.get("file_name") or os.path.basename(abs_path)
+            folder = "STEP" if ext in (".step", ".stp") else ext.lstrip(".").upper()
+            zip_path = f"ROOT_ASSEMBLY/{folder}/{item_code}/{original_name}"
+
+            if zip_path in written_zip_paths:
+                continue
+            written_zip_paths.add(zip_path)
+
+            if ext == ".pdf":
+                try:
+                    pdf_bytes = _read_file_bytes(abs_path)
+                    wm_text = _watermark_text(package_doc)
+                    wm_bytes = watermark_pdf_bytes(pdf_bytes, wm_text)
+                    zf.writestr(zip_path, wm_bytes)
+                except Exception:
+                    _append_log(package_name, f"[{now()}] WARN: root item watermark failed for {file_url}; added original. {frappe.get_traceback()}")
+                    zf.write(abs_path, zip_path)
+            else:
+                zf.write(abs_path, zip_path)
+
+        zf.writestr("manifest.txt", _manifest_text(package_doc, rows, exts, missing_rows, root_item_attachments))
 
     buf.seek(0)
     return zip_name, buf.read()
@@ -1647,12 +1741,13 @@ def _missing_csv_bytes(missing_rows):
     return out.getvalue().encode("utf-8")
 
 
-def _manifest_text(doc, rows, exts, missing_rows):
+def _manifest_text(doc, rows, exts, missing_rows, root_item_attachments=None):
     """
     Self-describing manifest for the BOM Export Package ZIP.
     Describes what's inside, regardless of downstream consumer.
     """
     extension_list = ", ".join(exts)
+    root_item_attachments = root_item_attachments or []
     
     # Count rows by node type for an at-a-glance summary
     assembly_count = sum(1 for r in rows if r.get("node_type") == "Assembly")
@@ -1695,11 +1790,35 @@ def _manifest_text(doc, rows, exts, missing_rows):
         "-" * 60,
         "",
         "  /<EXT>/<item_code>/<original_filename>",
+        "  /ROOT_ASSEMBLY/<EXT>/<root_item_code>/<original_filename>",
         "",
         "  Files are organized by extension type, then by item code.",
+        "  Root assembly files are included when explicitly requested; Configured Build packages automatically include the root PDF.",
         "  PDFs are watermarked with this package's identifier.",
         "",
     ])
+
+    explicitly_requested = bool(getattr(doc, "include_root_item_attachments", 0))
+    is_configured_build = (doc.source_mode or "BOM") == "Configured Build"
+    root_payload_expected = explicitly_requested or (is_configured_build and ".pdf" in exts)
+
+    if root_payload_expected:
+        root_item = frappe.db.get_value("BOM", doc.bom, "item") if doc.bom else None
+        lines.extend([
+            "ROOT ASSEMBLY ITEM ATTACHMENTS",
+            "-" * 60,
+            f"Included:         YES",
+            f"Reason:           {'Explicit checkbox' if explicitly_requested else 'Configured Build root PDF'}",
+            f"Root Item:        {root_item or '(not resolved)'}",
+            f"Files included:   {len(root_item_attachments)}",
+        ])
+        if root_item_attachments:
+            for f in root_item_attachments:
+                folder = "STEP" if (f.get("ext") or "").lower() in (".step", ".stp") else (f.get("ext") or "").lstrip(".").upper()
+                lines.append(f"- ROOT_ASSEMBLY/{folder}/{f.get('item_code')}/{f.get('file_name')}")
+        else:
+            lines.append("- No matching root Item attachments found for the selected file types.")
+        lines.append("")
     
     return "\n".join(lines)
 

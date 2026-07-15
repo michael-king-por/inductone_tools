@@ -19,6 +19,7 @@ import frappe
 
 from inductone_tools.part_numbering import (
     LIVE_SEQUENCE_EXCEPTION_BATCHES,
+    SEQUENCE_AUTHORITY_MAX_REASONABLE_SUFFIX,
     _extract_sequence,
     _is_sequence_authoritative_assignment,
     _make_part_number,
@@ -78,6 +79,7 @@ def run(site: str, sites_path: str, evidence_dir: str) -> int:
         controlled_like = []
         sequence_authoritative = []
         manual_or_custom_controlled_like = []
+        high_suffix_outliers = []
         live_exception_batch_rows = []
 
         for raw in rows:
@@ -98,6 +100,9 @@ def run(site: str, sites_path: str, evidence_dir: str) -> int:
             else:
                 manual_or_custom_controlled_like.append(row)
 
+            if sequence >= SEQUENCE_AUTHORITY_MAX_REASONABLE_SUFFIX:
+                high_suffix_outliers.append(row)
+
             if row.get("allocation_batch_id") in LIVE_SEQUENCE_EXCEPTION_BATCHES:
                 live_exception_batch_rows.append(row)
 
@@ -108,11 +113,13 @@ def run(site: str, sites_path: str, evidence_dir: str) -> int:
             "site": site,
             "generated_at_utc": timestamp,
             "live_sequence_exception_batches": sorted(LIVE_SEQUENCE_EXCEPTION_BATCHES),
+            "sequence_authority_max_reasonable_suffix": SEQUENCE_AUTHORITY_MAX_REASONABLE_SUFFIX,
             "counts": {
                 "assignments_total": len(rows),
                 "controlled_like": len(controlled_like),
                 "sequence_authoritative": len(sequence_authoritative),
                 "manual_or_custom_controlled_like": len(manual_or_custom_controlled_like),
+                "high_suffix_outliers": len(high_suffix_outliers),
                 "live_exception_batch_rows": len(live_exception_batch_rows),
             },
             "current_sequence_authoritative_max": max_sequence,
@@ -131,6 +138,11 @@ def run(site: str, sites_path: str, evidence_dir: str) -> int:
                 key=lambda row: row["sequence"],
                 reverse=True,
             )[:50],
+            "top_high_suffix_outliers": sorted(
+                high_suffix_outliers,
+                key=lambda row: row["sequence"],
+                reverse=True,
+            )[:50],
             "live_exception_batch_rows": sorted(
                 live_exception_batch_rows, key=lambda row: row["sequence"]
             ),
@@ -144,6 +156,7 @@ def run(site: str, sites_path: str, evidence_dir: str) -> int:
     print(f"Evidence: {evidence_path}")
     print(f"Sequence-authoritative max: {payload['current_sequence_authoritative_max']}")
     print(f"Legacy poisoned max: {payload['legacy_poisoned_max_if_all_controlled_like_counted']}")
+    print(f"High suffix outliers: {payload['counts']['high_suffix_outliers']}")
     print("Next by family:")
     for family, part_number in payload["next_by_family"].items():
         print(f"  {family}: {part_number}")
