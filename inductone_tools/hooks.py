@@ -45,6 +45,10 @@ doc_events = {
         "before_save": "inductone_tools.engineering_signoff.on_target_save",
     },
 
+    "Engineering Signoff": {
+        "before_insert": "inductone_tools.engineering_signoff.before_insert_signoff",
+    },
+
     "Part Number Allocation Request": {
         "validate": "inductone_tools.part_numbering.validate_allocation_request",
     },

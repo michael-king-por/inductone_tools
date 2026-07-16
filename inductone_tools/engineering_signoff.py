@@ -23,7 +23,6 @@ AUTO_SIGNOFF_ON_INSERT_DOCTYPES = [
     "Item",
 ]
 
-
 # ---------- Public whitelisted methods ----------
 
 @frappe.whitelist()
@@ -37,64 +36,38 @@ def request_signoff(target_doctype: str, target_docname: str):
     Idempotent: if a current Pending record already exists at the target's
     current revision, return it without creating a duplicate.
     """
-    _validate_target(target_doctype, target_docname)
-
-    # Configuration Options can only have a signoff requested while Draft.
-    # Released options are locked; Deprecated options are retired.
-    if target_doctype == CONFIG_OPTION_DOCTYPE:
-        status = frappe.db.get_value(CONFIG_OPTION_DOCTYPE, target_docname, "status")
-        if status != CONFIG_OPTION_DRAFT_STATUS:
-            frappe.throw(_(
-                "Configuration Option '{0}' has status '{1}'. A signoff can only be "
-                "requested while the option is Draft."
-            ).format(target_docname, status or "not set"))
+    _validate_request_allowed(target_doctype, target_docname)
 
     target_revision_id = _get_target_revision_id(target_doctype, target_docname)
     target_description = _get_target_description(target_doctype, target_docname)
 
-    existing_current = frappe.get_all(
-        "Engineering Signoff",
-        filters={
-            "target_doctype": target_doctype,
-            "target_docname": target_docname,
-            "is_current": 1,
-        },
-        fields=["name", "status", "target_revision_id"],
-        limit=1,
+    existing_pending = _supersede_current_for_new_request(
+        target_doctype, target_docname, target_revision_id
     )
-
-    if existing_current:
-        cur = existing_current[0]
-
-        if cur["status"] == "Pending" and cur["target_revision_id"] == target_revision_id:
-            return {
-                "ok": True,
-                "signoff_name": cur["name"],
-                "status": "Pending",
-                "already_existed": True,
-            }
-
-        # Stamp a superseded Pending record so it never masquerades as live.
-        # Approved/Rejected records keep their status (history); only Pending
-        # ones, which are now meaningless, are relabelled.
-        supersede_updates = {"is_current": 0}
-        if cur["status"] == "Pending":
-            supersede_updates["status"] = "Superseded"
-        frappe.db.set_value("Engineering Signoff", cur["name"], supersede_updates)
+    if existing_pending:
+        return {
+            "ok": True,
+            "signoff_name": existing_pending["name"],
+            "status": "Pending",
+            "already_existed": True,
+        }
 
     # NOTE: this instantiation line was missing in the broken version, which is
     # why auto-re-requests crashed with NameError and left orphaned (is_current=0,
     # no replacement) signoffs. Do not remove it.
     signoff = frappe.new_doc("Engineering Signoff")
-    signoff.target_doctype = target_doctype
-    signoff.target_docname = target_docname
-    signoff.target_revision_id = target_revision_id
-    signoff.target_description = target_description
-    signoff.status = "Pending"
-    signoff.is_current = 1
-    signoff.requested_at = frappe.utils.now_datetime()
-    signoff.requested_by = frappe.session.user
-    signoff.insert(ignore_permissions=True)
+    _populate_pending_signoff(
+        signoff,
+        target_doctype,
+        target_docname,
+        target_revision_id,
+        target_description,
+    )
+    frappe.flags.engineering_signoff_request_insert_in_progress = True
+    try:
+        signoff.insert(ignore_permissions=True)
+    finally:
+        frappe.flags.engineering_signoff_request_insert_in_progress = False
 
     frappe.db.commit()
 
@@ -406,9 +379,45 @@ def get_current_signoff_record(target_doctype: str, target_docname: str):
 
 # ---------- Hook handlers ----------
 
+def before_insert_signoff(doc, method=None):
+    """
+    before_insert handler for Engineering Signoff.
+
+    Manual fallback creation is allowed, but it is normalized through the same
+    current-record logic as request_signoff(): the target is validated, any
+    previous current signoff is superseded, and duplicate current Pending
+    records at the same revision are rejected.
+    """
+    if getattr(frappe.flags, "engineering_signoff_request_insert_in_progress", False):
+        return
+
+    target_doctype = doc.get("target_doctype")
+    target_docname = doc.get("target_docname")
+    _validate_request_allowed(target_doctype, target_docname)
+
+    target_revision_id = _get_target_revision_id(target_doctype, target_docname)
+    target_description = _get_target_description(target_doctype, target_docname)
+
+    existing_pending = _supersede_current_for_new_request(
+        target_doctype, target_docname, target_revision_id
+    )
+    if existing_pending:
+        frappe.throw(_(
+            "A current Pending Engineering Signoff already exists for {0} '{1}': {2}"
+        ).format(target_doctype, target_docname, existing_pending["name"]))
+
+    _populate_pending_signoff(
+        doc,
+        target_doctype,
+        target_docname,
+        target_revision_id,
+        target_description,
+    )
+
+
 def on_target_save(doc, method=None):
     """
-    before_save handler. Wired ONLY to InductOne Configuration Option.
+    before_save handler. Wired only to InductOne Configuration Option.
 
     Two guards, both Configuration-Option-specific:
       1. Immutability: Released and Deprecated options cannot be edited.
@@ -416,9 +425,10 @@ def on_target_save(doc, method=None):
       2. Manual release block: Draft cannot be flipped to Released by hand;
          only Engineering Signoff approval releases an option.
 
-    There is intentionally NO signoff-invalidation here. Per process, edits do
-    not trigger or invalidate signoffs — only new records get signoffs, and
-    Released options are locked outright.
+    Ordinary edits to signoff-enabled targets do not trigger or invalidate
+    signoffs. Item/BOM/Product Bundle signoffs are created on insert or by
+    explicit request; Configuration Options are requested manually and locked
+    after release.
     """
     if doc.doctype != CONFIG_OPTION_DOCTYPE:
         return
@@ -480,6 +490,63 @@ def on_target_after_insert(doc, method=None):
 
 
 # ---------- Internal helpers ----------
+
+def _validate_request_allowed(target_doctype, target_docname):
+    _validate_target(target_doctype, target_docname)
+
+    # Configuration Options can only have a signoff requested while Draft.
+    # Released options are locked; Deprecated options are retired.
+    if target_doctype == CONFIG_OPTION_DOCTYPE:
+        status = frappe.db.get_value(CONFIG_OPTION_DOCTYPE, target_docname, "status")
+        if status != CONFIG_OPTION_DRAFT_STATUS:
+            frappe.throw(_(
+                "Configuration Option '{0}' has status '{1}'. A signoff can only be "
+                "requested while the option is Draft."
+            ).format(target_docname, status or "not set"))
+
+
+def _supersede_current_for_new_request(target_doctype, target_docname, target_revision_id):
+    existing_current = frappe.get_all(
+        "Engineering Signoff",
+        filters={
+            "target_doctype": target_doctype,
+            "target_docname": target_docname,
+            "is_current": 1,
+        },
+        fields=["name", "status", "target_revision_id"],
+        limit=1,
+    )
+
+    if not existing_current:
+        return None
+
+    cur = existing_current[0]
+
+    if cur["status"] == "Pending" and cur["target_revision_id"] == target_revision_id:
+        return cur
+
+    # Stamp a superseded Pending record so it never masquerades as live.
+    # Approved/Rejected records keep their status (history); only Pending
+    # ones, which are now meaningless, are relabelled.
+    supersede_updates = {"is_current": 0}
+    if cur["status"] == "Pending":
+        supersede_updates["status"] = "Superseded"
+    frappe.db.set_value("Engineering Signoff", cur["name"], supersede_updates)
+    return None
+
+
+def _populate_pending_signoff(
+    signoff, target_doctype, target_docname, target_revision_id, target_description
+):
+    signoff.target_doctype = target_doctype
+    signoff.target_docname = target_docname
+    signoff.target_revision_id = target_revision_id
+    signoff.target_description = target_description
+    signoff.status = "Pending"
+    signoff.is_current = 1
+    signoff.requested_at = frappe.utils.now_datetime()
+    signoff.requested_by = frappe.session.user
+
 
 def _validate_target(target_doctype, target_docname):
     if target_doctype not in SIGNOFF_ENABLED_DOCTYPES:
