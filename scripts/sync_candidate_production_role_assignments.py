@@ -19,11 +19,15 @@ DEFAULT_EVIDENCE_DIR = Path("/mnt/c/hub/frappe-sandbox/validation-evidence")
 
 ROLE_ASSIGNMENTS = {
     "ian.deliz@plusonerobotics.com": ["System Manager"],
-    "matt.speer@plusonerobotics.com": ["Finance Viewer"],
+    "matt.speer@plusonerobotics.com": ["Global Viewer"],
     "matthew.mcmillan@plusonerobotics.com": ["Procurement User"],
-    "patty.gomez@plusonerobotics.com": ["Operations Manager"],
+    "patty.gomez@plusonerobotics.com": ["Operations Manager", "Inventory Operator"],
     "ryan.hannon@plusonerobotics.com": ["Operations Manager"],
-    "nathaniel.pantuso@plusonerobotics.com": ["Operations Manager", "Gripper Manufacturer"],
+    "nathaniel.pantuso@plusonerobotics.com": [
+        "Operations Manager",
+        "Inventory Operator",
+        "Gripper Manufacturer",
+    ],
     "jim.haws@plusonerobotics.com": ["InductOne Manager", "Operations Manager"],
     "christina.gt@plusonerobotics.com": [
         "Engineering User",
@@ -37,17 +41,16 @@ ROLE_ASSIGNMENTS = {
     ],
     "david.moreno@plusonerobotics.com": [
         "Engineering User",
-        "InductOne Manager",
-        "Operations Manager",
+        "Operations Viewer",
     ],
     "shaun.edwards@plusonerobotics.com": ["Engineering User"],
-    "jason.minica@plusonerobotics.com": ["Engineering User"],
-    "wayne.kirk@plusonerobotics.com": ["Engineering User"],
+    "jason.minica@plusonerobotics.com": ["Engineering User", "Operations Viewer"],
+    "wayne.kirk@plusonerobotics.com": ["Engineering User", "Operations Viewer"],
     "michael.king@plusonerobotics.com": [
         "Engineering User",
+        "Inventory Operator",
         "InductOne Process Architect",
         "Operations Manager",
-        "System Manager",
     ],
     "lam@plusonerobotics.com": ["InductOne External Builder"],
     "motion.builder@plusonerobotics.com": ["InductOne External Builder"],

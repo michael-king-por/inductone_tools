@@ -36,9 +36,9 @@ EXTERNAL_BUILDER_USERS = [
     ("lam", "lam@plusonerobotics.com"),
 ]
 
-FINANCE_REPORT_ROLE = "Finance Viewer"
-FINANCE_REPORT_USER = "matt.speer@plusonerobotics.com"
-FINANCE_REPORT_DEPENDENCY_DOCTYPES = [
+GLOBAL_REPORT_ROLE = "Global Viewer"
+GLOBAL_REPORT_USER = "matt.speer@plusonerobotics.com"
+GLOBAL_REPORT_DEPENDENCY_DOCTYPES = [
     "Batch",
     "Company",
     "Currency",
@@ -46,7 +46,7 @@ FINANCE_REPORT_DEPENDENCY_DOCTYPES = [
     "Serial and Batch Bundle",
     "Territory",
 ]
-FINANCE_BUSINESS_REPORTS = [
+GLOBAL_BUSINESS_REPORTS = [
     "Available Batch Report",
     "Available Serial No",
     "Balance Sheet",
@@ -78,7 +78,7 @@ FINANCE_BUSINESS_REPORTS = [
     "Warehouse Wise Stock Balance",
     "Warehouse wise Item Balance Age and Value",
 ]
-FINANCE_EXECUTION_REPORTS = [
+GLOBAL_EXECUTION_REPORTS = [
     "Stock Balance",
     "Stock Ledger",
 ]
@@ -364,7 +364,7 @@ def _execute_report_as_user(report_name: str, user: str) -> dict[str, Any]:
         frappe.set_user(previous_user)
 
 
-def run(site: str, sites_path: str, evidence_dir: str, finance_report_user: str) -> int:
+def run(site: str, sites_path: str, evidence_dir: str, global_report_user: str) -> int:
     global frappe, has_permission
     import frappe as frappe_module
     from frappe.permissions import has_permission as has_permission_function
@@ -417,7 +417,7 @@ def run(site: str, sites_path: str, evidence_dir: str, finance_report_user: str)
                 list_result=list_result,
             )
 
-    fixture_export_roles = ["Operations Viewer", "Finance Viewer"]
+    fixture_export_roles = ["Operations Viewer", "Global Viewer"]
     grants = _role_read_grants_for_doctype("Fixture Export Control", fixture_export_roles)
     passed = not grants
     _record(
@@ -425,9 +425,9 @@ def run(site: str, sites_path: str, evidence_dir: str, finance_report_user: str)
         "fixture_export_control_viewer_finance_denial",
         passed,
         (
-            "Operations Viewer and Finance Viewer have no read grant on Fixture Export Control."
+            "Operations Viewer and Global Viewer have no read grant on Fixture Export Control."
             if passed
-            else "Operations Viewer or Finance Viewer still has a read grant on Fixture Export Control."
+            else "Operations Viewer or Global Viewer still has a read grant on Fixture Export Control."
         ),
         doctype="Fixture Export Control",
         roles=fixture_export_roles,
@@ -435,69 +435,69 @@ def run(site: str, sites_path: str, evidence_dir: str, finance_report_user: str)
     )
 
     dependency_results = []
-    for doctype in FINANCE_REPORT_DEPENDENCY_DOCTYPES:
-        access_result = _read_access_as_user(doctype, finance_report_user)
+    for doctype in GLOBAL_REPORT_DEPENDENCY_DOCTYPES:
+        access_result = _read_access_as_user(doctype, global_report_user)
         dependency_results.append({"doctype": doctype, **access_result})
 
     missing_dependencies = [row for row in dependency_results if not row["doctype_exists"] or not row["has_read"]]
     _record(
         results,
-        "finance_viewer_report_dependency_read_access",
+        "global_viewer_report_dependency_read_access",
         not missing_dependencies,
         (
-            f"{FINANCE_REPORT_ROLE} can read all finance report dependency DocTypes as {finance_report_user}."
+            f"{GLOBAL_REPORT_ROLE} can read all finance report dependency DocTypes as {global_report_user}."
             if not missing_dependencies
-            else f"{FINANCE_REPORT_ROLE} is missing read access to one or more finance report dependency DocTypes."
+            else f"{GLOBAL_REPORT_ROLE} is missing read access to one or more finance report dependency DocTypes."
         ),
         dependencies=dependency_results,
         missing=missing_dependencies,
     )
 
-    finance_report_results = []
-    for report_name in FINANCE_BUSINESS_REPORTS:
+    global_report_results = []
+    for report_name in GLOBAL_BUSINESS_REPORTS:
         roles = _report_roles(report_name)
-        role_grant_present = FINANCE_REPORT_ROLE in roles
-        access_result = _report_access_as_user(report_name, finance_report_user)
+        role_grant_present = GLOBAL_REPORT_ROLE in roles
+        access_result = _report_access_as_user(report_name, global_report_user)
         passed = role_grant_present and access_result["permitted"]
-        finance_report_results.append(
+        global_report_results.append(
             {
                 "report": report_name,
                 "passed": passed,
-                "required_role": FINANCE_REPORT_ROLE,
+                "required_role": GLOBAL_REPORT_ROLE,
                 "report_roles": roles,
-                "finance_report_user": finance_report_user,
+                "global_report_user": global_report_user,
                 "access_result": access_result,
             }
         )
 
-    missing_finance_reports = [row for row in finance_report_results if not row["passed"]]
+    missing_global_reports = [row for row in global_report_results if not row["passed"]]
     _record(
         results,
-        "finance_viewer_business_report_access",
-        not missing_finance_reports,
+        "global_viewer_business_report_access",
+        not missing_global_reports,
         (
-            f"{FINANCE_REPORT_ROLE} can access all curated business/audit reports as {finance_report_user}."
-            if not missing_finance_reports
-            else f"{FINANCE_REPORT_ROLE} is missing access to one or more curated business/audit reports."
+            f"{GLOBAL_REPORT_ROLE} can access all curated business/audit reports as {global_report_user}."
+            if not missing_global_reports
+            else f"{GLOBAL_REPORT_ROLE} is missing access to one or more curated business/audit reports."
         ),
-        reports=finance_report_results,
-        missing=missing_finance_reports,
+        reports=global_report_results,
+        missing=missing_global_reports,
     )
 
     execution_results = []
-    for report_name in FINANCE_EXECUTION_REPORTS:
-        execution_result = _execute_report_as_user(report_name, finance_report_user)
+    for report_name in GLOBAL_EXECUTION_REPORTS:
+        execution_result = _execute_report_as_user(report_name, global_report_user)
         execution_results.append({"report": report_name, **execution_result})
 
     failed_executions = [row for row in execution_results if not row["executed"]]
     _record(
         results,
-        "finance_viewer_critical_stock_report_execution",
+        "global_viewer_critical_stock_report_execution",
         not failed_executions,
         (
-            f"{FINANCE_REPORT_ROLE} can execute Stock Balance and Stock Ledger as {finance_report_user}."
+            f"{GLOBAL_REPORT_ROLE} can execute Stock Balance and Stock Ledger as {global_report_user}."
             if not failed_executions
-            else f"{FINANCE_REPORT_ROLE} cannot execute one or more critical stock reports."
+            else f"{GLOBAL_REPORT_ROLE} cannot execute one or more critical stock reports."
         ),
         executions=execution_results,
         failed=failed_executions,
@@ -538,7 +538,7 @@ def run(site: str, sites_path: str, evidence_dir: str, finance_report_user: str)
     payload = {
         "site": site,
         "sites_path": sites_path,
-        "finance_report_user": finance_report_user,
+        "global_report_user": global_report_user,
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "summary": {
             "total": len(results),
@@ -566,14 +566,20 @@ def main() -> int:
         help="Directory for JSON evidence output. In production, pass the checklist's $EVIDENCE_DIR explicitly. Defaults to VALIDATION_EVIDENCE_DIR or ./deployment-evidence.",
     )
     parser.add_argument(
+        "--global-report-user",
+        default=os.environ.get("GLOBAL_REPORT_USER", GLOBAL_REPORT_USER),
+        help=f"Global Viewer user used to verify curated business/audit report access. Defaults to {GLOBAL_REPORT_USER}.",
+    )
+    parser.add_argument(
         "--finance-report-user",
-        default=os.environ.get("FINANCE_REPORT_USER", FINANCE_REPORT_USER),
-        help=f"Finance Viewer user used to verify curated business/audit report access. Defaults to {FINANCE_REPORT_USER}.",
+        default=None,
+        help="Deprecated alias for --global-report-user, retained so older checklist commands fail less sharply.",
     )
     args = parser.parse_args()
+    global_report_user = args.finance_report_user or args.global_report_user
 
     try:
-        return run(args.site, args.sites_path, args.evidence_dir, args.finance_report_user)
+        return run(args.site, args.sites_path, args.evidence_dir, global_report_user)
     finally:
         frappe.destroy()
 

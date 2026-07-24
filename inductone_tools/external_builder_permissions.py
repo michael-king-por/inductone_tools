@@ -25,7 +25,7 @@ RAW_ACCESS_ROLES = {
     "InductOne Process Architect",
     "Operations Manager",
     "Inventory Operator",
-    "Finance Viewer",
+    "Global Viewer",
     "Procurement User",
     "Manufacturing User",
     "Manufacturing Manager",

@@ -1,11 +1,9 @@
-"""Allow Finance Viewer to use read-only business audit reports.
+"""Retired legacy Finance Viewer stock-report access patch.
 
-Matt Speer's finance inventory workflow uses the standard ERPNext Stock
-Balance, Stock Ledger, and related ERPNext business/audit Script Reports. The
-Finance Viewer role already has read/report access to the underlying business
-DocTypes, but standard Report records also maintain their own role allow-list.
-Without this patch, Frappe blocks Finance Viewer users before the report can
-execute.
+Finance Viewer has been folded into Global Viewer. The active read/report
+coverage is now fixture-owned by the permanent role model. This patch remains
+registered only so old and restored sites migrate cleanly; it must not recreate
+Finance Viewer Custom DocPerms or Report-role rows.
 """
 
 from __future__ import annotations
@@ -67,14 +65,10 @@ FINANCE_BUSINESS_REPORTS = (
 
 
 def execute():
-    for doctype in FINANCE_REPORT_DEPENDENCY_DOCTYPES:
-        for role in READ_ONLY_ROLES:
-            ensure_read_only_docperm(doctype, role)
-
-    for report_name in FINANCE_BUSINESS_REPORTS:
-        ensure_finance_report_role(report_name)
-
-    frappe.clear_cache()
+    frappe.logger().info(
+        "Skipping finance stock report access patch because %s is retired into Global Viewer.",
+        FINANCE_REPORT_ROLE,
+    )
 
 
 def ensure_read_only_docperm(doctype: str, role: str) -> None:

@@ -29,7 +29,7 @@ HARDENED_ROLES = [
     "Gripper Manufacturer",
     "Procurement User",
     "Operations Viewer",
-    "Finance Viewer",
+    "Global Viewer",
     "Engineering User",
     "InductOne Manager",
     "InductOne Process Architect",

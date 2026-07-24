@@ -22,7 +22,7 @@ INTERNAL_ROLES = {
     "Operations Viewer",
     "Engineering User",
     "Procurement User",
-    "Finance Viewer",
+    "Global Viewer",
     "InductOne Manager",
     "InductOne Process Architect",
 }

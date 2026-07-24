@@ -11,21 +11,21 @@ Source evidence:
 
 | User | Target roles | Notes |
 |---|---|---|
-| `michael.king@plusonerobotics.com` | `InductOne Process Architect`, `InductOne Manager`, `Engineering User`, `Operations Manager` | System owner |
+| `michael.king@plusonerobotics.com` | `InductOne Process Architect`, `InductOne Manager`, `Engineering User`, `Operations Manager`, `Inventory Operator` | System owner |
 | `christina.gt@plusonerobotics.com` | `InductOne Manager`, `Engineering User`, `Operations Manager` |  |
 | `jim.haws@plusonerobotics.com` | `InductOne Manager`, `Operations Manager` |  |
 | `david.brain@plusonerobotics.com` | `InductOne Manager`, `Engineering User`, `Operations Manager` |  |
 | `shaun.edwards@plusonerobotics.com` | `Engineering User` |  |
-| `jason.minica@plusonerobotics.com` | `Engineering User` |  |
-| `wayne.kirk@plusonerobotics.com` | `Engineering User` |  |
-| `david.moreno@plusonerobotics.com` | `Engineering User` |  |
+| `jason.minica@plusonerobotics.com` | `Engineering User`, `Operations Viewer` | Retains broad read-only operational visibility; must not hold `Operations Manager`. |
+| `wayne.kirk@plusonerobotics.com` | `Engineering User`, `Operations Viewer` | Retains broad read-only operational visibility; must not hold `Operations Manager`. |
+| `david.moreno@plusonerobotics.com` | `Engineering User`, `Operations Viewer` | `Operations Manager` removed; retains read-only operational visibility. |
 | `motion.builder@plusonerobotics.com` | `InductOne External Builder` | Supplier-scoped to `Motion Controls` |
 | `lam@plusonerobotics.com` | `InductOne External Builder` | Supplier-scoped to `LAM` |
 | `ian.deliz@plusonerobotics.com` | `System Manager` | System owner decision: should be System Manager; clear `Super` Role Profile and assign deliberate system-admin access. |
-| `matt.speer@plusonerobotics.com` | `Finance Viewer` | System owner decision: finance. |
+| `matt.speer@plusonerobotics.com` | `Global Viewer` | System owner decision: broad read/report/export visibility without mutation/admin access. `System Manager` removed. `Finance Viewer` role is retired and folded into `Global Viewer`. |
 | `matthew.mcmillan@plusonerobotics.com` | `Procurement User` | System owner decision: procurement. |
-| `nathaniel.pantuso@plusonerobotics.com` | `Operations Manager`, `Gripper Manufacturer` | System owner decision: operations user and gripper workflows. |
-| `patty.gomez@plusonerobotics.com` | `Operations Manager` | System owner decision: operations manager. |
+| `nathaniel.pantuso@plusonerobotics.com` | `Operations Manager`, `Gripper Manufacturer`, `Inventory Operator` | System owner decision: operations user, gripper workflows, and stock movements. |
+| `patty.gomez@plusonerobotics.com` | `Operations Manager`, `Inventory Operator` | System owner decision: operations manager and stock movements. |
 
 ### Additional production users not listed above — system owner to complete before deployment approval
 
@@ -39,10 +39,10 @@ Candidate was queried for enabled users whose `role_profile_name` is one of `Sup
 |---|---|---|
 | `alyza.salinas@plusonerobotics.com` | `Super` | System owner decision: delete. Disable/delete user before or during deployment; verify no active user remains with `Super`. |
 | `ian.deliz@plusonerobotics.com` | `Super` | System owner decision: should be System Manager. Clear `Super` Role Profile; assign deliberate `System Manager` access instead. |
-| `matt.speer@plusonerobotics.com` | `Super` | System owner decision: finance. Clear `Super` Role Profile; assign `Finance Viewer`. |
+| `matt.speer@plusonerobotics.com` | `Super` | System owner decision: finance/audit read visibility. Clear `Super` Role Profile and any direct `System Manager`; assign `Global Viewer` only. `Finance Viewer` is retired. |
 | `matthew.mcmillan@plusonerobotics.com` | `Super` | System owner decision: procurement. Clear `Super` Role Profile; assign `Procurement User`. |
-| `nathaniel.pantuso@plusonerobotics.com` | `Super` | System owner decision: operations user and gripper workflows. Clear `Super` Role Profile; assign `Operations Manager` and `Gripper Manufacturer`. |
-| `patty.gomez@plusonerobotics.com` | `Super` | System owner decision: operations manager. Clear `Super` Role Profile; assign `Operations Manager`. |
+| `nathaniel.pantuso@plusonerobotics.com` | `Super` | System owner decision: operations user, inventory transactions, and gripper workflows. Clear `Super` Role Profile; assign `Operations Manager`, `Inventory Operator`, and `Gripper Manufacturer`. |
+| `patty.gomez@plusonerobotics.com` | `Super` | System owner decision: operations manager and inventory transactions. Clear `Super` Role Profile; assign `Operations Manager` and `Inventory Operator`. |
 | `quickbooks.integration@plusonerobotics.com` | `Super` | System owner decision: only used to sync QuickBooks but never completed; can remove. Disable/delete service account before or during deployment unless a current QuickBooks sync owner re-justifies it. Candidate test requirement if permissions are reduced instead of disabling: confirm the account has no InductOne roles, no `Super`, no `System Manager`, and can perform only the explicitly approved QuickBooks sync calls. |
 
 ## Section 3: Roles that must be absent post-deployment

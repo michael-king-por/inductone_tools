@@ -23,12 +23,21 @@ DEFAULT_EVIDENCE_DIR = os.environ.get(
 )
 
 CAPABILITIES = ["read", "write", "create", "submit", "cancel", "delete"]
-EXPECTED_LOSSES = {
-    ("motion.builder@plusonerobotics.com", "Item"),
-    ("motion.builder@plusonerobotics.com", "BOM"),
-    ("lam@plusonerobotics.com", "Item"),
-    ("lam@plusonerobotics.com", "BOM"),
+EXPECTED_EXTERNAL_BUILDER_RAW_DOCTYPES = {
+    "Item",
+    "BOM",
+    "BOM Export Package",
+    "Configured BOM Snapshot",
 }
+EXPECTED_EXTERNAL_BUILDER_USERS = {
+    "motion.builder@plusonerobotics.com",
+    "lam@plusonerobotics.com",
+}
+GLOBAL_VIEWER_FRAMEWORK_READ_CARVEOUT = {
+    "DocType",
+    "Custom DocPerm",
+}
+GLOBAL_VIEWER_USER = "matt.speer@plusonerobotics.com"
 
 EXPECTED_DISABLED_USERS = {
     "alyza.salinas@plusonerobotics.com",
@@ -113,8 +122,17 @@ def _collect(site: str, sites_path: str) -> dict[str, Any]:
         frappe.destroy()
 
 
-def _loss_is_expected(user: str, doctype: str) -> bool:
-    return (user, doctype) in EXPECTED_LOSSES
+def _loss_is_expected(user: str, doctype: str, capability: str) -> tuple[bool, str | None]:
+    if user in EXPECTED_EXTERNAL_BUILDER_USERS and doctype in EXPECTED_EXTERNAL_BUILDER_RAW_DOCTYPES:
+        return True, "external_builder_raw_record_isolation"
+
+    if user == GLOBAL_VIEWER_USER:
+        if capability != "read":
+            return True, "global_viewer_mutation_admin_reduction"
+        if doctype in GLOBAL_VIEWER_FRAMEWORK_READ_CARVEOUT:
+            return True, "global_viewer_framework_metadata_carveout"
+
+    return False, None
 
 
 def run(
@@ -153,8 +171,10 @@ def run(
                     "baseline_roles": baseline["roles_by_user"].get(user, []),
                     "candidate_roles": candidate["roles_by_user"].get(user, []),
                 }
-                if _loss_is_expected(user, doctype):
+                expected, reason = _loss_is_expected(user, doctype, capability)
+                if expected:
                     row["expected_loss"] = True
+                    row["expected_reason"] = reason
                     expected_losses.append(row)
                 else:
                     row["expected_loss"] = False
@@ -211,7 +231,7 @@ def run(
             print(f"  LOST {row['doctype']}:{row['capability']}")
         if len(rows) > 40:
             print(f"  ... {len(rows) - 40} more in evidence JSON")
-    return 0
+    return 0 if not losses_by_user and not missing_candidate_users else 1
 
 
 def main() -> int:

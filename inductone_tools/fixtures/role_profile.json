@@ -122,21 +122,6 @@
  {
   "docstatus": 0,
   "doctype": "Role Profile",
-  "modified": "2026-07-08 10:21:20.058286",
-  "name": "Finance Viewer",
-  "role_profile": "Finance Viewer",
-  "roles": [
-   {
-    "parent": "Finance Viewer",
-    "parentfield": "roles",
-    "parenttype": "Role Profile",
-    "role": "Finance Viewer"
-   }
-  ]
- },
- {
-  "docstatus": 0,
-  "doctype": "Role Profile",
   "modified": "2026-07-08 10:21:20.071853",
   "name": "Procurement User",
   "role_profile": "Procurement User",

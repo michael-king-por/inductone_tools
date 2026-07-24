@@ -13,6 +13,7 @@ own frappe.init/connect/destroy):
   - run_static_link_dependency_audit.py       (write-without-link-read gaps)
   - run_workspace_visibility_audit.py          (orphaned internal pages)
   - run_balloon_report_validation.py           (Electrical Balloon Callouts)
+  - run_role_expectation_tests.py              (model-of-record persona checks)
 
 The effective-permission regression diff needs a baseline + candidate and is run
 separately; this gate reports whether it was run, not its full contents.
@@ -69,6 +70,7 @@ def main() -> int:
         "--evidence-dir",
         default=os.environ.get("VALIDATION_EVIDENCE_DIR", "deployment-evidence"),
     )
+    parser.add_argument("--global-report-user", default=None)
     parser.add_argument("--finance-report-user", default=None)
     args = parser.parse_args()
 
@@ -82,8 +84,11 @@ def main() -> int:
         "--sites-path", args.sites_path,
         "--evidence-dir", args.evidence_dir,
     ]
-    if args.finance_report_user:
-        val_cmd += ["--finance-report-user", args.finance_report_user]
+    if args.global_report_user:
+        val_cmd += ["--global-report-user", args.global_report_user]
+    elif args.finance_report_user:
+        # Backward-compatible alias for older checklist snippets.
+        val_cmd += ["--global-report-user", args.finance_report_user]
     print("\n--- running run_production_post_deploy_validation.py ---")
     if subprocess.run(val_cmd, check=False).returncode != 0:
         failures.append("post_deploy_validation: one or more checks FAILED")
@@ -129,6 +134,10 @@ def main() -> int:
     if _run_audit("run_balloon_report_validation.py", args.site, args.sites_path, args.evidence_dir) != 0:
         failures.append("balloon_report_validation: report data/access check FAILED")
 
+    # 5) Locked permission model expectations.
+    if _run_audit("run_role_expectation_tests.py", args.site, args.sites_path, args.evidence_dir) != 0:
+        failures.append("role_expectation_tests: model-of-record persona checks FAILED")
+
     print("\n==================== PRE-DEPLOY PERMISSION GATE ====================")
     if failures:
         print("GATE: FAIL")
@@ -137,7 +146,7 @@ def main() -> int:
         print("Reminder: also run run_effective_permission_regression_diff.py against a")
         print("candidate synced to production roles before deploying.")
         return 1
-    print("GATE: PASS (post-deploy validation, link-dependency audit, workspace audit, balloon report validation)")
+    print("GATE: PASS (post-deploy validation, link-dependency audit, workspace audit, balloon report validation, role expectation tests)")
     print("Reminder: also run the effective-permission regression diff against a")
     print("production-synced candidate as the final 'nobody lost needed access' check.")
     return 0

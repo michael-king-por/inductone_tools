@@ -149,7 +149,7 @@ const personas = [
   },
   {
     label: "finance-viewer",
-    user: "candidate.finance.viewer@example.invalid",
+    user: "candidate.global.viewer@example.invalid",
     checks: [
       access("Sales Order read/no-create", "/app/sales-order", true, false),
       access("Purchase Invoice read/no-create", "/app/purchase-invoice", true, false),

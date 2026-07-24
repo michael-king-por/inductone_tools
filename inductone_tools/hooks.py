@@ -136,8 +136,8 @@ fixtures = [
                 "Inventory Operator",
                 "Gripper Manufacturer",
                 "Engineering User",
-                "Finance Viewer",
-                "Procurement User"
+                "Procurement User",
+                "Global Viewer"
             ]]
         ]
     },
@@ -153,7 +153,6 @@ fixtures = [
                 "Inventory Operator",
                 "Gripper Manufacturer",
                 "Engineering User",
-                "Finance Viewer",
                 "Procurement User"
             ]]
         ]
@@ -286,35 +285,7 @@ fixtures = [
     {
         "dt": "Custom DocPerm",
         "filters": [
-            ["parent", "in", [
-                "InductOne Build",
-                "BOM Export Package",
-                "POR Physical Location",
-                "BOM Export Package Item",
-                "Configured BOM Snapshot",
-                "Configured BOM Snapshot Item",
-                "InductOne Build Execution Log",
-                "InductOne Builder Tranche",
-                "InductOne Configuration Option",
-                "InductOne Options Catalog",
-                "InductOne Build Option Selection",
-                "InductOne Configuration Option Mapping",
-                "InductOne Build Completion",
-                "InductOne Build Completion Serial",
-                "InductOne As-Built Record",
-                "InductOne As-Built Serial",
-                "InductOne Instance",
-                "InductOne Field Change Request",
-                "InductOne Field Change",
-                "InductOne Configuration Order",
-                "InductOne Configuration Order Delta Line",
-                "InductOne Configuration Order Selected Option",
-                "InductOne Configuration Order Document Index",
-                "Engineering Signoff",
-                "Part Number Allocation Request",
-                "Part Number Assignment",
-                "Fixture Export Control"
-            ]]
+            ["name", "like", "perm_%"]
         ]
     },
     {

@@ -23,7 +23,7 @@ INTERNAL_ROLE_USERS = {
     "Operations Viewer": "candidate.operations.viewer@example.invalid",
     "Engineering User": "candidate.engineering.user@example.invalid",
     "Procurement User": "candidate.procurement.user@example.invalid",
-    "Finance Viewer": "candidate.finance.viewer@example.invalid",
+    "Global Viewer": "candidate.global.viewer@example.invalid",
     "InductOne Manager": "candidate.inductone.manager@example.invalid",
     "InductOne Process Architect": "candidate.inductone.process.architect@example.invalid",
 }

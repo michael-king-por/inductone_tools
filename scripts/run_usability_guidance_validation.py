@@ -157,7 +157,7 @@ def validate_repo_fixtures(repo_root: Path, results):
         ),
         "owner_w7_fco_intake": (
             "inductone-csa-owner-handbook",
-            "Field-side POR Field Change / Deviation intake is distinct from the in-ERPNext Deviation Request workflow.",
+            "Field-side POR Field Change / Deviation intake is distinct from formal pre-release build/configuration deviation control, which is handled procedurally rather than by a separate ERPNext workflow (there is no in-ERPNext Deviation Request DocType).",
         ),
         "deviation_w7_fco_intake": (
             "3hngf036ne",

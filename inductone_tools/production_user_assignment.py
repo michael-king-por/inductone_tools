@@ -19,10 +19,14 @@ USERS_TO_DISABLE = [
 
 TARGET_USER_ROLES = {
     "ian.deliz@plusonerobotics.com": ["System Manager"],
-    "matt.speer@plusonerobotics.com": ["Finance Viewer"],
+    "matt.speer@plusonerobotics.com": ["Global Viewer"],
     "matthew.mcmillan@plusonerobotics.com": ["Procurement User"],
-    "nathaniel.pantuso@plusonerobotics.com": ["Operations Manager", "Gripper Manufacturer"],
-    "patty.gomez@plusonerobotics.com": ["Operations Manager"],
+    "nathaniel.pantuso@plusonerobotics.com": [
+        "Operations Manager",
+        "Inventory Operator",
+        "Gripper Manufacturer",
+    ],
+    "patty.gomez@plusonerobotics.com": ["Operations Manager", "Inventory Operator"],
 }
 
 

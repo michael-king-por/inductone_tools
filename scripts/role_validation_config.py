@@ -8,11 +8,11 @@ access.
 
 TARGET_ROLE_ASSIGNMENTS = {
     "michael.king@plusonerobotics.com": [
-        "System Manager",
         "InductOne Process Architect",
         "InductOne Manager",
         "Engineering User",
         "Operations Manager",
+        "Inventory Operator",
     ],
     "christina.gt@plusonerobotics.com": [
         "InductOne Manager",
@@ -29,16 +29,23 @@ TARGET_ROLE_ASSIGNMENTS = {
         "Operations Manager",
     ],
     "shaun.edwards@plusonerobotics.com": ["Engineering User"],
-    "jason.minica@plusonerobotics.com": ["Engineering User"],
-    "wayne.kirk@plusonerobotics.com": ["Engineering User"],
-    "david.moreno@plusonerobotics.com": ["Engineering User"],
+    "jason.minica@plusonerobotics.com": ["Engineering User", "Operations Viewer"],
+    "wayne.kirk@plusonerobotics.com": ["Engineering User", "Operations Viewer"],
+    "david.moreno@plusonerobotics.com": ["Engineering User", "Operations Viewer"],
     "motion.builder@plusonerobotics.com": ["InductOne External Builder"],
     "lam@plusonerobotics.com": ["InductOne External Builder"],
     "candidate.operations.viewer@example.invalid": ["Operations Viewer"],
     "candidate.inventory.operator@example.invalid": ["Inventory Operator"],
     "candidate.gripper.manufacturer@example.invalid": ["Gripper Manufacturer"],
-    "candidate.finance.viewer@example.invalid": ["Finance Viewer"],
+    "candidate.global.viewer@example.invalid": ["Global Viewer"],
+    "matt.speer@plusonerobotics.com": ["Global Viewer"],
     "candidate.procurement.user@example.invalid": ["Procurement User"],
+    "nathaniel.pantuso@plusonerobotics.com": [
+        "Operations Manager",
+        "Inventory Operator",
+        "Gripper Manufacturer",
+    ],
+    "patty.gomez@plusonerobotics.com": ["Operations Manager", "Inventory Operator"],
 }
 
 LEGACY_ROLES_TO_REMOVE_IN_CANDIDATE = {
@@ -105,6 +112,8 @@ BROAD_PROFILE_ROLES_TO_REMOVE_IN_STRICT_CANDIDATE_TESTS = {
     "Website Manager",
     "Wiki Approver",
     "Workspace Manager",
+    "Operations Manager",
+    "Global Viewer",
 }
 
 # These framework roles are expected to remain for Desk users.
@@ -124,12 +133,13 @@ AUDIT_USERS = [
     "jason.minica@plusonerobotics.com",
     "wayne.kirk@plusonerobotics.com",
     "david.moreno@plusonerobotics.com",
+    "matt.speer@plusonerobotics.com",
     "motion.builder@plusonerobotics.com",
     "lam@plusonerobotics.com",
     "candidate.operations.viewer@example.invalid",
     "candidate.inventory.operator@example.invalid",
     "candidate.gripper.manufacturer@example.invalid",
-    "candidate.finance.viewer@example.invalid",
+    "candidate.global.viewer@example.invalid",
     "candidate.procurement.user@example.invalid",
 ]
 

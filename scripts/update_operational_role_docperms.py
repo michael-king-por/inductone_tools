@@ -10,6 +10,7 @@ state and is validated separately in the candidate sandbox.
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from pathlib import Path
@@ -35,6 +36,10 @@ PERM_FIELDS = [
     "select",
     "if_owner",
 ]
+
+RETIRED_ROLES = {
+    "Finance Viewer",
+}
 
 
 def slug(value: str) -> str:
@@ -67,6 +72,8 @@ def merge_bits(existing: dict, bits: dict) -> None:
 
 
 def add_perm(rows: dict, parent: str, role: str, permlevel: int = 0, **bits: int) -> None:
+    if role in RETIRED_ROLES:
+        return
     key = (parent, role, int(permlevel or 0))
     if key not in rows:
         rows[key] = base_row(parent, role, permlevel)
@@ -79,6 +86,24 @@ READ = {
     "export": 1,
     "print": 1,
     "select": 1,
+}
+
+GLOBAL_VIEWER = {
+    "read": 1,
+    "write": 0,
+    "create": 0,
+    "delete": 0,
+    "submit": 0,
+    "cancel": 0,
+    "amend": 0,
+    "report": 1,
+    "export": 1,
+    "import": 0,
+    "share": 0,
+    "print": 1,
+    "email": 0,
+    "select": 0,
+    "if_owner": 0,
 }
 
 MAINTAIN = {
@@ -125,8 +150,9 @@ LIMITED_WRITE = {
 }
 
 
-# Core business documents the Operations Viewer and Finance Viewer should be
-# able to inspect without mutation.
+# Core business documents the Operations Viewer should be able to inspect
+# without mutation. Finance/audit broad read visibility now lives in Global
+# Viewer, which is generated across all applicable DocTypes.
 BUSINESS_READ_DOCS = [
     "Item",
     "BOM",
@@ -310,8 +336,9 @@ LINK_READ_DEPENDENCIES_MANAGED = {
     # Operations Manager.
     "InductOne Manager": ["Item", "BOM", "Sales Order", "Supplier"],
     "InductOne Process Architect": ["Item", "BOM", "Sales Order", "Supplier"],
-    # Procurement maintains Price List, whose currency link needs Currency read.
-    "Procurement User": ["Currency"],
+    # Procurement maintains Price List and creates Purchase Orders; those
+    # workflows need Currency/Company link-read without broader ERP mutation.
+    "Procurement User": ["Currency", "Company"],
     # Inventory Operator's Delivery Note references a selling Price List.
     "Inventory Operator": ["Price List"],
 }
@@ -410,7 +437,6 @@ STOCK_ENTRY_TYPE_CURATED_READ_ROLES = [
     # Read-only viewer tier: they can read Stock Entry, so the stock_entry_type
     # label should resolve for them once this DocType is Custom-DocPerm-managed.
     "Operations Viewer",
-    "Finance Viewer",
 ]
 
 
@@ -448,6 +474,8 @@ def load_rows() -> dict[tuple[str, str, int], dict]:
     rows: dict[tuple[str, str, int], dict] = {}
     for row in current:
         row = dict(row)
+        if row.get("role") in RETIRED_ROLES:
+            continue
         permlevel = int(row.get("permlevel") or 0)
         row["permlevel"] = permlevel
         row["name"] = name_for(row["parent"], row["role"], permlevel)
@@ -461,10 +489,101 @@ def load_rows() -> dict[tuple[str, str, int], dict]:
     return rows
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--site",
+        help="Frappe site used when synchronizing live Custom DocPerm rows or adding Global Viewer to all DocTypes.",
+    )
+    parser.add_argument(
+        "--sites-path",
+        help="Frappe sites path used with --site.",
+    )
+    parser.add_argument(
+        "--sync-current-custom-docperms",
+        action="store_true",
+        help=(
+            "Read current candidate Custom DocPerm rows and add their keys to the "
+            "fixture with deterministic names. This closes DB-only permission-key "
+            "outliers without changing effective permissions."
+        ),
+    )
+    parser.add_argument(
+        "--global-viewer-all-doctypes",
+        action="store_true",
+        help=(
+            "Add Global Viewer read/report/export/print rows for every non-child "
+            "DocType. Previously unmanaged DocTypes are snapshot-managed first by "
+            "copying their standard DocPerm rows into deterministic Custom DocPerm "
+            "fixture rows, avoiding the Custom DocPerm replace-trap."
+        ),
+    )
+    return parser.parse_args()
+
+
+def require_frappe(args: argparse.Namespace):
+    if not args.site or not args.sites_path:
+        raise SystemExit("--site and --sites-path are required for this operation")
+
+    import frappe
+
+    frappe.init(site=args.site, sites_path=args.sites_path)
+    frappe.connect()
+    return frappe
+
+
+def add_current_custom_docperms(rows: dict[tuple[str, str, int], dict], frappe) -> None:
+    fields = ["parent", "role", "permlevel", *PERM_FIELDS]
+    for row in frappe.get_all("Custom DocPerm", fields=fields, order_by="parent asc, role asc, permlevel asc"):
+        if row.get("role") in RETIRED_ROLES:
+            continue
+        bits = {field: int(bool(row.get(field))) for field in PERM_FIELDS}
+        add_perm(rows, row["parent"], row["role"], int(row.get("permlevel") or 0), **bits)
+
+
+def non_child_doctypes(frappe) -> list[str]:
+    return frappe.get_all(
+        "DocType",
+        filters={"istable": 0},
+        pluck="name",
+        order_by="name asc",
+    )
+
+
+def standard_docperms_for(frappe, doctype: str) -> list[dict]:
+    return frappe.get_all(
+        "DocPerm",
+        filters={"parent": doctype},
+        fields=["role", "permlevel", *PERM_FIELDS],
+        order_by="role asc, permlevel asc",
+    )
+
+
+def add_global_viewer_all_doctypes(rows: dict[tuple[str, str, int], dict], frappe) -> None:
+    managed_parents = {parent for (parent, _role, _lvl) in rows}
+    for doctype in non_child_doctypes(frappe):
+        if doctype not in managed_parents:
+            for standard_row in standard_docperms_for(frappe, doctype):
+                role = standard_row.get("role")
+                if not role:
+                    continue
+                permlevel = int(standard_row.get("permlevel") or 0)
+                bits = {field: int(bool(standard_row.get(field))) for field in PERM_FIELDS}
+                add_perm(rows, doctype, role, permlevel=permlevel, **bits)
+        add_perm(rows, doctype, "Global Viewer", **GLOBAL_VIEWER)
+
+
 def main() -> None:
+    args = parse_args()
     rows = load_rows()
 
-    for role in ["Operations Viewer", "Finance Viewer"]:
+    frappe = None
+    if args.sync_current_custom_docperms or args.global_viewer_all_doctypes:
+        frappe = require_frappe(args)
+        if args.sync_current_custom_docperms:
+            add_current_custom_docperms(rows, frappe)
+
+    for role in ["Operations Viewer"]:
         for doctype in BUSINESS_READ_DOCS:
             add_perm(rows, doctype, role, **READ)
 
@@ -499,6 +618,10 @@ def main() -> None:
     for doctype in PROCUREMENT_WRITE_DOCS:
         add_perm(rows, doctype, "Procurement User", **LIMITED_WRITE)
     add_perm(rows, "Item Price", "Procurement User", create=1)
+    # Model of record: Procurement User can create/view Purchase Orders but
+    # does not own submission/accounting authority.
+    add_perm(rows, "Purchase Order", "Procurement User", **LIMITED_WRITE)
+    add_perm(rows, "Purchase Order", "Procurement User", create=1)
     for doctype in PROCUREMENT_READ_DOCS:
         add_perm(rows, doctype, "Procurement User", **READ)
     add_perm(rows, "Item", "Procurement User", permlevel=1, **READ)
@@ -541,9 +664,28 @@ def main() -> None:
     for role in OPTIONS_CATALOG_PRINT_ROLES:
         add_perm(rows, OPTIONS_CATALOG_DOCTYPE, role, **READ)
 
+    if args.global_viewer_all_doctypes:
+        add_global_viewer_all_doctypes(rows, frappe)
+
     # Fixture Export Control is deliberately restricted to System Manager and
     # InductOne Process Architect. Remove any stale broad-role rows that may
     # have been carried forward from earlier generated fixtures.
+    add_perm(rows, "Fixture Export Control", "System Manager", **SYSTEM_FULL)
+    add_perm(rows, "Fixture Export Control", "InductOne Process Architect", **SYSTEM_FULL)
+
+    # External builders must be able to create their returned Build Completion
+    # records/workbook uploads while remaining isolated from raw underlying ERP
+    # records. Earlier fixtures had read/write but no create, which made the
+    # portal visible while blocking the actual return workflow.
+    add_perm(
+        rows,
+        "InductOne Build Completion",
+        "InductOne External Builder",
+        read=1,
+        write=1,
+        create=1,
+    )
+
     # External builders should work only from their assigned Configuration
     # Orders and Build Completion records. They should not retain direct
     # workspace/list access to underlying Snapshot or BOM Export Package
@@ -554,19 +696,22 @@ def main() -> None:
 
     for role in [
         "Operations Viewer",
-        "Finance Viewer",
         "InductOne Manager",
         "Engineering User",
         "Operations Manager",
         "Inventory Operator",
         "Gripper Manufacturer",
         "Procurement User",
+        "Global Viewer",
     ]:
         rows.pop(("Fixture Export Control", role, 0), None)
 
     final_rows = sorted(rows.values(), key=lambda r: (r["parent"], r["role"], r["permlevel"]))
     FIXTURE.write_text(json.dumps(final_rows, indent=1) + "\n", encoding="utf-8")
     print(f"wrote {len(final_rows)} Custom DocPerm fixture rows")
+
+    if frappe:
+        frappe.destroy()
 
 
 if __name__ == "__main__":
